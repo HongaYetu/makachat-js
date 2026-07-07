@@ -1,9 +1,15 @@
 import { Anexo, Conversa, idMaiorOuIgual, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
-import React, { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useChamadasOpcional } from './chamadas';
-import { useEnviarMensagem, useFuncionalidadeAtiva, useMensagens, usePresenca, useTypingConversa, useVersaoChat } from './hooks';
+import {
+    useEnviarMensagem,
+    useFuncionalidadeAtiva,
+    useMensagens,
+    usePresenca,
+    useTypingConversa,
+    useVersaoChat,
+} from './hooks';
 import { useMakaChat } from './provider';
-import { v } from './tema';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
@@ -25,35 +31,45 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     }, [engine, arquivadas, versao]);
 
     return (
-        <div style={{ overflowY: 'auto', height: '100%', background: v.superficie }}>
-            {conversas.length === 0 && <div style={{ textAlign: 'center', color: v.textoSuave, marginTop: 48 }}>Sem conversas</div>}
-            {conversas.map((c) => (
-                <div
-                    key={c.id}
-                    onClick={() => onAbrirConversa(c)}
-                    style={{
-                        display: 'flex', gap: 12, padding: '11px 14px', cursor: 'pointer', alignItems: 'center',
-                        borderLeft: c.id === conversaAtivaId ? `3px solid ${'var(--maka-primaria)'}` : '3px solid transparent',
-                        background: c.id === conversaAtivaId ? v.fundo : 'transparent', transition: 'background .15s',
-                    }}
-                >
-                    <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, color: v.texto, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.titulo ?? 'Conversa'}</div>
-                        <div style={{ color: v.textoSuave, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {previewConversa(c)}
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <span style={{ fontSize: 11, color: v.textoSuave }}>{horaCurtaWeb(c.ultima_atividade_em)}</span>
-                        {(c.participante?.mensagens_nao_lidas ?? 0) > 0 && (
-                            <span style={{ background: v.primaria, color: v.primariaContraste, borderRadius: 999, fontSize: 11, fontWeight: 700, padding: '1px 7px' }}>
-                                {c.participante?.mensagens_nao_lidas}
-                            </span>
-                        )}
-                    </div>
+        <div className="maka-scroll h-full overflow-y-auto bg-[var(--maka-superficie)]">
+            {conversas.length === 0 && (
+                <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
+                    <span className="text-4xl opacity-40">💬</span>
+                    <span className="text-sm">Sem conversas</span>
                 </div>
-            ))}
+            )}
+            {conversas.map((c) => {
+                const ativa = c.id === conversaAtivaId;
+                const naoLidas = c.participante?.mensagens_nao_lidas ?? 0;
+
+                return (
+                    <button
+                        key={c.id}
+                        onClick={() => onAbrirConversa(c)}
+                        className={`flex w-full cursor-pointer items-center gap-3 border-0 px-4 py-3 text-left transition-colors ${
+                            ativa ? 'bg-[var(--maka-fundo)]' : 'bg-transparent hover:bg-[var(--maka-fundo)]'
+                        }`}
+                    >
+                        <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} />
+                        <span className="min-w-0 flex-1">
+                            <span className={`block truncate text-sm text-[var(--maka-texto)] ${naoLidas ? 'font-bold' : 'font-semibold'}`}>
+                                {c.titulo ?? 'Conversa'}
+                            </span>
+                            <span className={`block truncate text-[13px] ${naoLidas ? 'font-medium text-[var(--maka-texto)]' : 'text-[var(--maka-texto-suave)]'}`}>
+                                {previewConversa(c)}
+                            </span>
+                        </span>
+                        <span className="flex flex-col items-end gap-1">
+                            <span className="text-[11px] text-[var(--maka-texto-suave)]">{horaCurtaWeb(c.ultima_atividade_em)}</span>
+                            {naoLidas > 0 && (
+                                <span className="rounded-full bg-[var(--maka-primaria)] px-2 py-px text-[11px] font-bold text-[var(--maka-primaria-contraste)]">
+                                    {naoLidas}
+                                </span>
+                            )}
+                        </span>
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -73,7 +89,6 @@ function previewConversa(c: Conversa): string {
 
 export interface ConversaPainelProps {
     conversaId: string;
-    /** modo dock: paddings menores */
     compacto?: boolean;
     aoFechar?(): void;
 }
@@ -88,9 +103,11 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
 
     const podeAudio = useFuncionalidadeAtiva('chamadas.audio');
     const podeVideo = useFuncionalidadeAtiva('chamadas.video');
-    const podeMedia = useFuncionalidadeAtiva('media.ficheiro') || useFuncionalidadeAtiva('media.foto');
+    const podeFicheiro = useFuncionalidadeAtiva('media.ficheiro');
+    const podeFoto = useFuncionalidadeAtiva('media.foto');
     const podeReagir = useFuncionalidadeAtiva('reacoes');
     const podeEncaminhar = useFuncionalidadeAtiva('encaminhar');
+    const podeMedia = podeFicheiro || podeFoto;
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [contexto, setContexto] = useState<{ titulo: string; subtitulo?: string; linhas?: string[] } | null>(null);
@@ -162,31 +179,38 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: v.fundo, color: v.texto, minWidth: 0 }}>
+        <div className="flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
             {/* header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: compacto ? '8px 10px' : '10px 16px', background: v.superficie, boxShadow: '0 1px 3px rgba(0,0,0,.06)', zIndex: 1 }}>
-                <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 32 : 40} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: compacto ? 14 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conversa?.titulo ?? '…'}</div>
-                    <div style={{ fontSize: 12, color: presenca?.online ? '#16a34a' : v.textoSuave }}>
+            <div className={`z-[1] flex items-center gap-3 bg-[var(--maka-superficie)] shadow-sm ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
+                <span className="relative">
+                    <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 34 : 42} />
+                    {presenca?.online && (
+                        <span className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full border-2 border-[var(--maka-superficie)] bg-emerald-500" />
+                    )}
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className={`block truncate font-bold ${compacto ? 'text-[13px]' : 'text-[15px]'}`}>{conversa?.titulo ?? '…'}</span>
+                    <span className={`block text-xs ${typing ? 'italic text-[var(--maka-primaria)]' : presenca?.online ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
                         {typing ? 'a escrever…' : presenca?.online ? 'online' : ''}
-                    </div>
-                </div>
+                    </span>
+                </span>
                 {chamadas && podeAudio && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}>📞</BotaoIcone>}
                 {chamadas && podeVideo && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}>📹</BotaoIcone>}
                 {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}>✕</BotaoIcone>}
             </div>
 
             {contexto && (
-                <div style={{ background: v.superficie, borderBottom: `1px solid ${'var(--maka-fundo)'}`, padding: '7px 14px', fontSize: 13 }}>
-                    <strong>{contexto.titulo}</strong>
-                    {contexto.subtitulo && <span style={{ color: v.textoSuave }}> — {contexto.subtitulo}</span>}
-                    {contexto.linhas?.map((l, i) => <div key={i} style={{ color: v.textoSuave }}>{l}</div>)}
+                <div className="border-b border-[var(--maka-fundo)] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
+                    <span className="font-bold">{contexto.titulo}</span>
+                    {contexto.subtitulo && <span className="text-[var(--maka-texto-suave)]"> — {contexto.subtitulo}</span>}
+                    {contexto.linhas?.map((l, i) => (
+                        <div key={i} className="text-[var(--maka-texto-suave)]">{l}</div>
+                    ))}
                 </div>
             )}
 
             {/* mensagens */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: compacto ? 8 : 14, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div className={`maka-scroll flex flex-1 flex-col gap-1 overflow-y-auto ${compacto ? 'p-2.5' : 'p-4'}`}>
                 {mensagens.map((m) => (
                     <Bolha
                         key={m.id}
@@ -214,17 +238,15 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
 
             {/* barra de resposta/edição */}
             {(responderA || editar) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: v.superficie, borderTop: `2px solid ${'var(--maka-primaria)'}`, fontSize: 13 }}>
-                    <span style={{ color: v.primaria, fontWeight: 700 }}>{editar ? 'Editar' : 'Responder'}</span>
-                    <span style={{ color: v.textoSuave, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                        {(editar ?? responderA)?.conteudo ?? '📎 anexo'}
-                    </span>
+                <div className="flex items-center gap-2 border-t-2 border-[var(--maka-primaria)] bg-[var(--maka-superficie)] px-3 py-1.5 text-[13px]">
+                    <span className="font-bold text-[var(--maka-primaria)]">{editar ? 'Editar' : 'Responder'}</span>
+                    <span className="min-w-0 flex-1 truncate text-[var(--maka-texto-suave)]">{(editar ?? responderA)?.conteudo ?? '📎 anexo'}</span>
                     <BotaoIcone titulo="Cancelar" onClick={() => { setResponderA(null); setEditar(null); setTexto(''); }}>✕</BotaoIcone>
                 </div>
             )}
 
             {/* input */}
-            <div style={{ display: 'flex', gap: 8, padding: compacto ? 8 : 12, background: v.superficie, alignItems: 'center' }}>
+            <div className={`flex items-center gap-2 bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
                 {podeMedia && (
                     <>
                         <input ref={ficheiro} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void aoEscolherFicheiro(f); e.target.value = ''; }} />
@@ -232,7 +254,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                     </>
                 )}
                 <input
-                    style={{ flex: 1, borderRadius: 999, border: '1px solid rgba(100,116,139,.25)', padding: '10px 16px', fontSize: 14, outline: 'none', background: v.fundo, color: v.texto }}
+                    className="min-w-0 flex-1 rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
                     value={texto}
                     placeholder={editar ? 'Editar mensagem…' : 'Escreve uma mensagem…'}
                     onChange={(e) => {
@@ -249,7 +271,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                 />
                 <button
                     onClick={() => void aoEnviar()}
-                    style={{ width: 42, height: 42, borderRadius: '50%', border: 'none', background: v.primaria, color: v.primariaContraste, fontSize: 16, cursor: 'pointer' }}
+                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-base text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
                 >
                     ➤
                 </button>
@@ -300,7 +322,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
 
     if (m.tipo === 'sistema') {
         return (
-            <div style={{ alignSelf: 'center', background: 'rgba(100,116,139,.12)', color: v.textoSuave, fontSize: 12, padding: '4px 12px', borderRadius: 999, margin: '4px 0' }}>
+            <div className="my-1 self-center rounded-full bg-slate-500/10 px-3.5 py-1 text-xs text-[var(--maka-texto-suave)]">
                 {m.conteudo}
             </div>
         );
@@ -308,48 +330,61 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
 
     return (
         <div
-            style={{ display: 'flex', justifyContent: minha ? 'flex-end' : 'flex-start', position: 'relative' }}
+            className={`relative flex animate-maka-subir ${minha ? 'justify-end' : 'justify-start'}`}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => { setHover(false); setMenu(false); }}
         >
-            <div style={{
-                background: minha ? v.bolhaMinha : v.bolhaOutro, color: minha ? v.bolhaMinhaTexto : v.texto,
-                borderRadius: v.raio, padding: '7px 12px', maxWidth: '72%', display: 'flex', flexDirection: 'column', gap: 3,
-                boxShadow: '0 1px 2px rgba(0,0,0,.07)',
-            }}>
+            <div
+                className={`flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm ${
+                    minha
+                        ? 'rounded-br-md bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)]'
+                        : 'rounded-bl-md bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)]'
+                }`}
+            >
                 {grupo && !minha && (
-                    <div style={{ fontSize: 12, fontWeight: 700, color: v.primaria }}>
+                    <span className="text-xs font-bold text-[var(--maka-primaria)]">
                         {participantes.find((p) => p.identidade_id === m.remetente_identidade_id)?.nome ?? '…'}
-                    </div>
+                    </span>
                 )}
                 {respondida && (
-                    <div style={{ borderLeft: `3px solid ${minha ? v.bolhaMinhaTexto : 'var(--maka-primaria)'}`, opacity: .75, paddingLeft: 8, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span className={`truncate border-l-[3px] pl-2 text-xs opacity-75 ${minha ? 'border-[var(--maka-bolha-minha-texto)]' : 'border-[var(--maka-primaria)]'}`}>
                         {respondida.conteudo ?? '📎 anexo'}
-                    </div>
+                    </span>
                 )}
                 {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} />)}
-                {m.eliminada ? <em style={{ opacity: .6 }}>🚫 Mensagem eliminada</em> : m.conteudo && <span style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>{m.conteudo}</span>}
-                {m.reacoes.length > 0 && (
-                    <div style={{ fontSize: 13, background: 'rgba(0,0,0,.08)', alignSelf: 'flex-start', borderRadius: 999, padding: '1px 7px' }}>
-                        {m.reacoes.map((r) => r.emoji).join(' ')}
-                    </div>
+                {m.eliminada ? (
+                    <em className="opacity-60">🚫 Mensagem eliminada</em>
+                ) : (
+                    m.conteudo && <span className="whitespace-pre-wrap text-sm leading-relaxed">{m.conteudo}</span>
                 )}
-                <span style={{ fontSize: 10, opacity: .65, alignSelf: 'flex-end' }}>
-                    {m.encaminhada_de_id ? '↪ ' : ''}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)} {minha && <TicksWeb mensagem={m} outros={outros} />}
+                {m.reacoes.length > 0 && (
+                    <span className="self-start rounded-full bg-black/10 px-2 py-px text-[13px]">
+                        {m.reacoes.map((r) => r.emoji).join(' ')}
+                    </span>
+                )}
+                <span className="self-end text-[10px] opacity-60">
+                    {m.encaminhada_de_id ? '↪ ' : ''}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}{' '}
+                    {minha && <TicksWeb mensagem={m} outros={outros} />}
                 </span>
             </div>
 
             {hover && !m.eliminada && (
-                <div style={{ position: 'absolute', top: -30, [minha ? 'right' : 'left']: 8, display: 'flex', gap: 2, background: v.superficie, borderRadius: 999, boxShadow: '0 2px 10px rgba(0,0,0,.15)', padding: '3px 6px', zIndex: 2 } as CSSProperties}>
+                <div className={`absolute -top-8 z-[2] flex items-center gap-1 rounded-full bg-[var(--maka-superficie)] px-2 py-1 shadow-lg ring-1 ring-black/5 ${minha ? 'right-2' : 'left-2'}`}>
                     {acoes.reagir && EMOJIS.map((e) => (
-                        <span key={e} style={{ cursor: 'pointer', fontSize: 15 }} onClick={() => acoes.reagir?.(e)}>{e}</span>
+                        <button key={e} className="cursor-pointer border-0 bg-transparent p-0 text-[15px] transition-transform hover:scale-125" onClick={() => acoes.reagir?.(e)}>
+                            {e}
+                        </button>
                     ))}
-                    <span style={{ cursor: 'pointer', fontSize: 14, color: v.textoSuave }} title="Responder" onClick={acoes.responder}>↩</span>
+                    <button className="cursor-pointer border-0 bg-transparent p-0 text-sm text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
+                        ↩
+                    </button>
                     {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
-                        <span style={{ cursor: 'pointer', fontSize: 14, color: v.textoSuave }} onClick={() => setMenu(!menu)}>⋯</span>
+                        <button className="cursor-pointer border-0 bg-transparent p-0 text-sm text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" onClick={() => setMenu(!menu)}>
+                            ⋯
+                        </button>
                     )}
                     {menu && (
-                        <div style={{ position: 'absolute', top: 26, right: 0, background: v.superficie, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.18)', overflow: 'hidden', minWidth: 130 }}>
+                        <div className="absolute right-0 top-8 min-w-[140px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
                             {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}>↪ Encaminhar</ItemMenu>}
                             {acoes.editar && <ItemMenu onClick={acoes.editar}>✏️ Editar</ItemMenu>}
                             {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}>🗑 Eliminar</ItemMenu>}
@@ -363,24 +398,33 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
 
 function AnexoView({ anexo: a }: { anexo: Anexo }) {
     if (!a.url) return null;
-    if (a.tipo === 'foto') return <img src={a.url} style={{ maxWidth: 240, borderRadius: 10, cursor: 'pointer' }} alt="" onClick={() => window.open(a.url as string, '_blank')} />;
-    if (a.tipo === 'video') return <video src={a.url} controls style={{ maxWidth: 260, borderRadius: 10 }} />;
-    if (a.tipo === 'audio') return <audio src={a.url} controls style={{ maxWidth: 240 }} />;
+    if (a.tipo === 'foto')
+        return <img src={a.url} className="max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90" alt="" onClick={() => window.open(a.url as string, '_blank')} />;
+    if (a.tipo === 'video') return <video src={a.url} controls className="max-w-[260px] rounded-xl" />;
+    if (a.tipo === 'audio') return <audio src={a.url} controls className="max-w-[240px]" />;
 
-    return <a href={a.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>📎 Ficheiro{a.tamanho_bytes ? ` (${Math.round(a.tamanho_bytes / 1024)} KB)` : ''}</a>;
+    return (
+        <a href={a.url} target="_blank" rel="noreferrer" className="text-inherit underline-offset-2 hover:underline">
+            📎 Ficheiro{a.tamanho_bytes ? ` (${Math.round(a.tamanho_bytes / 1024)} KB)` : ''}
+        </a>
+    );
 }
 
 function ItemMenu({ onClick, children }: { onClick(): void; children: React.ReactNode }) {
     return (
-        <div onClick={onClick} style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: v.texto, whiteSpace: 'nowrap' }}>
+        <button onClick={onClick} className="block w-full cursor-pointer whitespace-nowrap border-0 bg-transparent px-4 py-2 text-left text-[13px] text-[var(--maka-texto)] hover:bg-[var(--maka-fundo)]">
             {children}
-        </div>
+        </button>
     );
 }
 
 function BotaoIcone({ onClick, titulo, children }: { onClick(): void; titulo: string; children: React.ReactNode }) {
     return (
-        <button title={titulo} onClick={onClick} style={{ border: 'none', background: 'transparent', fontSize: 17, cursor: 'pointer', color: v.textoSuave, padding: 6 }}>
+        <button
+            title={titulo}
+            onClick={onClick}
+            className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[17px] text-[var(--maka-texto-suave)] transition-colors hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"
+        >
             {children}
         </button>
     );
@@ -388,10 +432,13 @@ function BotaoIcone({ onClick, titulo, children }: { onClick(): void; titulo: st
 
 function EscolherConversa({ titulo, aoEscolher, aoFechar }: { titulo: string; aoEscolher(c: Conversa): void; aoFechar(): void }) {
     return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 10000, display: 'grid', placeItems: 'center' }} onClick={aoFechar}>
-            <div style={{ background: v.superficie, borderRadius: v.raio, width: 360, maxHeight: '70vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ padding: '12px 16px', fontWeight: 700, color: v.texto }}>{titulo}</div>
-                <div style={{ flex: 1, overflow: 'auto' }}>
+        <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
+            <div
+                className="flex max-h-[70vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="px-4 py-3 font-bold text-[var(--maka-texto)]">{titulo}</div>
+                <div className="maka-scroll flex-1 overflow-auto">
                     <MakaChatConversas onAbrirConversa={aoEscolher} />
                 </div>
             </div>
@@ -401,23 +448,33 @@ function EscolherConversa({ titulo, aoEscolher, aoFechar }: { titulo: string; ao
 
 function TicksWeb({ mensagem, outros }: { mensagem: Mensagem; outros: ParticipanteConversa[] }) {
     if (mensagem.estado_envio === 'a_enviar') return <span>🕓</span>;
-    if (mensagem.estado_envio === 'falhou') return <span style={{ color: '#dc2626' }}>!</span>;
+    if (mensagem.estado_envio === 'falhou') return <span className="font-bold text-red-500">!</span>;
 
     const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
     const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
 
-    return <span style={{ opacity: lida ? 1 : .65 }}>{entregue || lida ? '✓✓' : '✓'}</span>;
+    return <span className={lida ? 'opacity-100' : 'opacity-60'}>{entregue || lida ? '✓✓' : '✓'}</span>;
 }
 
 export function AvatarWeb({ nome, url, tamanho = 44 }: { nome: string; url?: string | null; tamanho?: number }) {
-    const base: CSSProperties = { width: tamanho, height: tamanho, borderRadius: '50%', flexShrink: 0 };
-
-    if (url) return <img src={url} style={{ ...base, objectFit: 'cover' }} alt={nome} />;
+    if (url) {
+        return (
+            <img
+                src={url}
+                alt={nome}
+                className="shrink-0 rounded-full object-cover ring-2 ring-black/5"
+                style={{ width: tamanho, height: tamanho }}
+            />
+        );
+    }
 
     return (
-        <div style={{ ...base, background: v.primaria, color: v.primariaContraste, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: tamanho * 0.42 }}>
+        <span
+            className="grid shrink-0 place-items-center rounded-full bg-[var(--maka-primaria)] font-bold text-[var(--maka-primaria-contraste)] ring-2 ring-black/5"
+            style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.42 }}
+        >
             {nome.trim().charAt(0).toUpperCase() || '?'}
-        </div>
+        </span>
     );
 }
 

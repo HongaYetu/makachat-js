@@ -1,8 +1,6 @@
 import { Conversa } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConversas, useVersaoChat } from './hooks';
-import { useMakaChat } from './provider';
-import { v } from './tema';
 import { AvatarWeb, ConversaPainel, MakaChatConversas } from './ui';
 
 // ---------------------------------------------------------------- BoxFull / BoxMin
@@ -10,7 +8,7 @@ import { AvatarWeb, ConversaPainel, MakaChatConversas } from './ui';
 /** Página inteira: ocupa o viewport todo e ignora o layout do site. */
 export function MakaChatBoxFull() {
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: v.fundo }}>
+        <div className="fixed inset-0 z-[9000] bg-[var(--maka-fundo)]">
             <DuasColunas />
         </div>
     );
@@ -19,7 +17,7 @@ export function MakaChatBoxFull() {
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
 export function MakaChatBoxMin() {
     return (
-        <div style={{ width: '100%', height: '100%', minHeight: 420, background: v.fundo, borderRadius: 12, overflow: 'hidden' }}>
+        <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/5">
             <DuasColunas />
         </div>
     );
@@ -27,7 +25,7 @@ export function MakaChatBoxMin() {
 
 function DuasColunas() {
     const [ativa, setAtiva] = useState<string | null>(null);
-    const [larguraEstreita, setEstreita] = useState(false);
+    const [estreita, setEstreita] = useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -41,23 +39,26 @@ function DuasColunas() {
         return () => obs.disconnect();
     }, []);
 
-    const mostrarLista = !larguraEstreita || !ativa;
-    const mostrarPainel = !larguraEstreita || !!ativa;
+    const mostrarLista = !estreita || !ativa;
+    const mostrarPainel = !estreita || !!ativa;
 
     return (
-        <div ref={ref} style={{ display: 'flex', height: '100%' }}>
+        <div ref={ref} className="flex h-full">
             {mostrarLista && (
-                <div style={{ width: larguraEstreita ? '100%' : 340, borderRight: '1px solid rgba(100,116,139,.15)', height: '100%' }}>
+                <div className={`h-full border-r border-slate-500/10 ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
                     <MakaChatConversas conversaAtivaId={ativa} onAbrirConversa={(c: Conversa) => setAtiva(c.id)} />
                 </div>
             )}
             {mostrarPainel && (
-                <div style={{ flex: 1, height: '100%', minWidth: 0 }}>
+                <div className="h-full min-w-0 flex-1">
                     {ativa ? (
-                        <ConversaPainel conversaId={ativa} aoFechar={larguraEstreita ? () => setAtiva(null) : undefined} />
+                        <ConversaPainel conversaId={ativa} aoFechar={estreita ? () => setAtiva(null) : undefined} />
                     ) : (
-                        <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: v.textoSuave }}>
-                            Escolhe uma conversa
+                        <div className="grid h-full place-items-center">
+                            <div className="flex flex-col items-center gap-3 text-[var(--maka-texto-suave)]">
+                                <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--maka-superficie)] text-3xl shadow-sm">💬</span>
+                                <span className="text-sm">Escolhe uma conversa para começar</span>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -100,7 +101,6 @@ interface BoxAberta {
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
 export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaChatDockProps) {
-    const { engine } = useMakaChat();
     const conversas = useConversas();
     const versao = useVersaoChat();
     const [boxes, setBoxes] = useState<BoxAberta[]>([]);
@@ -124,7 +124,6 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
         setBoxes((atuais) => atuais.filter((b) => b.conversaId !== conversaId));
     }, []);
 
-    // auto-abrir quando chega mensagem de conversa com não lidas e sem box
     useEffect(() => {
         if (!autoAbrir) return;
 
@@ -141,22 +140,30 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
     return (
         <DockCtx.Provider value={{ abrir, fechar }}>
             {children}
-            <div style={{ position: 'fixed', bottom: 0, right: 16, display: 'flex', alignItems: 'flex-end', gap: 10, zIndex: 9500 }}>
+            <div className="fixed bottom-0 right-4 z-[9500] flex items-end gap-3">
                 {boxes.map((box) => {
                     const conversa = conversas.find((c) => c.id === box.conversaId);
 
                     return (
-                        <div key={box.conversaId} style={{ width: 330, background: v.superficie, borderRadius: '14px 14px 0 0', boxShadow: '0 4px 24px rgba(0,0,0,.22)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: box.minimizada ? 44 : 460 }}>
-                            <div
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: v.primaria, color: v.primariaContraste, cursor: 'pointer' }}
+                        <div
+                            key={box.conversaId}
+                            className={`flex w-[336px] animate-maka-subir flex-col overflow-hidden rounded-t-2xl bg-[var(--maka-superficie)] shadow-2xl ring-1 ring-black/10 transition-[height] duration-200 ${box.minimizada ? 'h-12' : 'h-[480px]'}`}
+                        >
+                            <button
+                                className="flex w-full cursor-pointer items-center gap-2.5 border-0 bg-[var(--maka-primaria)] px-3 py-2 text-left text-[var(--maka-primaria-contraste)]"
                                 onClick={() => setBoxes((a) => a.map((b) => (b.conversaId === box.conversaId ? { ...b, minimizada: !b.minimizada } : b)))}
                             >
-                                <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={24} />
-                                <span style={{ flex: 1, fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conversa?.titulo ?? 'Conversa'}</span>
-                                <span style={{ cursor: 'pointer', padding: '0 4px' }} onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}>✕</span>
-                            </div>
+                                <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={26} />
+                                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{conversa?.titulo ?? 'Conversa'}</span>
+                                <span
+                                    className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/15"
+                                    onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}
+                                >
+                                    ✕
+                                </span>
+                            </button>
                             {!box.minimizada && (
-                                <div style={{ flex: 1, minHeight: 0 }}>
+                                <div className="min-h-0 flex-1">
                                     <ConversaPainel conversaId={box.conversaId} compacto />
                                 </div>
                             )}
@@ -164,22 +171,24 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
                     );
                 })}
 
-                <div style={{ position: 'relative', marginBottom: 16 }}>
+                <div className="relative mb-4">
                     {popover && (
-                        <div style={{ position: 'absolute', bottom: 66, right: 0, width: 320, maxHeight: 420, background: v.superficie, borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ padding: '10px 14px', fontWeight: 700, color: v.texto }}>Mensagens</div>
-                            <div style={{ flex: 1, overflow: 'auto' }}>
+                        <div className="absolute bottom-16 right-0 flex max-h-[420px] w-[320px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl ring-1 ring-black/10">
+                            <div className="px-4 py-3 text-[15px] font-bold text-[var(--maka-texto)]">Mensagens</div>
+                            <div className="maka-scroll flex-1 overflow-auto">
                                 <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
                             </div>
                         </div>
                     )}
                     <button
                         onClick={() => setPopover(!popover)}
-                        style={{ width: 54, height: 54, borderRadius: '50%', border: 'none', background: v.primaria, color: v.primariaContraste, fontSize: 22, cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,.25)', position: 'relative' }}
+                        className="relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-2xl text-[var(--maka-primaria-contraste)] shadow-xl transition-transform hover:scale-105 active:scale-95"
                     >
                         💬
                         {naoLidas > 0 && (
-                            <span style={{ position: 'absolute', top: -4, right: -4, background: '#dc2626', color: '#fff', borderRadius: 999, fontSize: 11, fontWeight: 700, padding: '1px 6px' }}>{naoLidas}</span>
+                            <span className="absolute -right-1 -top-1 animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
+                                {naoLidas}
+                            </span>
                         )}
                     </button>
                 </div>

@@ -19,13 +19,14 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js",
             "require": "./dist/index.cjs"
-        }
+        },
+        "./styles.css": "./dist/styles.css"
     },
     "files": [
         "dist"
     ],
     "scripts": {
-        "build": "tsup",
+        "build": "tsup && tailwindcss -c tailwind.config.js -i src/styles.css -o dist/styles.css --minify",
         "test": "echo 'sem testes próprios (lógica no core)'"
     },
     "dependencies": {
@@ -38,6 +39,7 @@
     "devDependencies": {
         "@types/react": "^18.3.0",
         "livekit-client": "^2.20.0",
+        "tailwindcss": "^3.4.19",
         "tsup": "^8.3.0",
         "typescript": "^5.7.0"
     }

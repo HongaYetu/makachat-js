@@ -122,10 +122,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         limpar();
     };
 
-    const B = (p: { onClick(): void; bg?: string; children: React.ReactNode }) => (
+    const B = (p: { onClick(): void; classe?: string; children: React.ReactNode }) => (
         <button
             onClick={p.onClick}
-            style={{ border: 'none', borderRadius: '50%', width: 52, height: 52, fontSize: 20, cursor: 'pointer', background: p.bg ?? '#334155', color: '#fff' }}
+            className={`grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 text-xl text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${p.classe ?? 'bg-slate-600/80 hover:bg-slate-500'}`}
         >
             {p.children}
         </button>
@@ -135,17 +135,17 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         <Ctx.Provider value={{ iniciar, ativa }}>
             {children}
             {ativa && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.94)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, color: '#fff' }}>
-                    <div style={{ fontSize: 20 }}>
+                <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-slate-900 via-slate-900/97 to-black text-white">
+                    <div className={`text-xl font-medium ${ativa.fase !== 'em_curso' ? 'animate-maka-pulsar' : ''}`}>
                         {ativa.fase === 'a_receber'
                             ? `${ativa.iniciador?.nome ?? 'Alguém'} — chamada de ${ativa.chamada.tipo === 'video' ? 'vídeo' : 'áudio'}`
                             : ativa.fase === 'a_ligar'
                               ? 'A chamar…'
                               : 'Em chamada'}
                     </div>
-                    <div ref={midia} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', maxWidth: '90%' }} />
-                    <div style={{ display: 'flex', gap: 14 }}>
-                        {ativa.fase === 'a_receber' && <B onClick={() => void atender()} bg="#22c55e">📞</B>}
+                    <div ref={midia} className="flex max-w-[90%] flex-wrap justify-center gap-3 [&_video]:rounded-2xl [&_video]:shadow-2xl" />
+                    <div className="flex gap-4">
+                        {ativa.fase === 'a_receber' && <B onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400">📞</B>}
                         {ativa.fase !== 'a_receber' && (
                             <>
                                 <B onClick={() => { const m = !mudo; setMudo(m); void room.current?.localParticipant.setMicrophoneEnabled(!m); }}>{mudo ? '🔇' : '🎤'}</B>
@@ -155,7 +155,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                                 <B onClick={() => { const e = !ecra; setEcra(e); void room.current?.localParticipant.setScreenShareEnabled(e); }}>{ecra ? '🖥️✓' : '🖥️'}</B>
                             </>
                         )}
-                        <B onClick={() => void desligar()} bg="#dc2626">✕</B>
+                        <B onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500">✕</B>
                     </div>
                 </div>
             )}
