@@ -8,6 +8,7 @@ export {
     useTypingConversa,
     usePresenca,
     useFuncionalidadeAtiva,
+    useLigacao,
 } from './hooks';
 export {
     MakaChatConversas,

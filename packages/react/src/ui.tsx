@@ -94,7 +94,7 @@ export interface ConversaPainelProps {
 }
 
 export function ConversaPainel({ conversaId, compacto = false, aoFechar }: ConversaPainelProps) {
-    const { engine, socket, identidade, api } = useMakaChat();
+    const { engine, socket, identidade, api, registarVisivel } = useMakaChat();
     const chamadas = useChamadasOpcional();
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 100);
@@ -119,6 +119,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
     const fim = useRef<HTMLDivElement>(null);
     const ficheiro = useRef<HTMLInputElement>(null);
     const ultimoTyping = useRef(0);
+
+    useEffect(() => registarVisivel(conversaId), [registarVisivel, conversaId]);
 
     useEffect(() => {
         void engine.storage.obterConversa(conversaId).then(setConversa);

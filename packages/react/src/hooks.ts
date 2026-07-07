@@ -3,6 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useMakaChat } from './provider';
 
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
+/** Estado da ligação socket (true = online). */
+export function useLigacao(): boolean {
+    return useMakaChat().ligado;
+}
+
 export function useVersaoChat(): number {
     const { engine } = useMakaChat();
     const [versao, setVersao] = useState(engine.versaoAtual);

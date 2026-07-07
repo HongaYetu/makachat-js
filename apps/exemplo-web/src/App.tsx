@@ -165,6 +165,8 @@ function Contactos({ perfil, modo, aoAbrirNoBox }: { perfil: Perfil; modo: Modo;
             } else {
                 aoAbrirNoBox(conversa.id);
             }
+        } catch (erro) {
+            window.alert(`Não foi possível abrir a conversa: ${(erro as Error).message}\n\nO makachat-server está a correr em ${'http://127.0.0.1:3900'}?`);
         } finally {
             setAAbrir(null);
         }

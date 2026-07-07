@@ -1,6 +1,7 @@
 import { Conversa } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConversas, useVersaoChat } from './hooks';
+import { useMakaChat } from './provider';
 import { AvatarWeb, ConversaPainel, MakaChatConversas } from './ui';
 
 // ---------------------------------------------------------------- BoxFull / BoxMin
@@ -29,6 +30,7 @@ export function MakaChatBoxMin({ conversaAbertaId }: BoxProps = {}) {
 }
 
 function DuasColunas({ conversaAbertaId }: BoxProps) {
+    const { ligado } = useMakaChat();
     const [ativa, setAtiva] = useState<string | null>(conversaAbertaId ?? null);
 
     useEffect(() => {
@@ -52,7 +54,13 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
     const mostrarPainel = !estreita || !!ativa;
 
     return (
-        <div ref={ref} className="flex h-full">
+        <div ref={ref} className="flex h-full flex-col">
+            {!ligado && (
+                <div className="bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-800">
+                    ⚠️ Sem ligação ao chat — a tentar reconectar…
+                </div>
+            )}
+            <div className="flex min-h-0 flex-1">
             {mostrarLista && (
                 <div className={`h-full border-r border-slate-500/10 ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
                     <MakaChatConversas conversaAtivaId={ativa} onAbrirConversa={(c: Conversa) => setAtiva(c.id)} />
@@ -72,6 +80,7 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
                     )}
                 </div>
             )}
+            </div>
         </div>
     );
 }
@@ -110,6 +119,7 @@ interface BoxAberta {
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
 export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaChatDockProps) {
+    const { estaVisivel } = useMakaChat();
     const conversas = useConversas();
     const versao = useVersaoChat();
     const [boxes, setBoxes] = useState<BoxAberta[]>([]);
@@ -136,7 +146,9 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
     useEffect(() => {
         if (!autoAbrir) return;
 
-        const comNaoLidas = conversas.find((c) => (c.participante?.mensagens_nao_lidas ?? 0) > 0);
+        const comNaoLidas = conversas.find(
+            (c) => (c.participante?.mensagens_nao_lidas ?? 0) > 0 && !estaVisivel(c.id),
+        );
 
         if (comNaoLidas && !boxes.some((b) => b.conversaId === comNaoLidas.id)) {
             abrir(comNaoLidas.id);

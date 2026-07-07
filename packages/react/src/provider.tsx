@@ -24,6 +24,11 @@ export interface MakaChatContexto {
     subscreverTyping(ouvinte: (typing: Typing) => void): () => void;
     subscreverPresenca(ouvinte: (presenca: Presenca) => void): () => void;
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
+    /** ligação socket ativa? (para barras de estado offline) */
+    ligado: boolean;
+    /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
+    registarVisivel(conversaId: string): () => void;
+    estaVisivel(conversaId: string): boolean;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -40,6 +45,8 @@ export interface MakaChatProviderProps {
 
 export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
+    const [ligado, setLigado] = useState(false);
+    const visiveis = useRef(new Map<string, number>());
     const ouvintesTyping = useRef(new Set<(typing: Typing) => void>());
     const ouvintesPresenca = useRef(new Set<(presenca: Presenca) => void>());
     const ouvintesChamadas = useRef(new Set<(evento: EventoChamada) => void>());
@@ -56,7 +63,11 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
 
                 return api.sessao();
             },
-            aoLigar: () => void engine.aoLigar(),
+            aoLigar: () => {
+                setLigado(true);
+                void engine.aoLigar();
+            },
+            aoDesligar: () => setLigado(false),
         });
 
         engine = new SyncEngine(adapter, api, socket, {
@@ -88,6 +99,21 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
 
                 return () => ouvintesChamadas.current.delete(ouvinte);
             },
+            ligado: false,
+            registarVisivel: (conversaId) => {
+                visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
+
+                return () => {
+                    const atual = (visiveis.current.get(conversaId) ?? 1) - 1;
+
+                    if (atual <= 0) {
+                        visiveis.current.delete(conversaId);
+                    } else {
+                        visiveis.current.set(conversaId, atual);
+                    }
+                };
+            },
+            estaVisivel: (conversaId) => (visiveis.current.get(conversaId) ?? 0) > 0,
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [serviceKey, identity.id, identity.tipo]);
@@ -103,7 +129,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     }, [valor]);
 
     return (
-        <Contexto.Provider value={{ ...valor, features }}>
+        <Contexto.Provider value={{ ...valor, features, ligado }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );
