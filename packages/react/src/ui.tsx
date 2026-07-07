@@ -126,9 +126,10 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
 
     useEffect(() => {
         setContexto(null);
+        void engine.carregarMensagens(conversaId).catch(() => undefined);
         void api.obterContexto(conversaId).then((r) => setContexto(r.contexto ?? null)).catch(() => undefined);
         void socket.entrarConversa(conversaId).catch(() => undefined);
-    }, [api, socket, conversaId]);
+    }, [engine, api, socket, conversaId]);
 
     useEffect(() => {
         if (mensagens.length) void engine.marcarLidas(conversaId);

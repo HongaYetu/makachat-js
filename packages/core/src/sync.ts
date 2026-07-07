@@ -103,6 +103,18 @@ export class SyncEngine {
         }
     }
 
+    /** Carrega histórico da conversa via REST para o storage (chamado ao abrir). */
+    async carregarMensagens(conversaId: string, antesDe?: string): Promise<number> {
+        const { mensagens } = await this.api.listarMensagens(conversaId, { antes_de: antesDe, limite: 50 });
+
+        if (mensagens.length) {
+            await this.storage.upsertMensagens(mensagens.map((m) => ({ ...m, estado_envio: 'enviada' as const })));
+            this.notificar();
+        }
+
+        return mensagens.length;
+    }
+
     // ---- envio offline-first ----
 
     async enviarMensagem(dados: DadosEnvioMensagem): Promise<Mensagem> {
