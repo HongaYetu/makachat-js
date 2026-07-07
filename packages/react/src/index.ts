@@ -16,6 +16,6 @@ export {
     type MakaChatConversasProps,
 } from './ui';
 export { ChamadasProvider, useChamadas, useChamadasOpcional } from './chamadas';
-export { MakaChatBoxFull, MakaChatBoxMin, MakaChatDock, useDock, type MakaChatDockProps } from './boxes';
+export { MakaChatBoxFull, MakaChatBoxMin, MakaChatDock, useDock, type MakaChatDockProps, type BoxProps } from './boxes';
 export { type MakaTema } from './tema';
 export { ConversaPainel, type ConversaPainelProps } from './ui';

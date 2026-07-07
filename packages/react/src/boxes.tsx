@@ -5,26 +5,35 @@ import { AvatarWeb, ConversaPainel, MakaChatConversas } from './ui';
 
 // ---------------------------------------------------------------- BoxFull / BoxMin
 
+export interface BoxProps {
+    /** abre esta conversa (ex.: vindo de um botão "Falar com a loja") */
+    conversaAbertaId?: string | null;
+}
+
 /** Página inteira: ocupa o viewport todo e ignora o layout do site. */
-export function MakaChatBoxFull() {
+export function MakaChatBoxFull({ conversaAbertaId }: BoxProps = {}) {
     return (
         <div className="fixed inset-0 z-[9000] bg-[var(--maka-fundo)]">
-            <DuasColunas />
+            <DuasColunas conversaAbertaId={conversaAbertaId} />
         </div>
     );
 }
 
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
-export function MakaChatBoxMin() {
+export function MakaChatBoxMin({ conversaAbertaId }: BoxProps = {}) {
     return (
         <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/5">
-            <DuasColunas />
+            <DuasColunas conversaAbertaId={conversaAbertaId} />
         </div>
     );
 }
 
-function DuasColunas() {
-    const [ativa, setAtiva] = useState<string | null>(null);
+function DuasColunas({ conversaAbertaId }: BoxProps) {
+    const [ativa, setAtiva] = useState<string | null>(conversaAbertaId ?? null);
+
+    useEffect(() => {
+        if (conversaAbertaId) setAtiva(conversaAbertaId);
+    }, [conversaAbertaId]);
     const [estreita, setEstreita] = useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
 
