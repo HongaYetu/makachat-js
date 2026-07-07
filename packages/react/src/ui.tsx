@@ -549,10 +549,53 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
 
     const mostrarBarra = hover || picker || menu;
 
+    const barra = mostrarBarra && !m.eliminada && (
+        <div className="relative flex shrink-0 items-center gap-0.5 self-center rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/5">
+            {podeReagir && (
+                <button
+                    className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"
+                    title="Reagir"
+                    onClick={() => { setPicker(!picker); setMenu(false); }}
+                >
+                    <Icon icon="mdi:emoticon-happy-outline" />
+                </button>
+            )}
+            <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
+                <Icon icon="mdi:reply" />
+            </button>
+            {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
+                <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]" title="Mais opções" onClick={() => { setMenu(!menu); setPicker(false); }}>
+                    <Icon icon="mdi:dots-horizontal" />
+                </button>
+            )}
+
+            {picker && (
+                <div className={`absolute -top-11 z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-xl ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
+                    {EMOJIS.map((e) => (
+                        <button
+                            key={e}
+                            className="cursor-pointer border-0 bg-transparent p-0 text-lg transition-transform hover:scale-125"
+                            onClick={() => { acoes.reagir?.(e); setPicker(false); setHover(false); }}
+                        >
+                            {e}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {menu && (
+                <div className={`absolute top-9 z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5 ${minha ? 'right-0' : 'left-0'}`}>
+                    {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="mdi:share" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
+                    {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="mdi:pencil-outline" className="inline align-[-2px]" /> Editar</ItemMenu>}
+                    {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div
             ref={registarRef}
-            className={`relative flex pt-1 ${grupos.length ? 'pb-3' : ''} ${minha ? 'justify-end' : 'justify-start'}`}
+            className={`relative flex items-stretch gap-1.5 pt-1 ${grupos.length ? 'pb-3' : ''} ${minha ? 'justify-end' : 'justify-start'}`}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => {
                 setHover(false);
@@ -560,6 +603,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 if (!picker) setMenu(false);
             }}
         >
+            {minha && barra}
             <div
                 className={`flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm transition-shadow ${
                     destacada ? 'ring-2 ring-[var(--maka-primaria)]' : ''
@@ -573,7 +617,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 {m.resposta_a_id && (
                     <button
                         onClick={() => aoClicarCitacao(m.resposta_a_id as string)}
-                        className={`cursor-pointer truncate rounded-md border-0 bg-black/10 px-2 py-1 text-left text-xs opacity-85 transition-opacity hover:opacity-100`}
+                        className={`cursor-pointer truncate rounded-md border-0 px-2 py-1 text-left text-xs text-inherit opacity-90 transition-opacity hover:opacity-100 ${minha ? 'bg-white/20' : 'bg-black/5'}`}
                     >
                         <Icon icon="mdi:reply" className="mr-1 inline align-[-2px]" />
                         {respondida ? (respondida.conteudo ?? '📎 anexo') : 'Ver mensagem original'}
@@ -606,49 +650,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </button>
             )}
 
-            {mostrarBarra && !m.eliminada && (
-                <div className={`absolute -top-8 z-[2] flex items-center gap-1 rounded-full bg-[var(--maka-superficie)] px-2 py-1 shadow-lg ring-1 ring-black/5 ${minha ? 'right-2' : 'left-2'}`}>
-                    {podeReagir && (
-                        <button
-                            className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]"
-                            title="Reagir"
-                            onClick={() => { setPicker(!picker); setMenu(false); }}
-                        >
-                            <Icon icon="mdi:emoticon-happy-outline" />
-                        </button>
-                    )}
-                    <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
-                        <Icon icon="mdi:reply" />
-                    </button>
-                    {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
-                        <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" onClick={() => { setMenu(!menu); setPicker(false); }}>
-                            <Icon icon="mdi:dots-horizontal" />
-                        </button>
-                    )}
-
-                    {/* picker persistente: abre por clique, fecha ao escolher */}
-                    {picker && (
-                        <div className={`absolute -top-11 flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-xl ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
-                            {EMOJIS.map((e) => (
-                                <button
-                                    key={e}
-                                    className="cursor-pointer border-0 bg-transparent p-0 text-lg transition-transform hover:scale-125"
-                                    onClick={() => { acoes.reagir?.(e); setPicker(false); setHover(false); }}
-                                >
-                                    {e}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                    {menu && (
-                        <div className="absolute right-0 top-8 min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
-                            {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="mdi:share" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
-                            {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="mdi:pencil-outline" className="inline align-[-2px]" /> Editar</ItemMenu>}
-                            {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
-                        </div>
-                    )}
-                </div>
-            )}
+            {!minha && barra}
         </div>
     );
 }
