@@ -1,8 +1,9 @@
 import { Icon } from '@iconify/react';
-import { Chamada, EventoChamada } from '@hongayetu/makachat-core';
+import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
 import { RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useMakaChat } from './provider';
+import { AvatarWeb } from './ui';
 
 interface EstadoChamada {
     chamada: Chamada;
@@ -29,23 +30,46 @@ export function useChamadas(): ChamadasApi {
     return ctx;
 }
 
-/** Monta dentro do MakaChatProvider; toca/atende em qualquer página. */
+/**
+ * Janela de chamada flutuante e arrastável (estilo Messenger): não bloqueia o
+ * site; expande para ecrã inteiro ou minimiza para uma pill com a duração.
+ */
 export function ChamadasProvider({ children }: { children: React.ReactNode }) {
-    const { api, subscreverChamadas } = useMakaChat();
+    const { api, engine, subscreverChamadas } = useMakaChat();
     const [ativa, setAtiva] = useState<EstadoChamada | null>(null);
-    const room = useRef<Room | null>(null);
-    const midia = useRef<HTMLDivElement>(null);
+    const [conversa, setConversa] = useState<Conversa | null>(null);
+    const [modo, setModo] = useState<'janela' | 'cheio' | 'pill'>('janela');
+    const [segundos, setSegundos] = useState(0);
     const [mudo, setMudo] = useState(false);
     const [camara, setCamara] = useState(false);
     const [ecra, setEcra] = useState(false);
+    const [pos, setPos] = useState({ x: 24, y: 24 });
+
+    const room = useRef<Room | null>(null);
+    const midia = useRef<HTMLDivElement>(null);
+    const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+    const arrasto = useRef<{ ativo: boolean; dx: number; dy: number }>({ ativo: false, dx: 0, dy: 0 });
 
     const limpar = useCallback(() => {
         void room.current?.disconnect();
         room.current = null;
+
+        if (timer.current) clearInterval(timer.current);
+        timer.current = null;
         setAtiva(null);
+        setConversa(null);
+        setModo('janela');
+        setSegundos(0);
         setMudo(false);
         setCamara(false);
         setEcra(false);
+    }, []);
+
+    const comecarTimer = useCallback(() => {
+        if (timer.current) return;
+
+        setSegundos(0);
+        timer.current = setInterval(() => setSegundos((s) => s + 1), 1000);
     }, []);
 
     const ligarSala = useCallback(async (token: string, wsUrl: string, video: boolean) => {
@@ -55,7 +79,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
             const el = track.attach();
 
-            if (track.kind === Track.Kind.Video) el.style.cssText = 'max-width:46%;border-radius:8px';
+            if (track.kind === Track.Kind.Video) el.className = 'maka-video-remoto';
             midia.current?.appendChild(el);
         });
         r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => track.detach().forEach((e) => e.remove()));
@@ -71,7 +95,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             if (local) {
                 const el = local.attach();
-                el.style.cssText = 'max-width:22%;border-radius:8px;opacity:.9';
+                el.className = 'maka-video-local';
                 midia.current?.appendChild(el);
             }
         }
@@ -82,13 +106,15 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             subscreverChamadas((evento: EventoChamada) => {
                 if (evento.evento === 'iniciada') {
                     setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
+                    void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
                 } else if (evento.evento === 'atendida') {
                     setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
+                    comecarTimer();
                 } else {
                     limpar();
                 }
             }),
-        [subscreverChamadas, limpar],
+        [subscreverChamadas, engine, limpar, comecarTimer],
     );
 
     const iniciar = useCallback(
@@ -96,10 +122,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             const r = await api.iniciarChamada(conversaId, tipo);
 
             setAtiva({ chamada: r.chamada, fase: 'a_ligar' });
+            void engine.storage.obterConversa(conversaId).then(setConversa);
 
             if (r.livekit_token && r.ws_url) await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
         },
-        [api, ligarSala],
+        [api, engine, ligarSala],
     );
 
     const atender = async () => {
@@ -108,6 +135,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         const r = await api.atenderChamada(ativa.chamada.id);
 
         setAtiva({ ...ativa, fase: 'em_curso', chamada: r.chamada });
+        comecarTimer();
 
         if (r.livekit_token && r.ws_url) await ligarSala(r.livekit_token, r.ws_url, ativa.chamada.tipo === 'video');
     };
@@ -123,10 +151,34 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         limpar();
     };
 
-    const B = (p: { onClick(): void; classe?: string; children: React.ReactNode }) => (
+    // arrastar pela barra de título (pointer events)
+    const aoPegar = (e: React.PointerEvent) => {
+        arrasto.current = { ativo: true, dx: e.clientX + pos.x, dy: e.clientY - pos.y };
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+    const aoMover = (e: React.PointerEvent) => {
+        if (!arrasto.current.ativo) return;
+
+        setPos({
+            x: Math.max(0, arrasto.current.dx - e.clientX),
+            y: Math.max(0, e.clientY - arrasto.current.dy),
+        });
+    };
+    const aoLargar = () => {
+        arrasto.current.ativo = false;
+    };
+
+    const titulo = ativa?.fase === 'a_receber' ? (ativa.iniciador?.nome ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
+    const foto = ativa?.fase === 'a_receber' ? (ativa.iniciador?.foto_url ?? null) : (conversa?.foto_url ?? null);
+    const duracao = `${String(Math.floor(segundos / 60)).padStart(2, '0')}:${String(segundos % 60).padStart(2, '0')}`;
+    const subtitulo =
+        ativa?.fase === 'em_curso' ? duracao : ativa?.fase === 'a_ligar' ? 'A chamar…' : `Chamada de ${ativa?.chamada.tipo === 'video' ? 'vídeo' : 'áudio'}`;
+
+    const B = (p: { onClick(): void; titulo: string; classe?: string; children: React.ReactNode }) => (
         <button
+            title={p.titulo}
             onClick={p.onClick}
-            className={`grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 text-xl text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${p.classe ?? 'bg-slate-600/80 hover:bg-slate-500'}`}
+            className={`grid h-11 w-11 cursor-pointer place-items-center rounded-full border-0 text-lg text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${p.classe ?? 'bg-white/15 hover:bg-white/25'}`}
         >
             {p.children}
         </button>
@@ -135,28 +187,90 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     return (
         <Ctx.Provider value={{ iniciar, ativa }}>
             {children}
-            {ativa && (
-                <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-slate-900 via-slate-900/97 to-black text-white">
-                    <div className={`text-xl font-medium ${ativa.fase !== 'em_curso' ? 'animate-maka-pulsar' : ''}`}>
-                        {ativa.fase === 'a_receber'
-                            ? `${ativa.iniciador?.nome ?? 'Alguém'} — chamada de ${ativa.chamada.tipo === 'video' ? 'vídeo' : 'áudio'}`
-                            : ativa.fase === 'a_ligar'
-                              ? 'A chamar…'
-                              : 'Em chamada'}
+            {/* estilos dos vídeos anexados imperativamente */}
+            <style>{`
+                .maka-video-remoto { width: 100%; max-height: 100%; object-fit: cover; border-radius: 12px; }
+                .maka-video-local { position: absolute; right: 10px; bottom: 10px; width: 28%; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 1; }
+            `}</style>
+
+            {ativa && modo === 'pill' && (
+                <button
+                    onClick={() => setModo('janela')}
+                    className="fixed bottom-6 left-6 z-[9999] flex animate-maka-subir cursor-pointer items-center gap-2.5 rounded-full border-0 bg-slate-900 py-2 pl-2 pr-4 text-white shadow-2xl"
+                >
+                    <AvatarWeb nome={titulo} url={foto} tamanho={30} />
+                    <span className="text-sm font-semibold">{ativa.fase === 'em_curso' ? duracao : subtitulo}</span>
+                    <Icon icon="mdi:arrow-expand" className="text-white/70" />
+                </button>
+            )}
+
+            {ativa && modo !== 'pill' && (
+                <div
+                    className={`z-[9999] flex flex-col overflow-hidden bg-slate-900 text-white shadow-2xl ring-1 ring-white/10 ${
+                        modo === 'cheio' ? 'fixed inset-0' : 'fixed w-[420px] max-w-[94vw] animate-maka-subir rounded-2xl'
+                    }`}
+                    style={modo === 'cheio' ? undefined : { right: pos.x, bottom: pos.y }}
+                >
+                    {/* barra de título (arrastável) */}
+                    <div
+                        className={`flex items-center gap-2.5 px-3 py-2.5 ${modo === 'janela' ? 'cursor-move touch-none select-none' : ''}`}
+                        onPointerDown={modo === 'janela' ? aoPegar : undefined}
+                        onPointerMove={modo === 'janela' ? aoMover : undefined}
+                        onPointerUp={modo === 'janela' ? aoLargar : undefined}
+                    >
+                        <AvatarWeb nome={titulo} url={foto} tamanho={30} />
+                        <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-bold">{titulo}</span>
+                            <span className="block text-xs text-white/60">{subtitulo}</span>
+                        </span>
+                        <button title={modo === 'cheio' ? 'Restaurar' : 'Ecrã inteiro'} onClick={() => setModo(modo === 'cheio' ? 'janela' : 'cheio')} className="grid h-8 w-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 hover:bg-white/10">
+                            <Icon icon={modo === 'cheio' ? 'mdi:arrow-collapse' : 'mdi:arrow-expand'} />
+                        </button>
+                        <button title="Minimizar" onClick={() => setModo('pill')} className="grid h-8 w-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 hover:bg-white/10">
+                            <Icon icon="mdi:minus" />
+                        </button>
                     </div>
-                    <div ref={midia} className="flex max-w-[90%] flex-wrap justify-center gap-3 [&_video]:rounded-2xl [&_video]:shadow-2xl" />
-                    <div className="flex gap-4">
-                        {ativa.fase === 'a_receber' && <B onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400"><Icon icon="mdi:phone" /></B>}
-                        {ativa.fase !== 'a_receber' && (
+
+                    {/* área de media */}
+                    <div className={`relative flex items-center justify-center bg-black/40 ${modo === 'cheio' ? 'flex-1' : 'h-[300px]'}`}>
+                        <div ref={midia} className="absolute inset-0 flex items-center justify-center gap-2 p-2" />
+                        {(ativa.chamada.tipo === 'audio' || ativa.fase !== 'em_curso') && (
+                            <div className={`z-[1] flex flex-col items-center gap-3 ${ativa.fase !== 'em_curso' ? 'animate-maka-pulsar' : ''}`}>
+                                <AvatarWeb nome={titulo} url={foto} tamanho={modo === 'cheio' ? 110 : 76} />
+                                <span className="text-sm text-white/70">{subtitulo}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* controlos */}
+                    <div className="flex items-center justify-center gap-3 px-4 py-3.5">
+                        {ativa.fase === 'a_receber' ? (
                             <>
-                                <B onClick={() => { const m = !mudo; setMudo(m); void room.current?.localParticipant.setMicrophoneEnabled(!m); }}><Icon icon={mudo ? 'mdi:microphone-off' : 'mdi:microphone'} /></B>
+                                <B titulo="Atender" onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400">
+                                    <Icon icon="mdi:phone" />
+                                </B>
+                                <B titulo="Rejeitar" onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500">
+                                    <Icon icon="mdi:phone-hangup" />
+                                </B>
+                            </>
+                        ) : (
+                            <>
+                                <B titulo={mudo ? 'Ativar micro' : 'Silenciar'} onClick={() => { const m = !mudo; setMudo(m); void room.current?.localParticipant.setMicrophoneEnabled(!m); }}>
+                                    <Icon icon={mudo ? 'mdi:microphone-off' : 'mdi:microphone'} />
+                                </B>
                                 {ativa.chamada.tipo === 'video' && (
-                                    <B onClick={() => { const c = !camara; setCamara(c); void room.current?.localParticipant.setCameraEnabled(c); }}><Icon icon={camara ? 'mdi:video' : 'mdi:video-off'} /></B>
+                                    <B titulo="Câmara" onClick={() => { const c = !camara; setCamara(c); void room.current?.localParticipant.setCameraEnabled(c); }}>
+                                        <Icon icon={camara ? 'mdi:video' : 'mdi:video-off'} />
+                                    </B>
                                 )}
-                                <B onClick={() => { const e = !ecra; setEcra(e); void room.current?.localParticipant.setScreenShareEnabled(e); }} classe={ecra ? 'bg-[var(--maka-primaria)]' : undefined}><Icon icon="mdi:monitor-share" /></B>
+                                <B titulo="Partilhar ecrã" onClick={() => { const e = !ecra; setEcra(e); void room.current?.localParticipant.setScreenShareEnabled(e); }} classe={ecra ? 'bg-[var(--maka-primaria)]' : undefined}>
+                                    <Icon icon="mdi:monitor-share" />
+                                </B>
+                                <B titulo="Desligar" onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500">
+                                    <Icon icon="mdi:phone-hangup" />
+                                </B>
                             </>
                         )}
-                        <B onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500"><Icon icon="mdi:phone-hangup" /></B>
                     </div>
                 </div>
             )}

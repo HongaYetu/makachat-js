@@ -1,4 +1,4 @@
-import { Conversa, DadosEnvioMensagem, Funcionalidade, Mensagem, Presenca, Typing } from '@hongayetu/makachat-core';
+import { Anexo, Conversa, DadosEnvioMensagem, Funcionalidade, Mensagem, Presenca, Typing } from '@hongayetu/makachat-core';
 import { useCallback, useEffect, useState } from 'react';
 import { useMakaChat } from './provider';
 
@@ -58,10 +58,13 @@ export function useMensagens(conversaId: string | null, limite = 50): Mensagem[]
     return mensagens;
 }
 
-export function useEnviarMensagem(): (dados: DadosEnvioMensagem) => Promise<Mensagem> {
+export function useEnviarMensagem(): (dados: DadosEnvioMensagem, anexosPreview?: Anexo[]) => Promise<Mensagem> {
     const { engine } = useMakaChat();
 
-    return useCallback((dados: DadosEnvioMensagem) => engine.enviarMensagem(dados), [engine]);
+    return useCallback(
+        (dados: DadosEnvioMensagem, anexosPreview?: Anexo[]) => engine.enviarMensagem(dados, anexosPreview),
+        [engine],
+    );
 }
 
 export function useTypingConversa(conversaId: string | null): Typing | null {

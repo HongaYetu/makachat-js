@@ -92,9 +92,11 @@ export interface ConversaPainelProps {
     conversaId: string;
     compacto?: boolean;
     aoFechar?(): void;
+    /** abrir outra conversa (ex.: "mensagem" a partir do modal de reações) */
+    aoAbrirOutraConversa?(conversaId: string): void;
 }
 
-export function ConversaPainel({ conversaId, compacto = false, aoFechar }: ConversaPainelProps) {
+export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrirOutraConversa }: ConversaPainelProps) {
     const { engine, socket, identidade, api, registarVisivel } = useMakaChat();
     const chamadas = useChamadasOpcional();
     const versao = useVersaoChat();
@@ -102,10 +104,11 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
     const typing = useTypingConversa(conversaId);
     const enviar = useEnviarMensagem();
 
-    const podeAudio = useFuncionalidadeAtiva('chamadas.audio');
-    const podeVideo = useFuncionalidadeAtiva('chamadas.video');
+    const podeAudioChamada = useFuncionalidadeAtiva('chamadas.audio');
+    const podeVideoChamada = useFuncionalidadeAtiva('chamadas.video');
     const podeFicheiro = useFuncionalidadeAtiva('media.ficheiro');
     const podeFoto = useFuncionalidadeAtiva('media.foto');
+    const podeAudioMedia = useFuncionalidadeAtiva('media.audio');
     const podeReagir = useFuncionalidadeAtiva('reacoes');
     const podeEncaminhar = useFuncionalidadeAtiva('encaminhar');
     const podeMedia = podeFicheiro || podeFoto;
@@ -116,10 +119,16 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
     const [responderA, setResponderA] = useState<Mensagem | null>(null);
     const [editar, setEditar] = useState<Mensagem | null>(null);
     const [encaminhar, setEncaminhar] = useState<Mensagem | null>(null);
+    const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
+    const [ficheiroPendente, setFicheiroPendente] = useState<File | null>(null);
     const [aEnviarMedia, setAEnviarMedia] = useState(false);
+    const [lightbox, setLightbox] = useState<string | null>(null);
+    const [destacada, setDestacada] = useState<string | null>(null);
+
     const fim = useRef<HTMLDivElement>(null);
     const ficheiro = useRef<HTMLInputElement>(null);
     const ultimoTyping = useRef(0);
+    const refsBolhas = useRef(new Map<string, HTMLDivElement>());
 
     useEffect(() => registarVisivel(conversaId), [registarVisivel, conversaId]);
 
@@ -168,7 +177,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
         void enviar({ conversa_id: conversaId, conteudo, resposta_a_id: resposta?.id });
     };
 
-    const aoEscolherFicheiro = async (f: File) => {
+    /** Upload + envio via engine: aparece já no chat com preview local. */
+    const enviarFicheiro = async (f: File, legenda?: string) => {
         setAEnviarMedia(true);
 
         try {
@@ -176,9 +186,46 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
             const criado = await api.criarMedia({ tipo, mime: f.type, nome_ficheiro: f.name });
             await api.carregarMedia(criado.upload, f, f.type);
             await api.confirmarMedia(criado.anexo_id);
-            await socket.enviarMensagem({ conversa_id: conversaId, ref_cliente: crypto.randomUUID(), tipo: tipo as never, anexo_ids: [criado.anexo_id] });
+
+            const preview: Anexo = {
+                id: criado.anexo_id,
+                tipo: tipo as Anexo['tipo'],
+                mime: f.type,
+                tamanho_bytes: f.size,
+                largura: null,
+                altura: null,
+                duracao_segundos: null,
+                blurhash: null,
+                estado: 'pronto',
+                url: URL.createObjectURL(f),
+            };
+
+            await enviar(
+                { conversa_id: conversaId, tipo: tipo as never, conteudo: legenda, anexo_ids: [criado.anexo_id] },
+                [preview],
+            );
         } finally {
             setAEnviarMedia(false);
+        }
+    };
+
+    /** Scroll até à mensagem citada, com destaque. */
+    const irParaMensagem = async (mensagemId: string) => {
+        for (let tentativa = 0; tentativa < 4; tentativa++) {
+            const el = refsBolhas.current.get(mensagemId);
+
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setDestacada(mensagemId);
+                setTimeout(() => setDestacada(null), 1600);
+
+                return;
+            }
+
+            const maisAntiga = mensagens[0];
+            const carregadas = await engine.carregarMensagens(conversaId, maisAntiga?.id).catch(() => 0);
+
+            if (!carregadas) return;
         }
     };
 
@@ -198,8 +245,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                         {typing ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
                 </span>
-                {chamadas && podeAudio && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
-                {chamadas && podeVideo && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="mdi:video-outline" /></BotaoIcone>}
+                {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
+                {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="mdi:video-outline" /></BotaoIcone>}
                 {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>}
             </div>
 
@@ -218,11 +265,20 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                 {mensagens.map((m) => (
                     <Bolha
                         key={m.id}
+                        registarRef={(el) => {
+                            if (el) refsBolhas.current.set(m.id, el);
+                            else refsBolhas.current.delete(m.id);
+                        }}
                         mensagem={m}
                         minha={m.remetente_identidade_id === eu?.identidade_id || m.estado_envio === 'a_enviar'}
                         grupo={conversa?.tipo === 'grupo'}
                         participantes={conversa?.participantes ?? []}
                         outros={outros}
+                        destacada={destacada === m.id}
+                        podeReagir={podeReagir}
+                        aoAbrirFoto={setLightbox}
+                        aoClicarCitacao={(id) => void irParaMensagem(id)}
+                        aoVerReacoes={() => setReacoesDe(m)}
                         acoes={{
                             reagir: podeReagir ? (emoji) => void socket.alternarReacao(m.id, emoji) : undefined,
                             responder: () => { setEditar(null); setResponderA(m); },
@@ -249,54 +305,100 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                 </div>
             )}
 
-            {/* input */}
-            <div className={`flex items-center gap-2 bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
-                {podeMedia && (
-                    <>
-                        <input ref={ficheiro} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void aoEscolherFicheiro(f); e.target.value = ''; }} />
-                        <BotaoIcone titulo="Anexar" onClick={() => ficheiro.current?.click()}>
-                            {aEnviarMedia ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:paperclip" />}
-                        </BotaoIcone>
-                    </>
-                )}
-                <input
-                    className="min-w-0 flex-1 rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
-                    value={texto}
-                    placeholder={editar ? 'Editar mensagem…' : 'Escreve uma mensagem…'}
-                    onChange={(e) => {
-                        setTexto(e.target.value);
+            {/* input com gravação de áudio */}
+            <BarraInput
+                compacto={compacto}
+                texto={texto}
+                setTexto={(valor) => {
+                    setTexto(valor);
 
-                        const agora = Date.now();
+                    const agora = Date.now();
 
-                        if (agora - ultimoTyping.current > 3000) {
-                            ultimoTyping.current = agora;
-                            socket.typing(conversaId, true);
-                        }
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && void aoEnviar()}
-                />
-                <button
-                    onClick={() => void aoEnviar()}
-                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-base text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
-                >
-                    <Icon icon="mdi:send" className="text-lg" />
-                </button>
-            </div>
+                    if (agora - ultimoTyping.current > 3000) {
+                        ultimoTyping.current = agora;
+                        socket.typing(conversaId, true);
+                    }
+                }}
+                placeholder={editar ? 'Editar mensagem…' : 'Escreve uma mensagem…'}
+                aoEnviar={() => void aoEnviar()}
+                podeMedia={podeMedia}
+                podeGravar={podeAudioMedia}
+                aEnviarMedia={aEnviarMedia}
+                aoAnexar={() => ficheiro.current?.click()}
+                aoGravarAudio={(blob) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }))}
+            />
+            <input
+                ref={ficheiro}
+                type="file"
+                hidden
+                onChange={(e) => {
+                    const f = e.target.files?.[0];
 
+                    if (f) {
+                        if (f.type.startsWith('image/')) setFicheiroPendente(f);
+                        else void enviarFicheiro(f);
+                    }
+
+                    e.target.value = '';
+                }}
+            />
+
+            {/* modais */}
             {encaminhar && (
-                <EscolherConversa
+                <EscolherConversas
                     titulo="Encaminhar para…"
                     aoFechar={() => setEncaminhar(null)}
-                    aoEscolher={(c) => {
-                        void socket.enviarMensagem({
-                            conversa_id: c.id,
-                            ref_cliente: crypto.randomUUID(),
-                            tipo: encaminhar.tipo as never,
-                            conteudo: encaminhar.conteudo ?? undefined,
-                            encaminhada_de_id: encaminhar.id,
-                        });
+                    aoConfirmar={(ids) => {
+                        for (const id of ids) {
+                            void socket.enviarMensagem({
+                                conversa_id: id,
+                                ref_cliente: crypto.randomUUID(),
+                                tipo: encaminhar.tipo as never,
+                                conteudo: encaminhar.conteudo ?? undefined,
+                                encaminhada_de_id: encaminhar.id,
+                            });
+                        }
+
                         setEncaminhar(null);
                     }}
+                />
+            )}
+            {ficheiroPendente && (
+                <PreviewFoto
+                    ficheiro={ficheiroPendente}
+                    aoFechar={() => setFicheiroPendente(null)}
+                    aoEnviar={(legenda) => {
+                        const f = ficheiroPendente;
+                        setFicheiroPendente(null);
+                        void enviarFicheiro(f, legenda || undefined);
+                    }}
+                />
+            )}
+            {lightbox && (
+                <div className="fixed inset-0 z-[10001] grid cursor-zoom-out place-items-center bg-black/85 backdrop-blur-sm" onClick={() => setLightbox(null)}>
+                    <img src={lightbox} className="max-h-[90vh] max-w-[92vw] rounded-xl shadow-2xl" alt="" />
+                    <button className="absolute right-5 top-5 grid h-10 w-10 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-xl text-white hover:bg-white/25">
+                        <Icon icon="mdi:close" />
+                    </button>
+                </div>
+            )}
+            {reacoesDe && conversa && (
+                <ModalReacoes
+                    mensagem={mensagens.find((m) => m.id === reacoesDe.id) ?? reacoesDe}
+                    conversa={conversa}
+                    euId={eu?.identidade_id ?? null}
+                    aoFechar={() => setReacoesDe(null)}
+                    aoRemoverMinha={(emoji) => void socket.alternarReacao(reacoesDe.id, emoji)}
+                    aoMensagem={
+                        conversa.tipo === 'grupo' && aoAbrirOutraConversa
+                            ? async (p) => {
+                                  const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
+                                  await engine.atualizarConversas();
+                                  setReacoesDe(null);
+                                  aoAbrirOutraConversa(nova.id);
+                              }
+                            : undefined
+                    }
                 />
             )}
         </div>
@@ -306,6 +408,113 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
 /** Compat: nome antigo. */
 export function MakaChatConversa({ conversaId }: { conversaId: string }) {
     return <ConversaPainel conversaId={conversaId} />;
+}
+
+// ---------------------------------------------------------------- barra de input (texto + gravação de áudio)
+
+function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio }: {
+    compacto: boolean; texto: string; setTexto(v: string): void; placeholder: string; aoEnviar(): void;
+    podeMedia: boolean; podeGravar: boolean; aEnviarMedia: boolean; aoAnexar(): void; aoGravarAudio(blob: Blob): void;
+}) {
+    const [aGravar, setAGravar] = useState(false);
+    const [segundos, setSegundos] = useState(0);
+    const gravador = useRef<MediaRecorder | null>(null);
+    const pedacos = useRef<Blob[]>([]);
+    const cancelado = useRef(false);
+    const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const pararTimer = () => {
+        if (timer.current) clearInterval(timer.current);
+        timer.current = null;
+    };
+
+    const comecarGravacao = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const rec = new MediaRecorder(
+                stream,
+                MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? { mimeType: 'audio/webm;codecs=opus' } : undefined,
+            );
+
+            pedacos.current = [];
+            cancelado.current = false;
+            rec.ondataavailable = (e) => e.data.size && pedacos.current.push(e.data);
+            rec.onstop = () => {
+                stream.getTracks().forEach((t) => t.stop());
+
+                if (!cancelado.current && pedacos.current.length) {
+                    aoGravarAudio(new Blob(pedacos.current, { type: rec.mimeType || 'audio/webm' }));
+                }
+            };
+            rec.start();
+            gravador.current = rec;
+            setSegundos(0);
+            setAGravar(true);
+            timer.current = setInterval(() => setSegundos((s) => s + 1), 1000);
+        } catch {
+            window.alert('Sem acesso ao microfone.');
+        }
+    };
+
+    const terminar = (cancelar: boolean) => {
+        cancelado.current = cancelar;
+        gravador.current?.stop();
+        gravador.current = null;
+        pararTimer();
+        setAGravar(false);
+    };
+
+    if (aGravar) {
+        return (
+            <div className={`flex items-center gap-3 bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
+                <span className="h-3 w-3 animate-maka-pulsar rounded-full bg-red-500" />
+                <span className="font-mono text-sm text-[var(--maka-texto)]">
+                    {String(Math.floor(segundos / 60)).padStart(2, '0')}:{String(segundos % 60).padStart(2, '0')}
+                </span>
+                <span className="flex-1 text-xs text-[var(--maka-texto-suave)]">a gravar…</span>
+                <BotaoIcone titulo="Cancelar" onClick={() => terminar(true)}><Icon icon="mdi:delete-outline" className="text-red-500" /></BotaoIcone>
+                <button
+                    onClick={() => terminar(false)}
+                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105"
+                >
+                    <Icon icon="mdi:send" className="text-lg" />
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`flex items-center gap-2 bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
+            {podeMedia && (
+                <BotaoIcone titulo="Anexar" onClick={aoAnexar}>
+                    {aEnviarMedia ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:paperclip" />}
+                </BotaoIcone>
+            )}
+            <input
+                className="min-w-0 flex-1 rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                value={texto}
+                placeholder={placeholder}
+                onChange={(e) => setTexto(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && aoEnviar()}
+            />
+            {texto.trim() === '' && podeGravar ? (
+                <button
+                    onClick={() => void comecarGravacao()}
+                    title="Gravar áudio"
+                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
+                >
+                    <Icon icon="mdi:microphone" className="text-lg" />
+                </button>
+            ) : (
+                <button
+                    onClick={aoEnviar}
+                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
+                >
+                    <Icon icon="mdi:send" className="text-lg" />
+                </button>
+            )}
+        </div>
+    );
 }
 
 // ---------------------------------------------------------------- bolha
@@ -318,55 +527,63 @@ interface AcoesBolha {
     encaminhar?: () => void;
 }
 
-function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas }: {
+function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir }: {
     mensagem: Mensagem; minha: boolean; grupo?: boolean;
     participantes: ParticipanteConversa[]; outros: ParticipanteConversa[]; acoes: AcoesBolha; todas: Mensagem[];
+    destacada: boolean; registarRef(el: HTMLDivElement | null): void;
+    aoAbrirFoto(url: string): void; aoClicarCitacao(id: string): void; aoVerReacoes(): void; podeReagir: boolean;
 }) {
     const [hover, setHover] = useState(false);
+    const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
     const respondida = m.resposta_a_id ? todas.find((x) => x.id === m.resposta_a_id) : null;
+    const grupos = agruparReacoes(m.reacoes);
 
     if (m.tipo === 'sistema') {
         return (
-            <div className="my-1 self-center rounded-full bg-slate-500/10 px-3.5 py-1 text-xs text-[var(--maka-texto-suave)]">
+            <div ref={registarRef} className="my-1 self-center rounded-full bg-slate-500/10 px-3.5 py-1 text-xs text-[var(--maka-texto-suave)]">
                 {m.conteudo}
             </div>
         );
     }
 
+    const mostrarBarra = hover || picker || menu;
+
     return (
         <div
-            className={`relative flex animate-maka-subir ${minha ? 'justify-end' : 'justify-start'}`}
+            ref={registarRef}
+            className={`relative flex pt-1 ${grupos.length ? 'pb-3' : ''} ${minha ? 'justify-end' : 'justify-start'}`}
             onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => { setHover(false); setMenu(false); }}
+            onMouseLeave={() => {
+                setHover(false);
+
+                if (!picker) setMenu(false);
+            }}
         >
             <div
-                className={`flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm ${
-                    minha
-                        ? 'rounded-br-md bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)]'
-                        : 'rounded-bl-md bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)]'
-                }`}
+                className={`flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm transition-shadow ${
+                    destacada ? 'ring-2 ring-[var(--maka-primaria)]' : ''
+                } ${minha ? 'rounded-br-md bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)]' : 'rounded-bl-md bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)]'}`}
             >
                 {grupo && !minha && (
                     <span className="text-xs font-bold text-[var(--maka-primaria)]">
                         {participantes.find((p) => p.identidade_id === m.remetente_identidade_id)?.nome ?? '…'}
                     </span>
                 )}
-                {respondida && (
-                    <span className={`truncate border-l-[3px] pl-2 text-xs opacity-75 ${minha ? 'border-[var(--maka-bolha-minha-texto)]' : 'border-[var(--maka-primaria)]'}`}>
-                        {respondida.conteudo ?? '📎 anexo'}
-                    </span>
+                {m.resposta_a_id && (
+                    <button
+                        onClick={() => aoClicarCitacao(m.resposta_a_id as string)}
+                        className={`cursor-pointer truncate rounded-md border-0 bg-black/10 px-2 py-1 text-left text-xs opacity-85 transition-opacity hover:opacity-100`}
+                    >
+                        <Icon icon="mdi:reply" className="mr-1 inline align-[-2px]" />
+                        {respondida ? (respondida.conteudo ?? '📎 anexo') : 'Ver mensagem original'}
+                    </button>
                 )}
-                {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} />)}
+                {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} aoAbrirFoto={aoAbrirFoto} />)}
                 {m.eliminada ? (
                     <em className="flex items-center gap-1 opacity-60"><Icon icon="mdi:cancel" /> Mensagem eliminada</em>
                 ) : (
                     m.conteudo && <span className="whitespace-pre-wrap text-sm leading-relaxed">{m.conteudo}</span>
-                )}
-                {m.reacoes.length > 0 && (
-                    <span className="self-start rounded-full bg-black/10 px-2 py-px text-[13px]">
-                        {m.reacoes.map((r) => r.emoji).join(' ')}
-                    </span>
                 )}
                 <span className="flex items-center gap-1 self-end text-[10px] opacity-60">
                     {m.encaminhada_de_id && <Icon icon="mdi:share" />}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}
@@ -374,23 +591,57 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
                 </span>
             </div>
 
-            {hover && !m.eliminada && (
-                <div className={`absolute -top-8 z-[2] flex items-center gap-1 rounded-full bg-[var(--maka-superficie)] px-2 py-1 shadow-lg ring-1 ring-black/5 ${minha ? 'right-2' : 'left-2'}`}>
-                    {acoes.reagir && EMOJIS.map((e) => (
-                        <button key={e} className="cursor-pointer border-0 bg-transparent p-0 text-[15px] transition-transform hover:scale-125" onClick={() => acoes.reagir?.(e)}>
-                            {e}
-                        </button>
+            {/* chips de reações agrupadas — clicar abre a lista de quem reagiu */}
+            {grupos.length > 0 && (
+                <button
+                    onClick={aoVerReacoes}
+                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/5 transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-3'}`}
+                >
+                    {grupos.map((g) => (
+                        <span key={g.emoji}>
+                            {g.emoji}
+                            {g.contagem > 1 && <span className="ml-0.5 text-[10px] font-bold text-[var(--maka-texto-suave)]">{g.contagem}</span>}
+                        </span>
                     ))}
+                </button>
+            )}
+
+            {mostrarBarra && !m.eliminada && (
+                <div className={`absolute -top-8 z-[2] flex items-center gap-1 rounded-full bg-[var(--maka-superficie)] px-2 py-1 shadow-lg ring-1 ring-black/5 ${minha ? 'right-2' : 'left-2'}`}>
+                    {podeReagir && (
+                        <button
+                            className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]"
+                            title="Reagir"
+                            onClick={() => { setPicker(!picker); setMenu(false); }}
+                        >
+                            <Icon icon="mdi:emoticon-happy-outline" />
+                        </button>
+                    )}
                     <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
                         <Icon icon="mdi:reply" />
                     </button>
                     {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
-                        <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" onClick={() => setMenu(!menu)}>
+                        <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" onClick={() => { setMenu(!menu); setPicker(false); }}>
                             <Icon icon="mdi:dots-horizontal" />
                         </button>
                     )}
+
+                    {/* picker persistente: abre por clique, fecha ao escolher */}
+                    {picker && (
+                        <div className={`absolute -top-11 flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-xl ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
+                            {EMOJIS.map((e) => (
+                                <button
+                                    key={e}
+                                    className="cursor-pointer border-0 bg-transparent p-0 text-lg transition-transform hover:scale-125"
+                                    onClick={() => { acoes.reagir?.(e); setPicker(false); setHover(false); }}
+                                >
+                                    {e}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     {menu && (
-                        <div className="absolute right-0 top-8 min-w-[140px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                        <div className="absolute right-0 top-8 min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
                             {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="mdi:share" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
                             {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="mdi:pencil-outline" className="inline align-[-2px]" /> Editar</ItemMenu>}
                             {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
@@ -402,10 +653,111 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
     );
 }
 
-function AnexoView({ anexo: a }: { anexo: Anexo }) {
+function agruparReacoes(reacoes: { identidade_id: string; emoji: string }[]) {
+    const mapa = new Map<string, number>();
+
+    for (const r of reacoes) {
+        mapa.set(r.emoji, (mapa.get(r.emoji) ?? 0) + 1);
+    }
+
+    return [...mapa.entries()].map(([emoji, contagem]) => ({ emoji, contagem }));
+}
+
+// ---------------------------------------------------------------- modal de reações
+
+function ModalReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMensagem }: {
+    mensagem: Mensagem; conversa: Conversa; euId: string | null;
+    aoFechar(): void; aoRemoverMinha(emoji: string): void; aoMensagem?(p: ParticipanteConversa): void | Promise<void>;
+}) {
+    return (
+        <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
+            <div className="w-[340px] animate-maka-subir overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">Reações</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                </div>
+                <div className="maka-scroll max-h-[50vh] overflow-auto pb-2">
+                    {mensagem.reacoes.length === 0 && (
+                        <div className="px-4 pb-4 text-sm text-[var(--maka-texto-suave)]">Sem reações.</div>
+                    )}
+                    {mensagem.reacoes.map((r) => {
+                        const p = conversa.participantes.find((x) => x.identidade_id === r.identidade_id);
+                        const souEu = r.identidade_id === euId;
+
+                        return (
+                            <div key={r.identidade_id} className="flex items-center gap-3 px-4 py-2">
+                                <AvatarWeb nome={p?.nome ?? '?'} url={p?.foto_url} tamanho={36} />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">
+                                        {souEu ? 'Tu' : (p?.nome ?? 'Utilizador')}
+                                    </span>
+                                    {souEu && (
+                                        <button
+                                            onClick={() => { aoRemoverMinha(r.emoji); aoFechar(); }}
+                                            className="cursor-pointer border-0 bg-transparent p-0 text-xs text-[var(--maka-texto-suave)] hover:text-red-500"
+                                        >
+                                            Toca para remover
+                                        </button>
+                                    )}
+                                </span>
+                                {!souEu && aoMensagem && p && (
+                                    <BotaoIcone titulo={`Mensagem a ${p.nome}`} onClick={() => void aoMensagem(p)}>
+                                        <Icon icon="mdi:chat-outline" />
+                                    </BotaoIcone>
+                                )}
+                                <span className="text-xl">{r.emoji}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------- preview de foto antes de enviar
+
+function PreviewFoto({ ficheiro, aoFechar, aoEnviar }: { ficheiro: File; aoFechar(): void; aoEnviar(legenda: string): void }) {
+    const [legenda, setLegenda] = useState('');
+    const url = useMemo(() => URL.createObjectURL(ficheiro), [ficheiro]);
+
+    useEffect(() => () => URL.revokeObjectURL(url), [url]);
+
+    return (
+        <div className="fixed inset-0 z-[10001] grid place-items-center bg-slate-900/70 backdrop-blur-sm" onClick={aoFechar}>
+            <div className="flex w-[420px] max-w-[92vw] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">Enviar foto</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                </div>
+                <img src={url} className="max-h-[52vh] w-full bg-black object-contain" alt="" />
+                <div className="flex items-center gap-2 p-3">
+                    <input
+                        autoFocus
+                        className="min-w-0 flex-1 rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                        placeholder="Legenda (opcional)"
+                        value={legenda}
+                        onChange={(e) => setLegenda(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && aoEnviar(legenda)}
+                    />
+                    <button
+                        onClick={() => aoEnviar(legenda)}
+                        className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105"
+                    >
+                        <Icon icon="mdi:send" className="text-lg" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------- anexos / escolher conversas / helpers
+
+function AnexoView({ anexo: a, aoAbrirFoto }: { anexo: Anexo; aoAbrirFoto(url: string): void }) {
     if (!a.url) return null;
     if (a.tipo === 'foto')
-        return <img src={a.url} className="max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90" alt="" onClick={() => window.open(a.url as string, '_blank')} />;
+        return <img src={a.url} className="max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90" alt="" onClick={() => aoAbrirFoto(a.url as string)} />;
     if (a.tipo === 'video') return <video src={a.url} controls className="max-w-[260px] rounded-xl" />;
     if (a.tipo === 'audio') return <audio src={a.url} controls className="max-w-[240px]" />;
 
@@ -436,16 +788,59 @@ function BotaoIcone({ onClick, titulo, children }: { onClick(): void; titulo: st
     );
 }
 
-function EscolherConversa({ titulo, aoEscolher, aoFechar }: { titulo: string; aoEscolher(c: Conversa): void; aoFechar(): void }) {
+/** Multi-select de conversas — encaminhar para várias pessoas de uma vez. */
+function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; aoConfirmar(ids: string[]): void; aoFechar(): void }) {
+    const { engine } = useMakaChat();
+    const versao = useVersaoChat();
+    const [conversas, setConversas] = useState<Conversa[]>([]);
+    const [escolhidas, setEscolhidas] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        void engine.storage.listarConversas(false).then(setConversas);
+    }, [engine, versao]);
+
+    const alternar = (id: string) => {
+        setEscolhidas((atual) => {
+            const novo = new Set(atual);
+
+            if (novo.has(id)) novo.delete(id);
+            else novo.add(id);
+
+            return novo;
+        });
+    };
+
     return (
         <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
-            <div
-                className="flex max-h-[70vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="px-4 py-3 font-bold text-[var(--maka-texto)]">{titulo}</div>
+            <div className="flex max-h-[70vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">{titulo}</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                </div>
                 <div className="maka-scroll flex-1 overflow-auto">
-                    <MakaChatConversas onAbrirConversa={aoEscolher} />
+                    {conversas.map((c) => (
+                        <button
+                            key={c.id}
+                            onClick={() => alternar(c.id)}
+                            className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]"
+                        >
+                            <Icon
+                                icon={escolhidas.has(c.id) ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'}
+                                className={`text-xl ${escolhidas.has(c.id) ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`}
+                            />
+                            <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} tamanho={34} />
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{c.titulo ?? 'Conversa'}</span>
+                        </button>
+                    ))}
+                </div>
+                <div className="p-3">
+                    <button
+                        disabled={escolhidas.size === 0}
+                        onClick={() => aoConfirmar([...escolhidas])}
+                        className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-md transition-opacity disabled:cursor-default disabled:opacity-40"
+                    >
+                        Enviar{escolhidas.size > 0 ? ` (${escolhidas.size})` : ''}
+                    </button>
                 </div>
             </div>
         </div>

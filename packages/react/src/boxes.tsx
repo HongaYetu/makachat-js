@@ -70,7 +70,11 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
             {mostrarPainel && (
                 <div className="h-full min-w-0 flex-1">
                     {ativa ? (
-                        <ConversaPainel conversaId={ativa} aoFechar={estreita ? () => setAtiva(null) : undefined} />
+                        <ConversaPainel
+                            conversaId={ativa}
+                            aoFechar={estreita ? () => setAtiva(null) : undefined}
+                            aoAbrirOutraConversa={setAtiva}
+                        />
                     ) : (
                         <div className="grid h-full place-items-center">
                             <div className="flex flex-col items-center gap-3 text-[var(--maka-texto-suave)]">
@@ -189,7 +193,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                             </button>
                             {!box.minimizada && (
                                 <div className="min-h-0 flex-1">
-                                    <ConversaPainel conversaId={box.conversaId} compacto />
+                                    <ConversaPainel conversaId={box.conversaId} compacto aoAbrirOutraConversa={abrir} />
                                 </div>
                             )}
                         </div>

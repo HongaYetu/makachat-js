@@ -3,6 +3,7 @@ import { EVENTOS_SERVIDOR } from './eventos';
 import { MakaSocket } from './socket';
 import { StorageAdapter } from './storage';
 import {
+    Anexo,
     Conversa,
     DadosEnvioMensagem,
     EventoChamada,
@@ -117,7 +118,7 @@ export class SyncEngine {
 
     // ---- envio offline-first ----
 
-    async enviarMensagem(dados: DadosEnvioMensagem): Promise<Mensagem> {
+    async enviarMensagem(dados: DadosEnvioMensagem, anexosPreview: Anexo[] = []): Promise<Mensagem> {
         const refCliente = uuid();
         const agora = new Date().toISOString();
 
@@ -134,7 +135,7 @@ export class SyncEngine {
             editada_em: null,
             eliminada: false,
             reacoes: [],
-            anexos: [],
+            anexos: anexosPreview,
             criada_em: agora,
             estado_envio: 'a_enviar',
         };
