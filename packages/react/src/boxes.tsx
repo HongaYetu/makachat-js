@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { Conversa } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConversas, useVersaoChat } from './hooks';
@@ -73,7 +74,7 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
                     ) : (
                         <div className="grid h-full place-items-center">
                             <div className="flex flex-col items-center gap-3 text-[var(--maka-texto-suave)]">
-                                <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--maka-superficie)] text-3xl shadow-sm">💬</span>
+                                <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--maka-superficie)] text-3xl shadow-sm"><Icon icon="mdi:chat-outline" className="text-[var(--maka-primaria)]" /></span>
                                 <span className="text-sm">Escolhe uma conversa para começar</span>
                             </div>
                         </div>
@@ -180,7 +181,7 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
                                     className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/15"
                                     onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}
                                 >
-                                    ✕
+                                    <Icon icon="mdi:close" className="text-sm" />
                                 </span>
                             </button>
                             {!box.minimizada && (
@@ -205,7 +206,7 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
                         onClick={() => setPopover(!popover)}
                         className="relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-2xl text-[var(--maka-primaria-contraste)] shadow-xl transition-transform hover:scale-105 active:scale-95"
                     >
-                        💬
+                        <Icon icon="mdi:message-text" />
                         {naoLidas > 0 && (
                             <span className="absolute -right-1 -top-1 animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
                                 {naoLidas}

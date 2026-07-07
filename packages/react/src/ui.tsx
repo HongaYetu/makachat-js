@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { Anexo, Conversa, idMaiorOuIgual, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useChamadasOpcional } from './chamadas';
@@ -34,7 +35,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
         <div className="maka-scroll h-full overflow-y-auto bg-[var(--maka-superficie)]">
             {conversas.length === 0 && (
                 <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
-                    <span className="text-4xl opacity-40">💬</span>
+                    <Icon icon="mdi:chat-outline" className="text-4xl opacity-40" />
                     <span className="text-sm">Sem conversas</span>
                 </div>
             )}
@@ -197,9 +198,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                         {typing ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
                 </span>
-                {chamadas && podeAudio && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}>📞</BotaoIcone>}
-                {chamadas && podeVideo && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}>📹</BotaoIcone>}
-                {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}>✕</BotaoIcone>}
+                {chamadas && podeAudio && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
+                {chamadas && podeVideo && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="mdi:video-outline" /></BotaoIcone>}
+                {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>}
             </div>
 
             {contexto && (
@@ -244,7 +245,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                 <div className="flex items-center gap-2 border-t-2 border-[var(--maka-primaria)] bg-[var(--maka-superficie)] px-3 py-1.5 text-[13px]">
                     <span className="font-bold text-[var(--maka-primaria)]">{editar ? 'Editar' : 'Responder'}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--maka-texto-suave)]">{(editar ?? responderA)?.conteudo ?? '📎 anexo'}</span>
-                    <BotaoIcone titulo="Cancelar" onClick={() => { setResponderA(null); setEditar(null); setTexto(''); }}>✕</BotaoIcone>
+                    <BotaoIcone titulo="Cancelar" onClick={() => { setResponderA(null); setEditar(null); setTexto(''); }}><Icon icon="mdi:close" /></BotaoIcone>
                 </div>
             )}
 
@@ -253,7 +254,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                 {podeMedia && (
                     <>
                         <input ref={ficheiro} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void aoEscolherFicheiro(f); e.target.value = ''; }} />
-                        <BotaoIcone titulo="Anexar" onClick={() => ficheiro.current?.click()}>{aEnviarMedia ? '⏳' : '📎'}</BotaoIcone>
+                        <BotaoIcone titulo="Anexar" onClick={() => ficheiro.current?.click()}>
+                            {aEnviarMedia ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:paperclip" />}
+                        </BotaoIcone>
                     </>
                 )}
                 <input
@@ -276,7 +279,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar }: Conve
                     onClick={() => void aoEnviar()}
                     className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-base text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
                 >
-                    ➤
+                    <Icon icon="mdi:send" className="text-lg" />
                 </button>
             </div>
 
@@ -356,7 +359,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
                 )}
                 {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} />)}
                 {m.eliminada ? (
-                    <em className="opacity-60">🚫 Mensagem eliminada</em>
+                    <em className="flex items-center gap-1 opacity-60"><Icon icon="mdi:cancel" /> Mensagem eliminada</em>
                 ) : (
                     m.conteudo && <span className="whitespace-pre-wrap text-sm leading-relaxed">{m.conteudo}</span>
                 )}
@@ -365,8 +368,8 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
                         {m.reacoes.map((r) => r.emoji).join(' ')}
                     </span>
                 )}
-                <span className="self-end text-[10px] opacity-60">
-                    {m.encaminhada_de_id ? '↪ ' : ''}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}{' '}
+                <span className="flex items-center gap-1 self-end text-[10px] opacity-60">
+                    {m.encaminhada_de_id && <Icon icon="mdi:share" />}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}
                     {minha && <TicksWeb mensagem={m} outros={outros} />}
                 </span>
             </div>
@@ -378,19 +381,19 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas 
                             {e}
                         </button>
                     ))}
-                    <button className="cursor-pointer border-0 bg-transparent p-0 text-sm text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
-                        ↩
+                    <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
+                        <Icon icon="mdi:reply" />
                     </button>
                     {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
-                        <button className="cursor-pointer border-0 bg-transparent p-0 text-sm text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" onClick={() => setMenu(!menu)}>
-                            ⋯
+                        <button className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:text-[var(--maka-texto)]" onClick={() => setMenu(!menu)}>
+                            <Icon icon="mdi:dots-horizontal" />
                         </button>
                     )}
                     {menu && (
                         <div className="absolute right-0 top-8 min-w-[140px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
-                            {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}>↪ Encaminhar</ItemMenu>}
-                            {acoes.editar && <ItemMenu onClick={acoes.editar}>✏️ Editar</ItemMenu>}
-                            {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}>🗑 Eliminar</ItemMenu>}
+                            {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="mdi:share" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
+                            {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="mdi:pencil-outline" className="inline align-[-2px]" /> Editar</ItemMenu>}
+                            {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
                         </div>
                     )}
                 </div>
@@ -408,7 +411,7 @@ function AnexoView({ anexo: a }: { anexo: Anexo }) {
 
     return (
         <a href={a.url} target="_blank" rel="noreferrer" className="text-inherit underline-offset-2 hover:underline">
-            📎 Ficheiro{a.tamanho_bytes ? ` (${Math.round(a.tamanho_bytes / 1024)} KB)` : ''}
+            <Icon icon="mdi:file-outline" className="inline align-[-2px]" /> Ficheiro{a.tamanho_bytes ? ` (${Math.round(a.tamanho_bytes / 1024)} KB)` : ''}
         </a>
     );
 }
@@ -450,13 +453,13 @@ function EscolherConversa({ titulo, aoEscolher, aoFechar }: { titulo: string; ao
 }
 
 function TicksWeb({ mensagem, outros }: { mensagem: Mensagem; outros: ParticipanteConversa[] }) {
-    if (mensagem.estado_envio === 'a_enviar') return <span>🕓</span>;
-    if (mensagem.estado_envio === 'falhou') return <span className="font-bold text-red-500">!</span>;
+    if (mensagem.estado_envio === 'a_enviar') return <Icon icon="mdi:clock-outline" />;
+    if (mensagem.estado_envio === 'falhou') return <Icon icon="mdi:alert-circle-outline" className="text-red-500" />;
 
     const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
     const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
 
-    return <span className={lida ? 'opacity-100' : 'opacity-60'}>{entregue || lida ? '✓✓' : '✓'}</span>;
+    return <Icon icon={entregue || lida ? 'mdi:check-all' : 'mdi:check'} className={`text-[13px] ${lida ? 'opacity-100' : 'opacity-60'}`} />;
 }
 
 export function AvatarWeb({ nome, url, tamanho = 44 }: { nome: string; url?: string | null; tamanho?: number }) {

@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { Chamada, EventoChamada } from '@hongayetu/makachat-core';
 import { RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -145,17 +146,17 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     </div>
                     <div ref={midia} className="flex max-w-[90%] flex-wrap justify-center gap-3 [&_video]:rounded-2xl [&_video]:shadow-2xl" />
                     <div className="flex gap-4">
-                        {ativa.fase === 'a_receber' && <B onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400">📞</B>}
+                        {ativa.fase === 'a_receber' && <B onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400"><Icon icon="mdi:phone" /></B>}
                         {ativa.fase !== 'a_receber' && (
                             <>
-                                <B onClick={() => { const m = !mudo; setMudo(m); void room.current?.localParticipant.setMicrophoneEnabled(!m); }}>{mudo ? '🔇' : '🎤'}</B>
+                                <B onClick={() => { const m = !mudo; setMudo(m); void room.current?.localParticipant.setMicrophoneEnabled(!m); }}><Icon icon={mudo ? 'mdi:microphone-off' : 'mdi:microphone'} /></B>
                                 {ativa.chamada.tipo === 'video' && (
-                                    <B onClick={() => { const c = !camara; setCamara(c); void room.current?.localParticipant.setCameraEnabled(c); }}>{camara ? '📷' : '🚫'}</B>
+                                    <B onClick={() => { const c = !camara; setCamara(c); void room.current?.localParticipant.setCameraEnabled(c); }}><Icon icon={camara ? 'mdi:video' : 'mdi:video-off'} /></B>
                                 )}
-                                <B onClick={() => { const e = !ecra; setEcra(e); void room.current?.localParticipant.setScreenShareEnabled(e); }}>{ecra ? '🖥️✓' : '🖥️'}</B>
+                                <B onClick={() => { const e = !ecra; setEcra(e); void room.current?.localParticipant.setScreenShareEnabled(e); }} classe={ecra ? 'bg-[var(--maka-primaria)]' : undefined}><Icon icon="mdi:monitor-share" /></B>
                             </>
                         )}
-                        <B onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500">✕</B>
+                        <B onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500"><Icon icon="mdi:phone-hangup" /></B>
                     </div>
                 </div>
             )}

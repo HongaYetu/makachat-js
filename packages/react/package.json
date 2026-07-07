@@ -30,7 +30,8 @@
         "test": "echo 'sem testes próprios (lógica no core)'"
     },
     "dependencies": {
-        "@hongayetu/makachat-core": "workspace:*"
+        "@hongayetu/makachat-core": "workspace:*",
+        "@iconify/react": "^6.0.2"
     },
     "peerDependencies": {
         "livekit-client": ">=2.0.0",
