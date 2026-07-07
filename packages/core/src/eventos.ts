@@ -23,6 +23,10 @@ export const EVENTOS_SERVIDOR = {
     CONVERSA_ATUALIZADA: 'conversa:atualizada',
     PARTICIPANTE_ADICIONADO: 'participante:adicionado',
     PARTICIPANTE_REMOVIDO: 'participante:removido',
+    CHAMADA_INICIADA: 'chamada:iniciada',
+    CHAMADA_ATENDIDA: 'chamada:atendida',
+    CHAMADA_REJEITADA: 'chamada:rejeitada',
+    CHAMADA_TERMINADA: 'chamada:terminada',
 } as const;
 
 export const FUNCIONALIDADES = [
@@ -35,6 +39,7 @@ export const FUNCIONALIDADES = [
     'grupos',
     'chamadas.audio',
     'chamadas.video',
+    'chamadas.partilha_ecra',
 ] as const;
 
 export type Funcionalidade = (typeof FUNCIONALIDADES)[number];

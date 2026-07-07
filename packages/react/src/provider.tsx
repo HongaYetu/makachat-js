@@ -5,6 +5,7 @@ import {
     MakaSocket,
     MemoryStorage,
     ObterToken,
+    EventoChamada,
     Presenca,
     StorageAdapter,
     SyncEngine,
@@ -21,6 +22,7 @@ export interface MakaChatContexto {
     features: FlagFuncionalidade[];
     subscreverTyping(ouvinte: (typing: Typing) => void): () => void;
     subscreverPresenca(ouvinte: (presenca: Presenca) => void): () => void;
+    subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -38,6 +40,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const ouvintesTyping = useRef(new Set<(typing: Typing) => void>());
     const ouvintesPresenca = useRef(new Set<(presenca: Presenca) => void>());
+    const ouvintesChamadas = useRef(new Set<(evento: EventoChamada) => void>());
 
     const valor = useMemo<MakaChatContexto>(() => {
         const api = new MakaApi(getToken);
@@ -58,6 +61,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
             identidade: identity,
             aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
             aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
+            aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
         });
 
         return {
@@ -76,6 +80,11 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
                 ouvintesPresenca.current.add(ouvinte);
 
                 return () => ouvintesPresenca.current.delete(ouvinte);
+            },
+            subscreverChamadas: (ouvinte) => {
+                ouvintesChamadas.current.add(ouvinte);
+
+                return () => ouvintesChamadas.current.delete(ouvinte);
             },
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps

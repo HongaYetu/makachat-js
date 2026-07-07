@@ -5,6 +5,7 @@ import { StorageAdapter } from './storage';
 import {
     Conversa,
     DadosEnvioMensagem,
+    EventoChamada,
     IdentidadeConfig,
     Mensagem,
     Presenca,
@@ -17,6 +18,7 @@ export interface SyncEngineOpcoes {
     identidade: IdentidadeConfig;
     aoTyping?: (typing: Typing) => void;
     aoPresenca?: (presenca: Presenca) => void;
+    aoChamada?: (evento: EventoChamada) => void;
 }
 
 type Ouvinte = (versao: number) => void;
@@ -285,6 +287,17 @@ export class SyncEngine {
 
         this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ADICIONADO, () => void this.atualizarConversas());
         this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_REMOVIDO, () => void this.atualizarConversas());
+
+        for (const [nome, evento] of [
+            [EVENTOS_SERVIDOR.CHAMADA_INICIADA, 'iniciada'],
+            [EVENTOS_SERVIDOR.CHAMADA_ATENDIDA, 'atendida'],
+            [EVENTOS_SERVIDOR.CHAMADA_REJEITADA, 'rejeitada'],
+            [EVENTOS_SERVIDOR.CHAMADA_TERMINADA, 'terminada'],
+        ] as const) {
+            this.socket.on(nome, (payload: Omit<EventoChamada, 'evento'>) =>
+                this.opcoes.aoChamada?.({ ...payload, evento }),
+            );
+        }
 
         this.socket.on(EVENTOS_SERVIDOR.TYPING, (typing: Typing) => this.opcoes.aoTyping?.(typing));
         this.socket.on(EVENTOS_SERVIDOR.PRESENCA, (presenca: Presenca) => this.opcoes.aoPresenca?.(presenca));

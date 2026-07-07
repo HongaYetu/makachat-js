@@ -1,5 +1,6 @@
 import {
     Ack,
+    RespostaChamada,
     AlvoParticipante,
     Anexo,
     Conversa,
@@ -173,6 +174,31 @@ export class MakaApi {
             method: 'POST',
             body: JSON.stringify(meta ?? {}),
         });
+    }
+
+    iniciarChamada(conversaId: string, tipo: 'audio' | 'video') {
+        return this.pedir<RespostaChamada>('/v1/chamadas', {
+            method: 'POST',
+            body: JSON.stringify({ conversa_id: conversaId, tipo }),
+        });
+    }
+
+    atenderChamada(chamadaId: string) {
+        return this.pedir<RespostaChamada>(`/v1/chamadas/${chamadaId}/atender`, { method: 'PATCH' });
+    }
+
+    rejeitarChamada(chamadaId: string) {
+        return this.pedir<RespostaChamada>(`/v1/chamadas/${chamadaId}/rejeitar`, { method: 'PATCH' });
+    }
+
+    terminarChamada(chamadaId: string) {
+        return this.pedir<RespostaChamada>(`/v1/chamadas/${chamadaId}/terminar`, { method: 'PATCH' });
+    }
+
+    obterContexto(conversaId: string) {
+        return this.pedir<{ contexto: { titulo: string; subtitulo?: string; foto_url?: string | null; linhas?: string[] } | null }>(
+            `/v1/conversas/${conversaId}/contexto`,
+        );
     }
 
     registarDispositivo(dados: {

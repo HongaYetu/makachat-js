@@ -121,6 +121,30 @@ export interface Typing {
     ativo: boolean;
 }
 
+export interface Chamada {
+    id: string;
+    conversa_id: string;
+    iniciador_identidade_id: string;
+    tipo: 'audio' | 'video';
+    estado: 'a_tocar' | 'em_curso' | 'terminada' | 'perdida' | 'rejeitada' | 'cancelada' | 'falhada';
+    iniciada_em: string;
+    atendida_em: string | null;
+    terminada_em: string | null;
+    duracao_segundos: number | null;
+}
+
+export interface EventoChamada {
+    evento: 'iniciada' | 'atendida' | 'rejeitada' | 'terminada';
+    chamada: Chamada;
+    iniciador?: { identidade_id: string; nome: string; foto_url: string | null };
+}
+
+export interface RespostaChamada {
+    chamada: Chamada;
+    livekit_token: string | null;
+    ws_url: string | null;
+}
+
 export interface FlagFuncionalidade {
     funcionalidade: string;
     tipo_conversa: string;
