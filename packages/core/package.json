@@ -1,0 +1,38 @@
+{
+    "name": "@hongayetu/makachat-core",
+    "version": "0.1.0",
+    "description": "Núcleo do MakaChat: protocolo, socket, REST e motor de sincronização offline-first",
+    "license": "UNLICENSED",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:HongaYetu/makachat-js.git",
+        "directory": "packages/core"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": ["dist"],
+    "scripts": {
+        "build": "tsup",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "socket.io-client": "^4.8.0",
+        "zod": "^3.24.0"
+    },
+    "devDependencies": {
+        "tsup": "^8.3.0",
+        "typescript": "^5.7.0",
+        "vitest": "^3.0.0"
+    }
+}

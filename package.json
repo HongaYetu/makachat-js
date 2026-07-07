@@ -1,0 +1,9 @@
+{
+    "name": "makachat-js",
+    "private": true,
+    "packageManager": "pnpm@10.12.1",
+    "scripts": {
+        "build": "pnpm -r build",
+        "test": "pnpm -r test"
+    }
+}

@@ -1,0 +1,171 @@
+/** Tipos do protocolo MakaChat — espelham o PROTOCOL.md do makachat-server. */
+
+export interface IdentidadeConfig {
+    /** id externo da entidade no serviço de origem (claim `sub`) */
+    id: string;
+    /** tipo de entidade no serviço (cliente, motorista, encarregado...) */
+    tipo: string;
+    nome: string;
+    foto?: string | null;
+}
+
+export interface CredenciaisSessao {
+    token: string;
+    socket_url: string;
+    api_url: string;
+}
+
+export type ObterToken = () => Promise<CredenciaisSessao>;
+
+export interface Anexo {
+    id: string;
+    tipo: 'foto' | 'video' | 'audio' | 'ficheiro';
+    mime: string | null;
+    tamanho_bytes: number | null;
+    largura: number | null;
+    altura: number | null;
+    duracao_segundos: number | null;
+    blurhash: string | null;
+    estado: 'pendente' | 'pronto' | 'falhou';
+    url: string | null;
+}
+
+export type TipoMensagem = 'texto' | 'foto' | 'video' | 'audio' | 'ficheiro' | 'sistema' | 'chamada';
+
+/** Estado local de envio (não vem do servidor). */
+export type EstadoEnvio = 'a_enviar' | 'enviada' | 'falhou';
+
+export interface Reacao {
+    identidade_id: string;
+    emoji: string;
+}
+
+export interface Mensagem {
+    id: string;
+    conversa_id: string;
+    remetente_identidade_id: string;
+    tipo: TipoMensagem;
+    conteudo: string | null;
+    resposta_a_id: string | null;
+    encaminhada_de_id: string | null;
+    ref_cliente: string;
+    editada_em: string | null;
+    eliminada: boolean;
+    reacoes: Reacao[];
+    anexos: Anexo[];
+    criada_em: string;
+    /** Só local: presente enquanto a mensagem não foi confirmada pelo servidor */
+    estado_envio?: EstadoEnvio;
+}
+
+export interface ParticipanteConversa {
+    identidade_id: string;
+    id_externo: string;
+    tipo: string;
+    nome: string;
+    foto_url: string | null;
+    papel: 'dono' | 'admin' | 'membro';
+    ultima_leitura_mensagem_id: string | null;
+    ultima_entrega_mensagem_id: string | null;
+    saiu_em: string | null;
+}
+
+export interface PreferenciasParticipante {
+    papel: string;
+    mensagens_nao_lidas: number;
+    arquivada: boolean;
+    fixada: boolean;
+    silenciada_ate: string | null;
+    ultima_leitura_mensagem_id: string | null;
+}
+
+export interface PreviewMensagem {
+    id: string;
+    tipo: TipoMensagem;
+    conteudo: string | null;
+    eliminada: boolean;
+    remetente_identidade_id: string;
+    criada_em: string;
+}
+
+export interface Conversa {
+    id: string;
+    tipo: 'privada' | 'grupo';
+    titulo: string | null;
+    foto_url: string | null;
+    contexto_tipo: string | null;
+    contexto_id: string | null;
+    ultima_atividade_em: string;
+    criada_em: string;
+    participantes: ParticipanteConversa[];
+    participante?: PreferenciasParticipante;
+    ultima_mensagem?: PreviewMensagem | null;
+}
+
+export interface Recibo {
+    conversa_id: string;
+    identidade_id: string;
+    entregue_ate: string | null;
+    lido_ate: string | null;
+}
+
+export interface Presenca {
+    identidade_id: string;
+    online: boolean;
+    ultimo_visto_em: string | null;
+}
+
+export interface Typing {
+    conversa_id: string;
+    identidade_id: string;
+    ativo: boolean;
+}
+
+export interface FlagFuncionalidade {
+    funcionalidade: string;
+    tipo_conversa: string;
+    ativo: boolean;
+    limites: unknown;
+}
+
+export interface AlvoParticipante {
+    id_externo: string;
+    tipo: string;
+    nome?: string;
+    foto?: string | null;
+}
+
+export interface DadosEnvioMensagem {
+    conversa_id: string;
+    tipo?: TipoMensagem;
+    conteudo?: string;
+    resposta_a_id?: string;
+    encaminhada_de_id?: string;
+    anexo_ids?: string[];
+}
+
+export interface ItemOutbox {
+    ref_cliente: string;
+    conversa_id: string;
+    dados: DadosEnvioMensagem;
+    criado_em: string;
+    tentativas: number;
+}
+
+export interface CursorConversa {
+    conversa_id: string;
+    ultimo_id: string | null;
+}
+
+export type Ack<T = Record<string, unknown>> = {
+    estado: 'ok' | 'erro';
+    texto?: string;
+} & T;
+
+/**
+ * Comparação de UUIDv7 (ordenáveis lexicograficamente) — base dos recibos
+ * por watermark: lida ⇔ lido_ate >= mensagem.id.
+ */
+export function idMaiorOuIgual(a: string | null, b: string): boolean {
+    return !!a && a >= b;
+}

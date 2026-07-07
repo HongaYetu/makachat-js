@@ -1,0 +1,42 @@
+{
+    "name": "@hongayetu/makachat-react-native",
+    "version": "0.1.0",
+    "description": "MakaChat para React Native/Expo: storage SQLite offline-first, provider e hooks",
+    "license": "UNLICENSED",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:HongaYetu/makachat-js.git",
+        "directory": "packages/react-native"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": ["dist"],
+    "scripts": {
+        "build": "tsup",
+        "test": "echo 'sem testes (requer dispositivo)'"
+    },
+    "dependencies": {
+        "@hongayetu/makachat-core": "workspace:*"
+    },
+    "peerDependencies": {
+        "expo-sqlite": ">=14.0.0",
+        "react": ">=18.0.0",
+        "react-native": ">=0.73.0"
+    },
+    "devDependencies": {
+        "@types/react": "^18.3.0",
+        "tsup": "^8.3.0",
+        "typescript": "^5.7.0"
+    }
+}

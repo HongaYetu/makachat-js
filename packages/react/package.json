@@ -1,0 +1,40 @@
+{
+    "name": "@hongayetu/makachat-react",
+    "version": "0.1.0",
+    "description": "MakaChat para React web: provider e hooks (sem storage persistente — a fonte é o servidor)",
+    "license": "UNLICENSED",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:HongaYetu/makachat-js.git",
+        "directory": "packages/react"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": ["dist"],
+    "scripts": {
+        "build": "tsup",
+        "test": "echo 'sem testes próprios (lógica no core)'"
+    },
+    "dependencies": {
+        "@hongayetu/makachat-core": "workspace:*"
+    },
+    "peerDependencies": {
+        "react": ">=18.0.0"
+    },
+    "devDependencies": {
+        "@types/react": "^18.3.0",
+        "tsup": "^8.3.0",
+        "typescript": "^5.7.0"
+    }
+}
