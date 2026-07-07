@@ -16,6 +16,10 @@ interface ChamadasApi {
 
 const Ctx = createContext<ChamadasApi | null>(null);
 
+export function useChamadasOpcional(): ChamadasApi | null {
+    return useContext(Ctx);
+}
+
 export function useChamadas(): ChamadasApi {
     const ctx = useContext(Ctx);
 

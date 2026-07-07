@@ -12,6 +12,7 @@ import {
     Typing,
 } from '@hongayetu/makachat-core';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { cssVarsDoTema, MakaTema } from './tema';
 
 export interface MakaChatContexto {
     engine: SyncEngine;
@@ -33,10 +34,11 @@ export interface MakaChatProviderProps {
     getToken: ObterToken;
     /** na web a fonte é o servidor; por omissão usa memória (sem persistência local) */
     storage?: StorageAdapter;
+    tema?: MakaTema;
     children: React.ReactNode;
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const ouvintesTyping = useRef(new Set<(typing: Typing) => void>());
     const ouvintesPresenca = useRef(new Set<(presenca: Presenca) => void>());
@@ -100,7 +102,11 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
         return () => valor.socket.desligar();
     }, [valor]);
 
-    return <Contexto.Provider value={{ ...valor, features }}>{children}</Contexto.Provider>;
+    return (
+        <Contexto.Provider value={{ ...valor, features }}>
+            <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
+        </Contexto.Provider>
+    );
 }
 
 export function useMakaChat(): MakaChatContexto {

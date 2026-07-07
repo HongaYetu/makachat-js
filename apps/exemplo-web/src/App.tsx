@@ -1,8 +1,10 @@
 import {
-    Conversa,
-    MakaChatConversa,
-    MakaChatConversas,
+    ChamadasProvider,
+    MakaChatBoxFull,
+    MakaChatBoxMin,
+    MakaChatDock,
     MakaChatProvider,
+    useDock,
     useMakaChat,
 } from '@hongayetu/makachat-react';
 import { SignJWT } from 'jose';
@@ -71,15 +73,18 @@ export function App() {
                 socket_url: SERVIDOR,
                 api_url: SERVIDOR,
             })}
+            tema={perfil.servico === 'svc_demo_b' ? { primaria: '#FF5A00' } : undefined}
         >
-            <Layout perfil={perfil} aoSair={() => setPerfil(null)} />
+            <ChamadasProvider>
+                <Layout perfil={perfil} aoSair={() => setPerfil(null)} />
+            </ChamadasProvider>
         </MakaChatProvider>
     );
 }
 
 function Layout({ perfil, aoSair }: { perfil: Perfil; aoSair(): void }) {
     const { api, engine } = useMakaChat();
-    const [ativa, setAtiva] = useState<string | null>(null);
+    const [modo, setModo] = useState<'full' | 'min' | 'dock'>('min');
 
     const novaConversa = async () => {
         const idExterno = window.prompt('id_externo do destinatário (ex: bruno)');
@@ -87,36 +92,37 @@ function Layout({ perfil, aoSair }: { perfil: Perfil; aoSair(): void }) {
         if (!idExterno) return;
 
         const tipo = window.prompt('tipo (ex: motorista, cliente)', 'cliente') ?? 'cliente';
-        const nome = window.prompt('nome (para criar se não existir)', idExterno) ?? idExterno;
-
+        const nome = window.prompt('nome', idExterno) ?? idExterno;
         const { conversa } = await api.criarPrivada({ id_externo: idExterno, tipo, nome });
         await engine.atualizarConversas();
-        setAtiva(conversa.id);
+        window.alert(`Conversa criada: ${conversa.id}`);
     };
 
     return (
-        <div style={{ display: 'flex', height: '100vh' }}>
-            <div style={{ width: 340, borderRight: '1px solid #ddd', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: 12, background: '#f0f2f5', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <MakaChatDock autoAbrir={modo === 'dock'}>
+            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: 10, display: 'flex', gap: 8, alignItems: 'center', background: '#0f172a', color: '#fff' }}>
                     <strong style={{ flex: 1 }}>
                         {perfil.nome} <small>({perfil.servico})</small>
                     </strong>
-                    <button onClick={novaConversa}>＋</button>
+                    {(['full', 'min', 'dock'] as const).map((m) => (
+                        <button key={m} onClick={() => setModo(m)} style={{ fontWeight: modo === m ? 700 : 400 }}>
+                            Box {m}
+                        </button>
+                    ))}
+                    <button onClick={novaConversa}>＋ conversa</button>
                     <button onClick={aoSair}>Sair</button>
                 </div>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <MakaChatConversas conversaAtivaId={ativa} onAbrirConversa={(c: Conversa) => setAtiva(c.id)} />
+                <div style={{ flex: 1, minHeight: 0, padding: modo === 'min' ? 24 : 0 }}>
+                    {modo === 'full' && <MakaChatBoxFull />}
+                    {modo === 'min' && <MakaChatBoxMin />}
+                    {modo === 'dock' && (
+                        <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#64748b' }}>
+                            Modo dock: usa o launcher 💬 no canto — as boxes abrem sozinhas quando chega mensagem.
+                        </div>
+                    )}
                 </div>
             </div>
-            <div style={{ flex: 1 }}>
-                {ativa ? (
-                    <MakaChatConversa conversaId={ativa} />
-                ) : (
-                    <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#889' }}>
-                        Escolhe uma conversa ou cria uma nova (＋)
-                    </div>
-                )}
-            </div>
-        </div>
+        </MakaChatDock>
     );
 }
