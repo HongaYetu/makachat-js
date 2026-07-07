@@ -1,0 +1,13 @@
+{
+    "name": "@hongayetu/expo-makachat-push",
+    "version": "0.1.0",
+    "description": "Módulo nativo MakaChat: recebe pushes com a app fechada, grava num inbox SQLite e entrega ao JS (padrão kanda-messaging)",
+    "license": "UNLICENSED",
+    "main": "src/index.ts",
+    "publishConfig": { "registry": "https://npm.pkg.github.com" },
+    "peerDependencies": {
+        "expo": ">=51.0.0",
+        "expo-modules-core": "*",
+        "react-native": ">=0.73.0"
+    }
+}
