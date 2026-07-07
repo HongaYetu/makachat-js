@@ -64,9 +64,19 @@ export function MakaChatConversa({ conversaId }: MakaChatConversaProps) {
     const fim = useRef<HTMLDivElement>(null);
     const ultimoTyping = useRef(0);
 
+    const [contexto, setContexto] = useState<{ titulo: string; subtitulo?: string; linhas?: string[] } | null>(null);
+
     useEffect(() => {
         void engine.storage.obterConversa(conversaId).then(setConversa);
     }, [engine, conversaId, versao]);
+
+    useEffect(() => {
+        setContexto(null);
+        void engine.api
+            .obterContexto(conversaId)
+            .then((r) => setContexto(r.contexto ?? null))
+            .catch(() => undefined);
+    }, [engine, conversaId]);
 
     useEffect(() => {
         void socket.entrarConversa(conversaId).catch(() => undefined);
@@ -98,6 +108,15 @@ export function MakaChatConversa({ conversaId }: MakaChatConversaProps) {
 
     return (
         <div style={css.painel}>
+            {contexto && (
+                <div style={{ background: '#fff', borderBottom: '1px solid #ddd', padding: '8px 14px' }}>
+                    <strong>{contexto.titulo}</strong>
+                    {contexto.subtitulo && <span style={{ color: '#667' }}> — {contexto.subtitulo}</span>}
+                    {contexto.linhas?.map((l, i) => (
+                        <div key={i} style={{ fontSize: 13, color: '#667' }}>{l}</div>
+                    ))}
+                </div>
+            )}
             <div style={css.mensagens}>
                 {mensagens.map((m) => {
                     const minha = m.remetente_identidade_id === eu?.identidade_id || m.estado_envio === 'a_enviar';

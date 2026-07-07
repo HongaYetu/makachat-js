@@ -21,7 +21,9 @@
             "require": "./dist/index.cjs"
         }
     },
-    "files": ["dist"],
+    "files": [
+        "dist"
+    ],
     "scripts": {
         "build": "tsup",
         "test": "echo 'sem testes próprios (lógica no core)'"
@@ -30,10 +32,12 @@
         "@hongayetu/makachat-core": "workspace:*"
     },
     "peerDependencies": {
+        "livekit-client": ">=2.0.0",
         "react": ">=18.0.0"
     },
     "devDependencies": {
         "@types/react": "^18.3.0",
+        "livekit-client": "^2.20.0",
         "tsup": "^8.3.0",
         "typescript": "^5.7.0"
     }

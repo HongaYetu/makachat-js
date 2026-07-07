@@ -16,3 +16,4 @@ export {
     type MakaChatConversasProps,
     type MakaChatConversaProps,
 } from './ui';
+export { ChamadasProvider, useChamadas } from './chamadas';

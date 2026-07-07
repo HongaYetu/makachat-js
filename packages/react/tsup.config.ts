@@ -6,6 +6,6 @@ export default defineConfig({
     dts: true,
     sourcemap: true,
     clean: true,
-    external: ['react'],
+    external: ['react', 'livekit-client'],
     outExtension: ({ format }) => ({ js: format === 'esm' ? '.js' : '.cjs' }),
 });
