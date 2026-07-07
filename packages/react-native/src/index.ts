@@ -10,3 +10,5 @@ export {
     usePresenca,
     useFuncionalidadeAtiva,
 } from './hooks';
+export { ConversasScreen, Avatar, horaCurta, type ConversasScreenProps } from './ui/ConversasScreen';
+export { ChatScreen, type ChatScreenProps } from './ui/ChatScreen';

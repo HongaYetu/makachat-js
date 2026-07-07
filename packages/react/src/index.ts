@@ -9,3 +9,10 @@ export {
     usePresenca,
     useFuncionalidadeAtiva,
 } from './hooks';
+export {
+    MakaChatConversas,
+    MakaChatConversa,
+    AvatarWeb,
+    type MakaChatConversasProps,
+    type MakaChatConversaProps,
+} from './ui';
