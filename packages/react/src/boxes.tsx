@@ -106,6 +106,8 @@ export function useDock(): DockApi {
 export interface MakaChatDockProps {
     /** abre uma box automaticamente quando chega mensagem nova (default true) */
     autoAbrir?: boolean;
+    /** false = esconde launcher e boxes mantendo o contexto/estado (ex.: página onde já há BoxMin/BoxFull) */
+    visivel?: boolean;
     maxBoxes?: number;
     children?: React.ReactNode;
 }
@@ -119,7 +121,7 @@ interface BoxAberta {
  * Boxes múltiplas fixas no canto inferior direito: launcher com não lidas e
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
-export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaChatDockProps) {
+export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, children }: MakaChatDockProps) {
     const { estaVisivel } = useMakaChat();
     const conversas = useConversas();
     const versao = useVersaoChat();
@@ -145,7 +147,7 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
     }, []);
 
     useEffect(() => {
-        if (!autoAbrir) return;
+        if (!autoAbrir || !visivel) return;
 
         const comNaoLidas = conversas.find(
             (c) => (c.participante?.mensagens_nao_lidas ?? 0) > 0 && !estaVisivel(c.id),
@@ -162,6 +164,7 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
     return (
         <DockCtx.Provider value={{ abrir, fechar }}>
             {children}
+            {visivel && (
             <div className="fixed bottom-0 right-4 z-[9500] flex items-end gap-3">
                 {boxes.map((box) => {
                     const conversa = conversas.find((c) => c.id === box.conversaId);
@@ -215,6 +218,7 @@ export function MakaChatDock({ autoAbrir = true, maxBoxes = 3, children }: MakaC
                     </button>
                 </div>
             </div>
+            )}
         </DockCtx.Provider>
     );
 }

@@ -81,9 +81,7 @@ export function App() {
             tema={perfil.servico === 'svc_demo_b' ? { primaria: '#FF5A00' } : undefined}
         >
             <ChamadasProvider>
-                <MakaChatDock>
-                    <Layout perfil={perfil} aoSair={() => setPerfil(null)} />
-                </MakaChatDock>
+                <Layout perfil={perfil} aoSair={() => setPerfil(null)} />
             </ChamadasProvider>
         </MakaChatProvider>
     );
@@ -102,6 +100,7 @@ function Layout({ perfil, aoSair }: { perfil: Perfil; aoSair(): void }) {
     const [conversaAberta, setConversaAberta] = useState<string | null>(null);
 
     return (
+        <MakaChatDock visivel={modo === 'dock'}>
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui' }}>
             <header style={{ padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'center', background: '#0f172a', color: '#fff' }}>
                 <strong style={{ flex: 1 }}>
@@ -142,6 +141,7 @@ function Layout({ perfil, aoSair }: { perfil: Perfil; aoSair(): void }) {
                 </main>
             </div>
         </div>
+        </MakaChatDock>
     );
 }
 
