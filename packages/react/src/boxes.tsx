@@ -63,7 +63,7 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
             )}
             <div className="flex min-h-0 flex-1">
             {mostrarLista && (
-                <div className={`h-full border-r border-solid border-black/[.06] ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
+                <div className={`h-full border-0 border-r border-solid border-black/[.06] ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
                     <MakaChatConversas conversaAtivaId={ativa} onAbrirConversa={(c: Conversa) => setAtiva(c.id)} />
                 </div>
             )}

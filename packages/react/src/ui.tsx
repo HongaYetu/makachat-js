@@ -288,7 +288,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                     <span className="text-xs text-[var(--maka-texto-suave)]">{grupo ? `${membros.length} membros` : ''}</span>
                 </div>
 
-                <div className="maka-scroll min-h-0 flex-1 overflow-auto border-t border-solid border-black/5">
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto border-0 border-t border-solid border-black/5">
                     {membros.map((p) => {
                         const souEu = p.identidade_id === eu.identidade_id;
 
@@ -773,7 +773,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     return (
         <div className="relative flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
             {/* header */}
-            <div className={`z-[1] flex items-center gap-3 border-b border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
+            <div className={`z-[1] flex items-center gap-3 border-0 border-b border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
                 <span className="relative cursor-pointer" onClick={() => setInfoAberta(true)}>
                     <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 34 : 42} grupo={conversa?.tipo === 'grupo'} />
                     {presenca?.online && (
@@ -807,7 +807,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             </div>
 
             {contexto && (
-                <div className="border-b border-solid border-black/[.06] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
+                <div className="border-0 border-b border-solid border-black/[.06] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
                     <span className="font-bold">{contexto.titulo}</span>
                     {contexto.subtitulo && <span className="text-[var(--maka-texto-suave)]"> — {contexto.subtitulo}</span>}
                     {contexto.linhas?.map((l, i) => (
@@ -1138,7 +1138,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
 
     if (aGravar) {
         return (
-            <div className={`flex items-center gap-3 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
+            <div className={`flex items-center gap-3 border-0 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
                 <span className="h-3 w-3 animate-maka-pulsar rounded-full bg-red-500" />
                 <span className="font-mono text-sm text-[var(--maka-texto)]">
                     {String(Math.floor(segundos / 60)).padStart(2, '0')}:{String(segundos % 60).padStart(2, '0')}
@@ -1156,7 +1156,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
     }
 
     return (
-        <div className={`flex items-center gap-2 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
+        <div className={`flex items-center gap-2 border-0 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
             {podeMedia && (
                 <BotaoIcone titulo="Anexar" onClick={aoAnexar}>
                     {aEnviarMedia ? <Icon icon="tabler:loader-2" className="animate-spin" /> : <Icon icon="tabler:paperclip" />}
