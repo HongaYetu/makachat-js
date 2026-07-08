@@ -124,7 +124,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
     const [fotosPendentes, setFotosPendentes] = useState<File[]>([]);
     const [aEnviarMedia, setAEnviarMedia] = useState(false);
-    const [lightbox, setLightbox] = useState<{ urls: string[]; indice: number } | null>(null);
+    const [lightbox, setLightbox] = useState<{ itens: ItemGaleria[]; indice: number } | null>(null);
     const [menuAnexo, setMenuAnexo] = useState(false);
     const [destacada, setDestacada] = useState<string | null>(null);
     const [eliminarDe, setEliminarDe] = useState<Mensagem | null>(null);
@@ -256,9 +256,13 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     };
 
     const abrirGaleria = (url: string) => {
-        const urls = mensagens.flatMap((m) => m.anexos.filter((a) => a.tipo === 'foto' && a.url).map((a) => a.url as string));
-        const indice = Math.max(0, urls.indexOf(url));
-        setLightbox({ urls, indice });
+        const itens: ItemGaleria[] = mensagens.flatMap((m) =>
+            m.anexos
+                .filter((a) => a.tipo === 'foto' && a.url)
+                .map((a) => ({ url: a.url as string, nome: a.nome_ficheiro ?? 'foto.jpg', mensagem: m })),
+        );
+        const indice = Math.max(0, itens.findIndex((i) => i.url === url));
+        setLightbox({ itens, indice });
     };
 
     /** Scroll até à mensagem citada, com destaque. */
@@ -467,7 +471,14 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 />
             )}
             {lightbox && (
-                <Galeria urls={lightbox.urls} indiceInicial={lightbox.indice} aoFechar={() => setLightbox(null)} />
+                <Galeria
+                    itens={lightbox.itens}
+                    indiceInicial={lightbox.indice}
+                    aoFechar={() => setLightbox(null)}
+                    aoResponder={(m) => { setLightbox(null); setEditar(null); setResponderA(m); }}
+                    aoEncaminhar={podeEncaminhar ? (m) => { setLightbox(null); setEncaminhar(m); } : undefined}
+                    aoEliminar={(m) => { setLightbox(null); setEliminarDe(m); }}
+                />
             )}
             {eliminarDe && (
                 <ConfirmarDialogo
@@ -978,31 +989,72 @@ function CartaoFicheiro({ anexo: a }: { anexo: Anexo }) {
     );
 }
 
-/** Galeria de fotos da conversa: navegação ←/→ (rato e teclado) + contador. */
-function Galeria({ urls, indiceInicial, aoFechar }: { urls: string[]; indiceInicial: number; aoFechar(): void }) {
+/** Galeria de fotos da conversa: navegação, contador e ações (responder, encaminhar, baixar, eliminar). */
+interface ItemGaleria {
+    url: string;
+    nome: string;
+    mensagem: Mensagem;
+}
+
+function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, aoEliminar }: {
+    itens: ItemGaleria[];
+    indiceInicial: number;
+    aoFechar(): void;
+    aoResponder(m: Mensagem): void;
+    aoEncaminhar?(m: Mensagem): void;
+    aoEliminar(m: Mensagem): void;
+}) {
     const [indice, setIndice] = useState(indiceInicial);
+    const atual = itens[indice];
 
     useEffect(() => {
         const aoTecla = (e: KeyboardEvent) => {
             if (e.key === 'Escape') aoFechar();
             if (e.key === 'ArrowLeft') setIndice((i) => Math.max(0, i - 1));
-            if (e.key === 'ArrowRight') setIndice((i) => Math.min(urls.length - 1, i + 1));
+            if (e.key === 'ArrowRight') setIndice((i) => Math.min(itens.length - 1, i + 1));
         };
 
         window.addEventListener('keydown', aoTecla);
 
         return () => window.removeEventListener('keydown', aoTecla);
-    }, [urls.length, aoFechar]);
+    }, [itens.length, aoFechar]);
+
+    const Botao = ({ titulo, onClick, children }: { titulo: string; onClick(): void; children: React.ReactNode }) => (
+        <button
+            title={titulo}
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-lg text-white transition-colors hover:bg-white/30"
+        >
+            {children}
+        </button>
+    );
 
     return (
         <div className="fixed inset-0 z-[10001] grid place-items-center bg-black/90 backdrop-blur-sm" onClick={aoFechar}>
-            <img src={urls[indice]} className="max-h-[88vh] max-w-[90vw] rounded-xl shadow-2xl" alt="" onClick={(e) => e.stopPropagation()} />
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1 text-sm text-white">
-                {indice + 1} / {urls.length}
+            <img src={atual.url} className="max-h-[84vh] max-w-[90vw] rounded-xl shadow-2xl" alt="" onClick={(e) => e.stopPropagation()} />
+
+            {/* topo: contador + barra de ações */}
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1 text-sm text-white">
+                {indice + 1} / {itens.length}
             </div>
-            <button className="absolute right-5 top-5 grid h-10 w-10 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-xl text-white hover:bg-white/25" onClick={aoFechar}>
-                <Icon icon="mdi:close" />
-            </button>
+            <div className="absolute right-4 top-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <Botao titulo="Responder" onClick={() => aoResponder(atual.mensagem)}><Icon icon="mdi:reply" /></Botao>
+                {aoEncaminhar && <Botao titulo="Reencaminhar" onClick={() => aoEncaminhar(atual.mensagem)}><Icon icon="mdi:share" /></Botao>}
+                <a
+                    href={atual.url}
+                    download={atual.nome}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Baixar"
+                    onClick={(e) => e.stopPropagation()}
+                    className="grid h-10 w-10 cursor-pointer place-items-center rounded-full bg-white/15 text-lg text-white transition-colors hover:bg-white/30"
+                >
+                    <Icon icon="mdi:download" />
+                </a>
+                <Botao titulo="Eliminar" onClick={() => aoEliminar(atual.mensagem)}><Icon icon="mdi:delete-outline" /></Botao>
+                <Botao titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></Botao>
+            </div>
+
             {indice > 0 && (
                 <button
                     className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-2xl text-white hover:bg-white/25"
@@ -1011,7 +1063,7 @@ function Galeria({ urls, indiceInicial, aoFechar }: { urls: string[]; indiceInic
                     <Icon icon="mdi:chevron-left" />
                 </button>
             )}
-            {indice < urls.length - 1 && (
+            {indice < itens.length - 1 && (
                 <button
                     className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-2xl text-white hover:bg-white/25"
                     onClick={(e) => { e.stopPropagation(); setIndice(indice + 1); }}
