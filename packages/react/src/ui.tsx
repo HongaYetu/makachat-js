@@ -147,7 +147,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         setContexto(null);
         void engine.carregarMensagens(conversaId).catch(() => undefined);
         void api.obterContexto(conversaId).then((r) => setContexto(r.contexto ?? null)).catch(() => undefined);
-        void socket.entrarConversa(conversaId).catch(() => undefined);
+        void engine.entrarConversa(conversaId);
     }, [engine, api, socket, conversaId]);
 
     useEffect(() => {

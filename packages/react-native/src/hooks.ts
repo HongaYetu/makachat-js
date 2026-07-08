@@ -76,11 +76,26 @@ export function useTypingConversa(conversaId: string | null): Typing | null {
             return;
         }
 
-        return subscreverTyping((evento) => {
-            if (evento.conversa_id === conversaId) {
-                setTyping(evento.ativo ? evento : null);
+        let temporizador: ReturnType<typeof setTimeout> | null = null;
+        const cancelar = subscreverTyping((evento) => {
+            if (evento.conversa_id !== conversaId) return;
+
+            if (temporizador) clearTimeout(temporizador);
+
+            if (evento.ativo) {
+                setTyping(evento);
+                // o emissor só manda true a cada ~3s — limpa sozinho se parar de escrever
+                temporizador = setTimeout(() => setTyping(null), 4000);
+            } else {
+                setTyping(null);
             }
         });
+
+        return () => {
+            cancelar();
+
+            if (temporizador) clearTimeout(temporizador);
+        };
     }, [subscreverTyping, conversaId]);
 
     return typing;

@@ -34,6 +34,8 @@ export class SyncEngine {
     private versao = 0;
     private ouvintes = new Set<Ouvinte>();
     private aFazerFlush = false;
+    /** salas de conversa a (re)entrar em cada ligação — typing/presença chegam por aqui */
+    private salas = new Set<string>();
 
     constructor(
         readonly storage: StorageAdapter,
@@ -73,9 +75,19 @@ export class SyncEngine {
 
     /** Chamado pelo MakaSocket em cada (re)ligação. */
     async aoLigar(): Promise<void> {
+        for (const conversaId of this.salas) {
+            await this.socket.entrarConversa(conversaId).catch(() => undefined);
+        }
+
         await this.atualizarConversas();
         await this.sincronizarDelta();
         await this.flushOutbox();
+    }
+
+    /** Entra na sala da conversa (typing/presença) e garante rejoin após reconexão. */
+    async entrarConversa(conversaId: string): Promise<void> {
+        this.salas.add(conversaId);
+        await this.socket.entrarConversa(conversaId).catch(() => undefined);
     }
 
     async atualizarConversas(): Promise<void> {
