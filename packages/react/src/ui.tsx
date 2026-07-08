@@ -176,9 +176,24 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     }, []);
 
     const scrollParaFundo = (suave = true) => {
-        const el = lista.current;
+        // após o layout do render atual (a mensagem nova já medida)
+        requestAnimationFrame(() => {
+            const el = lista.current;
 
-        if (el) el.scrollTo({ top: el.scrollHeight, behavior: suave ? 'smooth' : 'auto' });
+            if (!el) return;
+
+            el.scrollTo({ top: el.scrollHeight, behavior: suave ? 'smooth' : 'auto' });
+
+            // correção final: as bolinhas de typing saem noutro render e as imagens
+            // medem tarde — se ficámos perto do fundo, encosta de vez
+            setTimeout(() => {
+                const alvo = lista.current;
+
+                if (alvo && alvo.scrollHeight - alvo.scrollTop - alvo.clientHeight < 200) {
+                    alvo.scrollTop = alvo.scrollHeight;
+                }
+            }, 280);
+        });
     };
 
     const aoScroll = () => {
