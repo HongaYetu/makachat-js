@@ -67,12 +67,13 @@ export class MakaApi {
         return corpo as T;
     }
 
-    listarConversas(opcoes?: { cursor?: string; arquivadas?: boolean; limite?: number }) {
+    listarConversas(opcoes?: { cursor?: string; arquivadas?: boolean; limite?: number; q?: string }) {
         const query = new URLSearchParams();
 
         if (opcoes?.cursor) query.set('cursor', opcoes.cursor);
         if (opcoes?.arquivadas) query.set('arquivadas', '1');
         if (opcoes?.limite) query.set('limite', String(opcoes.limite));
+        if (opcoes?.q) query.set('q', opcoes.q);
 
         return this.pedir<{ conversas: Conversa[]; proximo_cursor: string | null }>(`/v1/conversas?${query}`);
     }
@@ -103,6 +104,12 @@ export class MakaApi {
 
         return this.pedir<{ mensagens: Mensagem[]; proximo_cursor: string | null }>(
             `/v1/conversas/${conversaId}/mensagens?${query}`,
+        );
+    }
+
+    pesquisarMensagens(conversaId: string, q: string) {
+        return this.pedir<{ mensagens: Mensagem[] }>(
+            `/v1/conversas/${conversaId}/mensagens/pesquisa?q=${encodeURIComponent(q)}`,
         );
     }
 

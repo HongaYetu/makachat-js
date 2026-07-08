@@ -50,9 +50,66 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const [criarGrupo, setCriarGrupo] = useState(false);
     const [confirmarEliminar, setConfirmarEliminar] = useState<Conversa | null>(null);
 
+    const [resultadosServidor, setResultadosServidor] = useState<Conversa[] | null>(null);
+    const [proximoCursor, setProximoCursor] = useState<string | null>(null);
+    const aPaginar = useRef(false);
+
     useEffect(() => {
         void engine.storage.listarConversas(verArquivadas).then(setConversas);
     }, [engine, verArquivadas, versao]);
+
+    // pesquisa também no servidor (debounce 300ms) — apanha conversas fora do cache local
+    useEffect(() => {
+        const q = busca.trim();
+
+        if (!q) {
+            setResultadosServidor(null);
+
+            return;
+        }
+
+        const temporizador = setTimeout(() => {
+            void api
+                .listarConversas({ q, arquivadas: verArquivadas, limite: 30 })
+                .then(async (r) => {
+                    setResultadosServidor(r.conversas);
+                    await engine.storage.upsertConversas(r.conversas);
+                })
+                .catch(() => setResultadosServidor(null));
+        }, 300);
+
+        return () => clearTimeout(temporizador);
+    }, [api, engine, busca, verArquivadas]);
+
+    // paginação: perto do fim da lista, busca a página seguinte por cursor
+    const aoScrollLista = async (e: React.UIEvent<HTMLDivElement>) => {
+        const el = e.currentTarget;
+
+        if (busca.trim() || aPaginar.current) return;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight > 120) return;
+
+        const ultima = conversas.at(-1);
+
+        if (!ultima || proximoCursor === 'fim') return;
+
+        aPaginar.current = true;
+
+        try {
+            const r = await api.listarConversas({
+                arquivadas: verArquivadas,
+                cursor: String(ultima.ultima_atividade_em),
+                limite: 30,
+            });
+
+            if (r.conversas.length) {
+                await engine.storage.upsertConversas(r.conversas);
+            } else {
+                setProximoCursor('fim');
+            }
+        } finally {
+            aPaginar.current = false;
+        }
+    };
 
     useFecharFora(menuDe !== null, 'menu-lista', () => setMenuDe(null));
 
@@ -95,16 +152,17 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                     )}
                 </div>
             </div>
-            <div className="maka-scroll min-h-0 flex-1 overflow-y-auto">
+            <div className="maka-scroll min-h-0 flex-1 overflow-y-auto" onScroll={(e) => void aoScrollLista(e)}>
             {conversas.length === 0 && (
                 <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
                     <Icon icon="tabler:message-circle" className="text-4xl opacity-40" />
                     <span className="text-sm">Sem conversas</span>
                 </div>
             )}
-            {conversas
-                .filter((c) => !busca.trim() || (c.titulo ?? '').toLowerCase().includes(busca.trim().toLowerCase()))
-                .map((c) => {
+            {(busca.trim() && resultadosServidor
+                ? resultadosServidor
+                : conversas.filter((c) => !busca.trim() || (c.titulo ?? '').toLowerCase().includes(busca.trim().toLowerCase()))
+            ).map((c) => {
                 const ativa = c.id === conversaAtivaId;
                 const naoLidas = c.participante?.mensagens_nao_lidas ?? 0;
 
@@ -486,7 +544,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const { engine, socket, identidade, api, registarVisivel } = useMakaChat();
     const chamadas = useChamadasOpcional();
     const versao = useVersaoChat();
-    const mensagens = useMensagens(conversaId, 100);
+    const mensagens = useMensagens(conversaId, 500);
     const typing = useTypingConversa(conversaId);
     const enviar = useEnviarMensagem();
 
@@ -513,6 +571,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [menuAnexo, setMenuAnexo] = useState(false);
     const [destacada, setDestacada] = useState<string | null>(null);
     const [eliminarDe, setEliminarDe] = useState<Mensagem | null>(null);
+    const [pesquisaAberta, setPesquisaAberta] = useState(false);
+    const [pesquisaQ, setPesquisaQ] = useState('');
+    const [resultados, setResultados] = useState<Mensagem[]>([]);
+    const [resultadoIdx, setResultadoIdx] = useState(0);
+    const aCarregarAntigas = useRef(false);
+    const semMaisAntigas = useRef(false);
     const [menuConversa, setMenuConversa] = useState(false);
     const [infoAberta, setInfoAberta] = useState(false);
     const [confirmarEliminarConversa, setConfirmarEliminarConversa] = useState(false);
@@ -542,6 +606,10 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         anteriorUltimaId.current = null;
         setNovas(0);
         setNoFundo(true);
+        setPesquisaAberta(false);
+        setPesquisaQ('');
+        setResultados([]);
+        semMaisAntigas.current = false;
         void engine.carregarMensagens(conversaId).catch(() => undefined);
         void api.obterContexto(conversaId).then((r) => setContexto(r.contexto ?? null)).catch(() => undefined);
         void engine.entrarConversa(conversaId);
@@ -594,6 +662,29 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         setNoFundo(fundo);
 
         if (fundo) setNovas(0);
+
+        // paginação para trás: perto do topo, carrega mais 50 preservando a posição
+        if (el.scrollTop < 60 && !aCarregarAntigas.current && !semMaisAntigas.current && mensagens.length >= 50) {
+            aCarregarAntigas.current = true;
+
+            const alturaAntes = el.scrollHeight;
+
+            void engine
+                .carregarMensagens(conversaId, mensagens[0]?.id)
+                .then((carregadas) => {
+                    if (!carregadas) semMaisAntigas.current = true;
+
+                    requestAnimationFrame(() => {
+                        const alvo = lista.current;
+
+                        if (alvo) alvo.scrollTop += alvo.scrollHeight - alturaAntes;
+                    });
+                })
+                .catch(() => undefined)
+                .finally(() => {
+                    aCarregarAntigas.current = false;
+                });
+        }
     };
 
     // chegada de mensagens: scroll/lida só com foco + fundo; recuado conta as novas
@@ -750,9 +841,29 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         setLightbox({ itens, indice });
     };
 
+    const executarPesquisa = async () => {
+        const q = pesquisaQ.trim();
+
+        if (!q) return;
+
+        const r = await api.pesquisarMensagens(conversaId, q).catch(() => ({ mensagens: [] as Mensagem[] }));
+        setResultados(r.mensagens);
+        setResultadoIdx(0);
+
+        if (r.mensagens[0]) void irParaMensagem(r.mensagens[0].id);
+    };
+
+    const navegarResultado = (direcao: 1 | -1) => {
+        if (!resultados.length) return;
+
+        const idx = (resultadoIdx + direcao + resultados.length) % resultados.length;
+        setResultadoIdx(idx);
+        void irParaMensagem(resultados[idx].id);
+    };
+
     /** Scroll até à mensagem citada, com destaque. */
     const irParaMensagem = async (mensagemId: string) => {
-        for (let tentativa = 0; tentativa < 4; tentativa++) {
+        for (let tentativa = 0; tentativa < 12; tentativa++) {
             const el = refsBolhas.current.get(mensagemId);
 
             if (el) {
@@ -786,6 +897,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
                 </span>
+                <BotaoIcone titulo="Pesquisar na conversa" onClick={() => { setPesquisaAberta(!pesquisaAberta); setResultados([]); setPesquisaQ(''); }}>
+                    <Icon icon="tabler:search" />
+                </BotaoIcone>
                 {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="tabler:phone" /></BotaoIcone>}
                 {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="tabler:video" /></BotaoIcone>}
                 <span className="relative" data-maka-pop="menu-cabecalho">
@@ -806,6 +920,28 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>}
             </div>
 
+            {pesquisaAberta && (
+                <div className="flex items-center gap-2 border-0 border-b border-solid border-black/[.06] bg-[var(--maka-superficie)] px-3 py-2">
+                    <Icon icon="tabler:search" className="shrink-0 text-[var(--maka-texto-suave)]" />
+                    <input
+                        autoFocus
+                        className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--maka-texto)] outline-none placeholder:text-[var(--maka-texto-suave)]"
+                        placeholder="Pesquisar nesta conversa…"
+                        value={pesquisaQ}
+                        onChange={(e) => setPesquisaQ(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.shiftKey ? navegarResultado(-1) : resultados.length ? navegarResultado(1) : void executarPesquisa();
+                            if (e.key === 'Escape') setPesquisaAberta(false);
+                        }}
+                    />
+                    {resultados.length > 0 && (
+                        <span className="shrink-0 text-xs text-[var(--maka-texto-suave)]">{resultadoIdx + 1}/{resultados.length}</span>
+                    )}
+                    <BotaoIcone titulo="Anterior" onClick={() => navegarResultado(-1)}><Icon icon="tabler:chevron-up" /></BotaoIcone>
+                    <BotaoIcone titulo="Seguinte" onClick={() => navegarResultado(1)}><Icon icon="tabler:chevron-down" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={() => setPesquisaAberta(false)}><Icon icon="tabler:x" /></BotaoIcone>
+                </div>
+            )}
             {contexto && (
                 <div className="border-0 border-b border-solid border-black/[.06] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
                     <span className="font-bold">{contexto.titulo}</span>

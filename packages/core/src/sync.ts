@@ -126,6 +126,36 @@ export class SyncEngine {
         }
     }
 
+    /** Mantém a lista viva: preview, ordem (topo) e contador sem esperar pelo REST. */
+    private async atualizarPreviewLocal(mensagem: Mensagem, recebida: boolean): Promise<void> {
+        const conversa = await this.storage.obterConversa(mensagem.conversa_id);
+
+        if (!conversa) return;
+
+        await this.storage.upsertConversas([
+            {
+                ...conversa,
+                ultima_atividade_em: mensagem.criada_em,
+                ultima_mensagem: {
+                    id: mensagem.id,
+                    tipo: mensagem.tipo,
+                    conteudo: mensagem.eliminada ? null : mensagem.conteudo,
+                    eliminada: mensagem.eliminada,
+                    remetente_identidade_id: mensagem.remetente_identidade_id,
+                    criada_em: mensagem.criada_em,
+                },
+                participante: conversa.participante
+                    ? {
+                          ...conversa.participante,
+                          mensagens_nao_lidas: recebida
+                              ? conversa.participante.mensagens_nao_lidas + 1
+                              : conversa.participante.mensagens_nao_lidas,
+                      }
+                    : conversa.participante,
+            },
+        ]);
+    }
+
     /** Carrega histórico da conversa via REST para o storage (chamado ao abrir). */
     async carregarMensagens(conversaId: string, antesDe?: string): Promise<number> {
         const { mensagens } = await this.api.listarMensagens(conversaId, { antes_de: antesDe, limite: 50 });
@@ -163,6 +193,7 @@ export class SyncEngine {
         };
 
         await this.storage.upsertMensagens([otimista]);
+        await this.atualizarPreviewLocal(otimista, false);
         await this.storage.adicionarOutbox({
             ref_cliente: refCliente,
             conversa_id: dados.conversa_id,
@@ -334,9 +365,7 @@ export class SyncEngine {
                     // conversa nova criada por outra pessoa — vai buscar ao REST
                     await this.atualizarConversas();
                 } else {
-                    await this.storage.upsertConversas([
-                        { ...conversa, ultima_atividade_em: payload.mensagem.criada_em },
-                    ]);
+                    await this.atualizarPreviewLocal(payload.mensagem, true);
                 }
 
                 await this.socket.marcarEntregues(payload.mensagem.conversa_id, payload.mensagem.id).catch(() => undefined);

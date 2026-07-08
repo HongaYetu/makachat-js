@@ -47,7 +47,14 @@ export class MemoryStorage implements StorageAdapter {
     async listarConversas(arquivadas = false): Promise<Conversa[]> {
         return [...this.conversas.values()]
             .filter((c) => (c.participante?.arquivada ?? false) === arquivadas)
-            .sort((a, b) => (a.ultima_atividade_em < b.ultima_atividade_em ? 1 : -1));
+            .sort((a, b) => {
+                const fixadaA = a.participante?.fixada ? 1 : 0;
+                const fixadaB = b.participante?.fixada ? 1 : 0;
+
+                if (fixadaA !== fixadaB) return fixadaB - fixadaA;
+
+                return a.ultima_atividade_em < b.ultima_atividade_em ? 1 : -1;
+            });
     }
 
     async obterConversa(conversaId: string): Promise<Conversa | null> {
