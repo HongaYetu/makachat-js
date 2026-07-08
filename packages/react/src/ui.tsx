@@ -107,7 +107,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                         <Icon icon="mdi:chevron-down" />
                     </button>
                     {menuDe === c.id && (
-                        <div className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                        <div className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
                             <ItemMenu onClick={() => { setMenuDe(null); void engine.marcarNaoLida(c.id).catch(() => undefined); }}>
                                 <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
@@ -215,7 +215,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
 
     return (
         <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
-            <div className="flex max-h-[80vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex max-h-[80vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">{grupo ? 'Info do grupo' : 'Info da conversa'}</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
@@ -325,7 +325,7 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
 
     return (
         <div className="fixed inset-0 z-[10003] grid place-items-center bg-slate-900/50" onClick={aoFechar}>
-            <div className="flex max-h-[70vh] w-[340px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex max-h-[70vh] w-[340px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">Adicionar membros</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
@@ -374,7 +374,7 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
 
     return (
         <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
-            <div className="flex max-h-[74vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex max-h-[74vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">Novo grupo</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
@@ -749,7 +749,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 <span className="relative">
                     <BotaoIcone titulo="Opções da conversa" onClick={() => setMenuConversa(!menuConversa)}><Icon icon="mdi:dots-vertical" /></BotaoIcone>
                     {menuConversa && (
-                        <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                        <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
                             <ItemMenu onClick={() => { setMenuConversa(false); void engine.marcarNaoLida(conversaId).catch(() => undefined); aoFechar?.(); }}>
                                 <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
@@ -883,7 +883,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 aoGravarAudio={(blob) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }))}
             />
             {menuAnexo && (
-                <div className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                <div className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
                     <ItemMenu onClick={() => { setMenuAnexo(false); fotoInput.current?.click(); }}>
                         <Icon icon="mdi:image-outline" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Fotos e vídeos
                     </ItemMenu>
@@ -1211,7 +1211,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             )}
 
             {picker && (
-                <div className={`absolute -top-11 z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-xl ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute -top-11 z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
                     {EMOJIS.map((e) => (
                         <button
                             key={e}
@@ -1224,7 +1224,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </div>
             )}
             {menu && (
-                <div className={`absolute top-9 z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5 ${minha ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute top-9 z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
                     {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="mdi:share" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
                     {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="mdi:pencil-outline" className="inline align-[-2px]" /> Editar</ItemMenu>}
                     {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
@@ -1318,7 +1318,7 @@ function ModalReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMe
 }) {
     return (
         <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
-            <div className="w-[340px] animate-maka-subir overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-[340px] animate-maka-subir overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">Reações</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
@@ -1378,7 +1378,7 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
 
     return (
         <div className="fixed inset-0 z-[10001] grid place-items-center bg-slate-900/70 backdrop-blur-sm" onClick={aoFechar}>
-            <div className="flex w-[460px] max-w-[94vw] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex w-[460px] max-w-[94vw] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">
                         Enviar {ficheiros.length === 1 ? 'foto' : `${ficheiros.length} fotos`}
@@ -1647,7 +1647,7 @@ function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; 
 
     return (
         <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
-            <div className="flex max-h-[70vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex max-h-[70vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">{titulo}</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>

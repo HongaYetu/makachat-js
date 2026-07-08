@@ -176,7 +176,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                     return (
                         <div
                             key={box.conversaId}
-                            className={`flex w-[336px] animate-maka-subir flex-col overflow-hidden rounded-t-2xl bg-[var(--maka-superficie)] shadow-2xl ring-1 ring-black/10 transition-[height] duration-200 ${box.minimizada ? 'h-12' : 'h-[480px]'}`}
+                            className={`flex w-[336px] animate-maka-subir flex-col overflow-hidden rounded-t-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/10 transition-[height] duration-200 ${box.minimizada ? 'h-12' : 'h-[480px]'}`}
                         >
                             <button
                                 className="flex w-full cursor-pointer items-center gap-2.5 border-0 bg-[var(--maka-primaria)] px-3 py-2 text-left text-[var(--maka-primaria-contraste)]"
@@ -202,7 +202,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
 
                 <div className="relative mb-4">
                     {popover && (
-                        <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl ring-1 ring-black/10">
+                        <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/10">
                             <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
                         </div>
                     )}

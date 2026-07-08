@@ -6,6 +6,11 @@ module.exports = {
     },
     theme: {
         extend: {
+            boxShadow: {
+                // elevação suave e visível para menus/popovers (2 camadas: difusa + próxima)
+                'maka-pop': '0 12px 32px -6px rgba(15,23,42,.28), 0 4px 12px -4px rgba(15,23,42,.18)',
+                'maka-modal': '0 24px 64px -12px rgba(15,23,42,.45), 0 8px 24px -8px rgba(15,23,42,.25)',
+            },
             keyframes: {
                 'maka-subir': {
                     from: { opacity: '0', transform: 'translateY(12px)' },
