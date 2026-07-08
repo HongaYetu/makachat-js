@@ -976,9 +976,7 @@ function CartaoFicheiro({ anexo: a }: { anexo: Anexo }) {
                 </span>
             </span>
             <a
-                href={a.url as string}
-                target="_blank"
-                rel="noreferrer"
+                href={urlDownload(a.url as string)}
                 download={nome}
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/15 text-inherit transition-transform hover:scale-105"
                 title="Descarregar"
@@ -1041,10 +1039,8 @@ function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, ao
                 <Botao titulo="Responder" onClick={() => aoResponder(atual.mensagem)}><Icon icon="mdi:reply" /></Botao>
                 {aoEncaminhar && <Botao titulo="Reencaminhar" onClick={() => aoEncaminhar(atual.mensagem)}><Icon icon="mdi:share" /></Botao>}
                 <a
-                    href={atual.url}
+                    href={urlDownload(atual.url)}
                     download={atual.nome}
-                    target="_blank"
-                    rel="noreferrer"
                     title="Baixar"
                     onClick={(e) => e.stopPropagation()}
                     className="grid h-10 w-10 cursor-pointer place-items-center rounded-full bg-white/15 text-lg text-white transition-colors hover:bg-white/30"
@@ -1216,6 +1212,11 @@ export function AvatarWeb({ nome, url, tamanho = 44 }: { nome: string; url?: str
             {nome.trim().charAt(0).toUpperCase() || '?'}
         </span>
     );
+}
+
+/** Acrescenta download=1 (o servidor responde com Content-Disposition: attachment). */
+function urlDownload(url: string): string {
+    return `${url}${url.includes('?') ? '&' : '?'}download=1`;
 }
 
 export function horaCurtaWeb(iso: string): string {
