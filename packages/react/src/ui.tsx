@@ -221,7 +221,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
 
         const minha = ultima.remetente_identidade_id === eu?.identidade_id || ultima.estado_envio === 'a_enviar';
 
-        if (primeiraCarga || minha || (noFundo && focada)) {
+        // o scroll segue sempre que estás no fundo; o FOCO só decide o marcar-como-lida
+        if (primeiraCarga || minha || noFundo) {
             scrollParaFundo(!primeiraCarga);
 
             if (focada && (noFundo || primeiraCarga)) void engine.marcarLidas(conversaId);
