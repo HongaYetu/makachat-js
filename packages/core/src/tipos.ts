@@ -31,7 +31,27 @@ export interface Anexo {
     url: string | null;
 }
 
-export type TipoMensagem = 'texto' | 'foto' | 'video' | 'audio' | 'ficheiro' | 'sistema' | 'chamada';
+export type TipoMensagem =
+    | 'texto'
+    | 'foto'
+    | 'video'
+    | 'audio'
+    | 'ficheiro'
+    | 'partilha'
+    | 'link'
+    | 'sistema'
+    | 'chamada';
+
+/** Payload de mensagens partilha/link (cartão genérico na UI). */
+export interface MetadadosPartilha {
+    contexto_tipo?: string;
+    contexto_id?: string;
+    titulo?: string;
+    subtitulo?: string;
+    imagem_url?: string;
+    url?: string;
+    [extra: string]: unknown;
+}
 
 /** Estado local de envio (não vem do servidor). */
 export type EstadoEnvio = 'a_enviar' | 'enviada' | 'falhou';
@@ -52,6 +72,7 @@ export interface Mensagem {
     ref_cliente: string;
     editada_em: string | null;
     eliminada: boolean;
+    metadados?: MetadadosPartilha | null;
     reacoes: Reacao[];
     anexos: Anexo[];
     criada_em: string;
@@ -169,6 +190,8 @@ export interface DadosEnvioMensagem {
     resposta_a_id?: string;
     encaminhada_de_id?: string;
     anexo_ids?: string[];
+    /** payload de partilha/link (≤4KB) */
+    metadados?: MetadadosPartilha;
 }
 
 export interface ItemOutbox {

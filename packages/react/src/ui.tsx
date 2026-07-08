@@ -15,6 +15,58 @@ import { useMakaChat } from './provider';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+/** Contraparte de uma privada (o participante que não sou eu). */
+function contraparteDe(c: Conversa, identidade: { id: string; tipo: string }) {
+    if (c.tipo !== 'privada') return null;
+
+    return c.participantes.find((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)) ?? null;
+}
+
+/** Badge de verificação (metadados.verificado) ao lado do nome — nem todos os serviços o usam. */
+export function NomeComBadge({ nome, metadados, className = '' }: {
+    nome: React.ReactNode; metadados?: Record<string, unknown> | null; className?: string;
+}) {
+    return (
+        <span className={`inline-flex min-w-0 items-center gap-1 ${className}`}>
+            <span className="min-w-0 truncate">{nome}</span>
+            {metadados?.verificado === true && (
+                <Icon icon="tabler:rosette-discount-check-filled" className="shrink-0 text-[1.05em] text-[var(--maka-primaria)]" />
+            )}
+        </span>
+    );
+}
+
+/** Cartão genérico de partilha/link — o serviço fornece o payload, a app decide a navegação. */
+function CartaoPartilha({ mensagem, minha, aoAbrir }: {
+    mensagem: Mensagem; minha: boolean; aoAbrir?(metadados: NonNullable<Mensagem['metadados']>): void;
+}) {
+    const meta = mensagem.metadados ?? {};
+
+    const abrir = () => {
+        if (aoAbrir) return aoAbrir(meta);
+        if (typeof meta.url === 'string') window.open(meta.url, '_blank', 'noopener');
+    };
+
+    return (
+        <button
+            onClick={abrir}
+            className={`flex w-[260px] cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? 'bg-white/15' : 'bg-black/5'}`}
+        >
+            {typeof meta.imagem_url === 'string' && (
+                <img src={meta.imagem_url} alt="" className="h-[72px] w-[72px] shrink-0 object-cover" />
+            )}
+            <span className="flex min-w-0 flex-col justify-center gap-0.5 px-3 py-2">
+                <span className="truncate text-sm font-bold">{String(meta.titulo ?? meta.url ?? 'Partilha')}</span>
+                {typeof meta.subtitulo === 'string' && <span className="truncate text-xs opacity-75">{meta.subtitulo}</span>}
+                <span className="flex items-center gap-1 text-[10px] opacity-60">
+                    <Icon icon={mensagem.tipo === 'link' ? 'tabler:link' : 'tabler:external-link'} />
+                    {String(meta.contexto_tipo ?? 'ligação')}
+                </span>
+            </span>
+        </button>
+    );
+}
+
 /** 'cima' quando não há espaço abaixo do elemento clicado para um menu de ~alturaEstimada px. */
 function direcaoMenu(e: React.MouseEvent, alturaEstimada = 220): 'cima' | 'baixo' {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -46,7 +98,7 @@ export interface MakaChatConversasProps {
 }
 
 export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa }: MakaChatConversasProps) {
-    const { engine, api, contactos } = useMakaChat();
+    const { engine, api, contactos, identidade } = useMakaChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
     const versao = useVersaoChat();
@@ -185,7 +237,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                         <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} grupo={c.tipo === 'grupo'} />
                         <span className="min-w-0 flex-1">
                             <span className={`block truncate text-sm text-[var(--maka-texto)] ${naoLidas ? 'font-bold' : 'font-semibold'}`}>
-                                {c.titulo ?? 'Conversa'}
+                                <NomeComBadge nome={c.titulo ?? 'Conversa'} metadados={contraparteDe(c, identidade)?.metadados} />
                             </span>
                             <span className={`block truncate text-[13px] ${naoLidas ? 'font-medium text-[var(--maka-texto)]' : 'text-[var(--maka-texto-suave)]'}`}>
                                 {previewConversa(c)}
@@ -198,7 +250,12 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                                     {naoLidas}
                                 </span>
                             )}
-                            {c.participante?.fixada && <Icon icon="tabler:pin-filled" className="text-[13px] text-[var(--maka-texto-suave)]" />}
+                            <span className="flex items-center gap-1">
+                                {c.participante?.silenciada_ate && new Date(c.participante.silenciada_ate) > new Date() && (
+                                    <Icon icon="tabler:bell-off" className="text-[13px] text-[var(--maka-texto-suave)]" />
+                                )}
+                                {c.participante?.fixada && <Icon icon="tabler:pin-filled" className="text-[13px] text-[var(--maka-texto-suave)]" />}
+                            </span>
                         </span>
                     </button>
                     <button
@@ -216,6 +273,13 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                             </ItemMenu>
                             <ItemMenu onClick={() => void preferencia(c, { fixada: !c.participante?.fixada })}>
                                 <Icon icon={c.participante?.fixada ? 'tabler:pinned-off' : 'tabler:pin'} className="inline align-[-2px]" /> {c.participante?.fixada ? 'Desafixar' : 'Fixar'}
+                            </ItemMenu>
+                            <ItemMenu onClick={() => {
+                                setMenuDe(null);
+                                const silenciada = !!c.participante?.silenciada_ate && new Date(c.participante.silenciada_ate) > new Date();
+                                void engine.silenciarConversa(c.id, silenciada ? null : '9999-12-31T00:00:00.000Z');
+                            }}>
+                                <Icon icon={c.participante?.silenciada_ate && new Date(c.participante.silenciada_ate) > new Date() ? 'tabler:bell' : 'tabler:bell-off'} className="inline align-[-2px]" /> {c.participante?.silenciada_ate && new Date(c.participante.silenciada_ate) > new Date() ? 'Reativar notificações' : 'Silenciar'}
                             </ItemMenu>
                             <ItemMenu onClick={() => void preferencia(c, { arquivada: !verArquivadas })}>
                                 <Icon icon={verArquivadas ? 'tabler:archive-off' : 'tabler:archive'} className="inline align-[-2px]" /> {verArquivadas ? 'Desarquivar' : 'Arquivar'}
@@ -549,7 +613,7 @@ function previewConversa(c: Conversa): string {
     if (!u) return '';
     if (u.eliminada) return '🚫 Mensagem eliminada';
 
-    const p: Record<string, string> = { foto: '📷 Foto', video: '🎬 Vídeo', audio: '🎤 Áudio', ficheiro: '📎 Ficheiro', chamada: '📞 Chamada' };
+    const p: Record<string, string> = { foto: '📷 Foto', video: '🎬 Vídeo', audio: '🎤 Áudio', ficheiro: '📎 Ficheiro', chamada: '📞 Chamada', partilha: '🔗 Partilha', link: '🔗 Link' };
 
     return u.tipo === 'texto' || u.tipo === 'sistema' ? (u.conteudo ?? '') : (p[u.tipo] ?? '');
 }
@@ -916,7 +980,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     )}
                 </span>
                 <span className="min-w-0 flex-1 cursor-pointer" onClick={() => setInfoAberta(true)}>
-                    <span className={`block truncate font-bold ${compacto ? 'text-[13px]' : 'text-[15px]'}`}>{conversa?.titulo ?? '…'}</span>
+                    <span className={`block truncate font-bold ${compacto ? 'text-[13px]' : 'text-[15px]'}`}>
+                        <NomeComBadge nome={conversa?.titulo ?? '…'} metadados={contraparte?.metadados} />
+                    </span>
                     <span className={`block text-xs ${typingOutro ? 'italic text-[var(--maka-primaria)]' : presenca?.online ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
                         {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
@@ -1387,6 +1453,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
 
     useFecharFora(picker || menu, `bolha-${m.id}`, () => { setPicker(false); setMenu(false); });
 
+    const { aoAbrirPartilha } = useMakaChat();
     const respondida = m.resposta_a_id ? todas.find((x) => x.id === m.resposta_a_id) : null;
     const grupos = agruparReacoes(m.reacoes);
 
@@ -1468,7 +1535,9 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             >
                 {barra}
                 {grupo && !minha && primeiraDoBloco && (
-                    <span className="text-xs font-bold text-[var(--maka-primaria)]">{autor?.nome ?? '…'}</span>
+                    <span className="text-xs font-bold text-[var(--maka-primaria)]">
+                        <NomeComBadge nome={autor?.nome ?? '…'} metadados={autor?.metadados} />
+                    </span>
                 )}
                 {m.resposta_a_id && (
                     <button
@@ -1480,6 +1549,9 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                     </button>
                 )}
                 {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} aoAbrirFoto={aoAbrirFoto} />)}
+                {!m.eliminada && (m.tipo === 'partilha' || m.tipo === 'link') && (
+                    <CartaoPartilha mensagem={m} minha={minha} aoAbrir={aoAbrirPartilha} />
+                )}
                 {m.eliminada ? (
                     <em className="flex items-center gap-1 opacity-60"><Icon icon="tabler:ban" /> Mensagem eliminada</em>
                 ) : (

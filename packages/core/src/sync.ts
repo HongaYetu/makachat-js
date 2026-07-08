@@ -313,6 +313,19 @@ export class SyncEngine {
         this.notificar();
     }
 
+    /** Silencia (ISO ou '9999-12-31T00:00:00Z' para sempre) ou reativa (null) as notificações da conversa. */
+    async silenciarConversa(conversaId: string, ate: string | null): Promise<void> {
+        await this.api.atualizarPreferencias(conversaId, { silenciada_ate: ate });
+        const conversa = await this.storage.obterConversa(conversaId);
+
+        if (conversa?.participante) {
+            await this.storage.upsertConversas([
+                { ...conversa, participante: { ...conversa.participante, silenciada_ate: ate } },
+            ]);
+            this.notificar();
+        }
+    }
+
     async marcarNaoLida(conversaId: string): Promise<void> {
         const r = await this.api.marcarNaoLida(conversaId);
         const conversa = await this.storage.obterConversa(conversaId);

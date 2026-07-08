@@ -1,6 +1,7 @@
 import {
     AlvoParticipante,
     Mensagem,
+    MetadadosPartilha,
     FlagFuncionalidade,
     IdentidadeConfig,
     MakaApi,
@@ -33,6 +34,8 @@ export interface MakaChatContexto {
     contactos: AlvoParticipante[];
     /** ligação socket ativa? (para barras de estado offline) */
     ligado: boolean;
+    /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
+    aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -53,10 +56,12 @@ export interface MakaChatProviderProps {
     notificacoesNativas?: boolean;
     /** clique na notificação — a app decide como abrir a conversa (ex.: useDock().abrir) */
     aoAbrirNotificacao?: (conversaId: string) => void;
+    /** clique num cartão de partilha/link */
+    aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     children: React.ReactNode;
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, notificacoesNativas = false, aoAbrirNotificacao, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const [ligado, setLigado] = useState(false);
     const visiveis = useRef(new Map<string, number>());
@@ -145,6 +150,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
             },
             ligado: false,
             contactos: [],
+            aoAbrirPartilha: undefined,
             registarVisivel: (conversaId) => {
                 visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
 
@@ -174,7 +180,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     }, [valor]);
 
     return (
-        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [] }}>
+        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [], aoAbrirPartilha }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

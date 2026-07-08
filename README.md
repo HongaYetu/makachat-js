@@ -33,6 +33,9 @@ import { MakaChatProvider, MakaChatDock } from '@hongayetu/makachat-react';
 - **Eventos em qualquer página** (sem UI de chat montada): `useMensagemRecebida(handler)`, `useTotalNaoLidas()`, `subscreverMensagens()` no contexto
 - **Notificações nativas** do browser (opt-in): `notificacoesNativas` + `pedirPermissaoNotificacoes()`; clique → `aoAbrirNotificacao(conversaId)`
 - **Chamadas**: `ChamadasProvider` global — janela flutuante arrastável toca em qualquer página
+- **Badge de verificação**: participantes com `metadados.verificado` mostram selo junto ao nome (o serviço decide via token/resolver/webhook)
+- **Partilha de conteúdo**: mensagens `partilha`/`link` com cartão genérico; `aoAbrirPartilha(metadados)` no provider decide a navegação
+- **Silenciar**: menu da conversa; conversas silenciadas não recebem push
 
 ## Desenvolvimento
 
