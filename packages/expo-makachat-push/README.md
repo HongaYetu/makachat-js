@@ -34,3 +34,9 @@ MakaPush.aoReceberPush(() => {/* app viva em background — refrescar badge */})
 ```
 
 Registo do token: `api.registarDispositivo({ plataforma, fornecedor: 'fcm', token })` (endpoint `/v1/dispositivos`).
+
+## Chamadas (Android)
+
+Pushes com `makachat_chamada=1` mostram notificação de chamada nativa (CallStyle, som de toque, Atender/Rejeitar, full-screen intent) e `acao=parar` cancela-a quando alguém atende. API JS: `obterChamadaPendente()` (arranque frio — lê e limpa), `aoChamadaPush(listener)` (app viva) e `cancelarNotificacaoChamada(id)`. O `ChamadasProvider` do `@hongayetu/makachat-react-native` consome isto automaticamente via `retomarPendente()`.
+
+Permissões da app (app.json → android.permissions): `POST_NOTIFICATIONS`, `USE_FULL_SCREEN_INTENT`.

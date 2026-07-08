@@ -50,4 +50,14 @@ Push: pacote irmão `expo-makachat-push` (inbox nativa FCM/APNs, tokens em `POST
 
 `apps/exemplo-mobile` (Expo): perfis demo, todos os módulos opcionais instalados. Ajustar o IP do servidor no `App.tsx`, `npx expo start` com o makachat-server local ligado.
 
-Fora do âmbito mobile v1: partilha de ecrã (iOS exige Broadcast Extension), VoIP push (CallKit/ConnectionService — fase própria).
+## Chamadas com a app fechada / nativo
+
+| Capacidade | Android | iOS |
+|---|---|---|
+| Notificação de chamada a tocar (app fechada) | ✅ CallStyle nativo (API 31+) com Atender/Rejeitar, full-screen, som de toque; para quando alguém atende (`chamada_fim`) | ⚠️ Notificação normal (NSE) — tap abre a app e o banner "Entrar" assume |
+| Retomar chamada do push (arranque frio) | ✅ `retomarPendente()` automático no provider | — |
+| Áudio em background durante a chamada | ✅ foreground service (peer opcional `@notifee/react-native` + runner no index.js) | ✅ (AudioSession) |
+| Partilha de ecrã | ✅ (flag `chamadas.partilha_ecra`) | ❌ exige Broadcast Extension (fase própria) |
+| Toque contínuo/ecrã nativo com app morta (VoIP) | CallStyle cobre | ❌ exige CallKit+PushKit + certificado VoIP APNs (fase própria) |
+
+Fora do âmbito mobile v1: Broadcast Extension iOS e CallKit/PushKit (bloqueados por certificados/dispositivo — o resto do fluxo já está pronto do lado do servidor e do Android).
