@@ -330,7 +330,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             {children}
             {/* estilos dos vídeos anexados imperativamente */}
             <style>{`
-                .maka-video-remoto { width: 100%; max-height: 100%; object-fit: cover; border-radius: 12px; }
+                .maka-video-remoto { flex: 1 1 0%; min-width: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
                 .maka-video-local { position: absolute; right: 10px; bottom: 10px; width: 28%; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 1; }
             `}</style>
 
