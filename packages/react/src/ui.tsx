@@ -15,6 +15,21 @@ import { useMakaChat } from './provider';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+/** Fecha um popup ao clicar fora do elemento marcado com data-maka-pop=chave. */
+export function useFecharFora(ativo: boolean, chave: string, fechar: () => void): void {
+    useEffect(() => {
+        if (!ativo) return;
+
+        const aoMousedown = (e: MouseEvent) => {
+            if (!(e.target as Element | null)?.closest?.(`[data-maka-pop="${chave}"]`)) fechar();
+        };
+
+        document.addEventListener('mousedown', aoMousedown);
+
+        return () => document.removeEventListener('mousedown', aoMousedown);
+    }, [ativo, chave, fechar]);
+}
+
 // ---------------------------------------------------------------- lista
 
 export interface MakaChatConversasProps {
@@ -37,6 +52,8 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     useEffect(() => {
         void engine.storage.listarConversas(verArquivadas).then(setConversas);
     }, [engine, verArquivadas, versao]);
+
+    useFecharFora(menuDe !== null, 'menu-lista', () => setMenuDe(null));
 
     const preferencia = async (c: Conversa, dados: { arquivada?: boolean; fixada?: boolean }) => {
         setMenuDe(null);
@@ -100,6 +117,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                         </span>
                     </button>
                     <button
+                        data-maka-pop="menu-lista"
                         onClick={() => setMenuDe(menuDe === c.id ? null : c.id)}
                         className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-superficie)] text-[var(--maka-texto-suave)] opacity-0 shadow ring-1 ring-black/10 transition-opacity group-hover:opacity-100"
                         title="Opções"
@@ -107,7 +125,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                         <Icon icon="mdi:chevron-down" />
                     </button>
                     {menuDe === c.id && (
-                        <div className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
+                        <div data-maka-pop="menu-lista" className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
                             <ItemMenu onClick={() => { setMenuDe(null); void engine.marcarNaoLida(c.id).catch(() => undefined); }}>
                                 <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
@@ -491,6 +509,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
 
     useEffect(() => registarVisivel(conversaId), [registarVisivel, conversaId]);
 
+    useFecharFora(menuConversa, 'menu-cabecalho', () => setMenuConversa(false));
+    useFecharFora(menuAnexo, 'menu-anexo', () => setMenuAnexo(false));
+
     useEffect(() => {
         void engine.storage.obterConversa(conversaId).then(setConversa);
     }, [engine, conversaId, versao]);
@@ -746,7 +767,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 </span>
                 {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
                 {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="mdi:video-outline" /></BotaoIcone>}
-                <span className="relative">
+                <span className="relative" data-maka-pop="menu-cabecalho">
                     <BotaoIcone titulo="Opções da conversa" onClick={() => setMenuConversa(!menuConversa)}><Icon icon="mdi:dots-vertical" /></BotaoIcone>
                     {menuConversa && (
                         <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
@@ -861,6 +882,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             )}
 
             {/* input com gravação de áudio */}
+            <div data-maka-pop="menu-anexo">
             <BarraInput
                 compacto={compacto}
                 texto={texto}
@@ -883,7 +905,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 aoGravarAudio={(blob) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }))}
             />
             {menuAnexo && (
-                <div className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
+                <div data-maka-pop="menu-anexo" className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
                     <ItemMenu onClick={() => { setMenuAnexo(false); fotoInput.current?.click(); }}>
                         <Icon icon="mdi:image-outline" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Fotos e vídeos
                     </ItemMenu>
@@ -892,6 +914,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     </ItemMenu>
                 </div>
             )}
+            </div>
             <input
                 ref={fotoInput}
                 type="file"
@@ -1177,6 +1200,9 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     const [hover, setHover] = useState(false);
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
+
+    useFecharFora(picker || menu, `bolha-${m.id}`, () => { setPicker(false); setMenu(false); });
+
     const respondida = m.resposta_a_id ? todas.find((x) => x.id === m.resposta_a_id) : null;
     const grupos = agruparReacoes(m.reacoes);
 
@@ -1191,7 +1217,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     const mostrarBarra = hover || picker || menu;
 
     const barra = mostrarBarra && !m.eliminada && (
-        <div className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/5 ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
+        <div data-maka-pop={`bolha-${m.id}`} className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/5 ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
             {podeReagir && (
                 <button
                     className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"

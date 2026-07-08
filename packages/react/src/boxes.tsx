@@ -3,7 +3,7 @@ import { Conversa } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConversas, useVersaoChat } from './hooks';
 import { useMakaChat } from './provider';
-import { AvatarWeb, ConversaPainel, MakaChatConversas } from './ui';
+import { AvatarWeb, ConversaPainel, MakaChatConversas, useFecharFora } from './ui';
 
 // ---------------------------------------------------------------- BoxFull / BoxMin
 
@@ -132,6 +132,8 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
     const [boxes, setBoxes] = useState<BoxAberta[]>([]);
     const [popover, setPopover] = useState(false);
 
+    useFecharFora(popover, 'dock-popover', () => setPopover(false));
+
     const abrir = useCallback(
         (conversaId: string) => {
             setPopover(false);
@@ -200,7 +202,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                     );
                 })}
 
-                <div className="relative mb-4">
+                <div className="relative mb-4" data-maka-pop="dock-popover">
                     {popover && (
                         <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/10">
                             <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
