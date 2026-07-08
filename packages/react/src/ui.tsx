@@ -807,7 +807,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             </div>
 
             {contexto && (
-                <div className="border-b border-[var(--maka-fundo)] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
+                <div className="border-b border-black/[.07] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
                     <span className="font-bold">{contexto.titulo}</span>
                     {contexto.subtitulo && <span className="text-[var(--maka-texto-suave)]"> — {contexto.subtitulo}</span>}
                     {contexto.linhas?.map((l, i) => (
@@ -861,7 +861,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 })}
                 {typingOutro && (
                     <div className="flex justify-start pt-1">
-                        <div className="flex items-center gap-2 rounded-[var(--maka-raio)] rounded-bl-md bg-[var(--maka-bolha-outro)] px-3.5 py-2.5 shadow-sm">
+                        <div className="flex items-center gap-2 rounded-[var(--maka-raio)] rounded-bl-md bg-[var(--maka-bolha-outro)] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(2,6,23,.08),0_3px_10px_-3px_rgba(2,6,23,.07)] ring-1 ring-black/[.07]">
                             {conversa?.tipo === 'grupo' && nomeTyping && (
                                 <span className="text-xs font-bold text-[var(--maka-primaria)]">{nomeTyping}</span>
                             )}
@@ -1297,11 +1297,11 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </span>
             )}
             <div
-                className={`relative flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm transition-shadow ${
+                className={`relative flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-[0_1px_2px_rgba(2,6,23,.08),0_3px_10px_-3px_rgba(2,6,23,.07)] transition-shadow ${
                     destacada ? 'ring-2 ring-[var(--maka-primaria)]' : ''
                 } ${minha
                     ? `bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)] ${ultimaDoBloco ? 'rounded-br-md' : 'rounded-r-md'}`
-                    : `bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)] ${ultimaDoBloco ? 'rounded-bl-md' : 'rounded-l-md'}`}`}
+                    : `bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)] ring-1 ring-black/[.07] ${ultimaDoBloco ? 'rounded-bl-md' : 'rounded-l-md'}`}`}
             >
                 {barra}
                 {grupo && !minha && primeiraDoBloco && (
@@ -1332,7 +1332,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             {grupos.length > 0 && (
                 <button
                     onClick={aoVerReacoes}
-                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/[.05] transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-3'}`}
+                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/[.08] transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-3'}`}
                 >
                     {grupos.map((g) => (
                         <span key={g.emoji}>
