@@ -115,7 +115,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                         className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border-0 px-3 py-2.5 text-left transition-colors ${
                             ativa
                                 ? 'bg-[color-mix(in_srgb,var(--maka-primaria)_10%,transparent)]'
-                                : 'bg-transparent hover:bg-[var(--maka-fundo)]'
+                                : 'bg-transparent hover:bg-black/[.04]'
                         }`}
                     >
                         <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} grupo={c.tipo === 'grupo'} />
@@ -376,7 +376,7 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
                         const marcado = escolhidos.has(chave);
 
                         return (
-                            <button key={chave} onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })} className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]">
+                            <button key={chave} onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })} className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]">
                                 <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={32} />
                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
@@ -437,7 +437,7 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
                             <button
                                 key={chave}
                                 onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })}
-                                className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]"
+                                className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
                             >
                                 <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={34} />
@@ -1241,18 +1241,18 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
         <div data-maka-pop={`bolha-${m.id}`} className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/[.05] ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
             {podeReagir && (
                 <button
-                    className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"
+                    className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]"
                     title="Reagir"
                     onClick={() => { setPicker(!picker); setMenu(false); }}
                 >
                     <Icon icon="tabler:mood-smile" />
                 </button>
             )}
-            <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
+            <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
                 <Icon icon="tabler:arrow-back-up" />
             </button>
             {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
-                <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]" title="Mais opções" onClick={() => { setMenu(!menu); setPicker(false); }}>
+                <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]" title="Mais opções" onClick={() => { setMenu(!menu); setPicker(false); }}>
                     <Icon icon="tabler:dots" />
                 </button>
             )}
@@ -1620,7 +1620,7 @@ function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, ao
 
 function ItemMenu({ onClick, children }: { onClick(): void; children: React.ReactNode }) {
     return (
-        <button onClick={onClick} className="block w-full cursor-pointer whitespace-nowrap border-0 bg-transparent px-4 py-2 text-left text-[13px] text-[var(--maka-texto)] hover:bg-[var(--maka-fundo)]">
+        <button onClick={onClick} className="block w-full cursor-pointer whitespace-nowrap border-0 bg-transparent px-4 py-2 text-left text-[13px] text-[var(--maka-texto)] hover:bg-black/[.04]">
             {children}
         </button>
     );
@@ -1631,7 +1631,7 @@ function BotaoIcone({ onClick, titulo, children }: { onClick(): void; titulo: st
         <button
             title={titulo}
             onClick={onClick}
-            className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[17px] text-[var(--maka-texto-suave)] transition-colors hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"
+            className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[17px] text-[var(--maka-texto-suave)] transition-colors hover:bg-black/[.04] hover:text-[var(--maka-texto)]"
         >
             {children}
         </button>
@@ -1704,7 +1704,7 @@ function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; 
                         <button
                             key={c.id}
                             onClick={() => alternar(c.id)}
-                            className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]"
+                            className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
                         >
                             <Icon
                                 icon={escolhidas.has(c.id) ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'}

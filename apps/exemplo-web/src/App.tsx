@@ -186,7 +186,7 @@ function Contactos({ perfil, modo, aoAbrirNoBox }: { perfil: Perfil; modo: Modo;
                     key={c.id}
                     onClick={() => void conversar(c)}
                     style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '9px 10px', marginBottom: 4, borderRadius: 12, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#e9eef5')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,.04)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                     <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14 }}>
