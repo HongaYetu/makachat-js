@@ -23,10 +23,11 @@
         "./styles.css": "./dist/styles.css"
     },
     "files": [
-        "dist"
+        "dist",
+        "sons"
     ],
     "scripts": {
-        "build": "tsup && tailwindcss -c tailwind.config.js -i src/styles.css -o dist/styles.css --minify",
+        "build": "tsup && tailwindcss -c tailwind.config.js -i src/styles.css -o dist/styles.css --minify && cp -R sons dist/sons",
         "test": "echo 'sem testes próprios (lógica no core)'"
     },
     "dependencies": {

@@ -17,6 +17,7 @@ import {
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { cssVarsDoTema, MakaTema } from './tema';
 import { mostrarNotificacao } from './notificacoes';
+import { tocarSom } from './sons';
 
 export interface MakaChatContexto {
     engine: SyncEngine;
@@ -102,6 +103,9 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
             aoMensagem: (mensagem: Mensagem) => {
                 // evento global: qualquer página subscrita recebe, sem depender da conversa aberta
                 ouvintesMensagens.current.forEach((o) => o(mensagem));
+
+                // som de mensagem recebida (página visível; em background é o sistema que avisa)
+                if (typeof document === 'undefined' || !document.hidden) tocarSom('recebida');
 
                 // extra opcional: notificação nativa quando a página está em background
                 if (!notifAtivas.current || typeof document === 'undefined' || !document.hidden) return;

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useEnviarMensagem, useFuncionalidadeAtiva, useMensagens, useTypingConversa, useVersaoChat } from '../hooks';
 import { useMakaChat, useTema } from '../provider';
+import { tocarSom } from '../sons';
 import { GravadorAudio } from './audio';
 import { Bolha } from './Bolha';
 import { Avatar, contraparteDe, ItemSheet, ListaPerformante, NomeComBadge, Pulso, rotuloDia, Sheet } from './comum';
@@ -175,6 +176,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
         setTexto('');
         setResponderA(null);
         socket.typing(conversaId, false);
+        tocarSom('enviada');
 
         await enviar({ conversa_id: conversaId, tipo: 'texto', conteudo, resposta_a_id: responderA?.id }).catch(() => undefined);
         lista.current?.scrollToOffset({ offset: 0, animated: true });

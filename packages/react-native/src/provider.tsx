@@ -16,6 +16,7 @@ import {
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { SqliteStorage } from './sqlite-storage';
 import { MakaTema, resolverTema, TemaResolvido } from './tema';
+import { tocarSom } from './sons';
 
 export interface MakaChatContexto {
     engine: SyncEngine;
@@ -114,7 +115,10 @@ export function MakaChatProvider({
             aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
             aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
             aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
-            aoMensagem: (mensagem) => ouvintesMensagens.current.forEach((o) => o(mensagem)),
+            aoMensagem: (mensagem) => {
+                ouvintesMensagens.current.forEach((o) => o(mensagem));
+                tocarSom('recebida');
+            },
         });
 
         return {

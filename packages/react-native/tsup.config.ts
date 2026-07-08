@@ -23,5 +23,6 @@ export default defineConfig({
         '@notifee/react-native',
         '@hongayetu/expo-makachat-push',
     ],
+    loader: { '.mp3': 'copy' },
     outExtension: ({ format }) => ({ js: format === 'esm' ? '.js' : '.cjs' }),
 });

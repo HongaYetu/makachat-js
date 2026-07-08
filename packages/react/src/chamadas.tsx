@@ -3,6 +3,7 @@ import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
 import { LocalTrackPublication, RemoteTrack, Room, RoomEvent, Track, VideoPresets } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { mostrarNotificacao } from './notificacoes';
+import { comecarToque, pararToque } from './sons';
 import { useMakaChat } from './provider';
 import { AvatarWeb } from './ui';
 
@@ -78,6 +79,12 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         faseRef.current = ativa?.fase ?? null;
+
+        // toque em loop enquanto liga/recebe; para assim que entra em curso ou fecha
+        if (ativa?.fase === 'a_ligar' || ativa?.fase === 'a_receber') comecarToque();
+        else pararToque();
+
+        return pararToque;
     }, [ativa?.fase]);
 
     const comecarTimer = useCallback(() => {

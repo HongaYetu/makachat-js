@@ -5,6 +5,7 @@ import { AppState, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimens
 import { obterLiveKit, obterLiveKitClient, obterNotifee, obterPushMakaChat } from './opcionais';
 import { useFuncionalidadeAtiva } from './hooks';
 import { useMakaChat, useTema } from './provider';
+import { comecarToque, pararToque } from './sons';
 import { Avatar, duracaoMmSs, Pulso } from './ui/comum';
 
 interface EstadoChamada {
@@ -114,6 +115,12 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         faseRef.current = ativa?.fase ?? null;
+
+        // toque em loop enquanto liga/recebe; para ao entrar em curso ou fechar
+        if (ativa?.fase === 'a_ligar' || ativa?.fase === 'a_receber') comecarToque();
+        else pararToque();
+
+        return pararToque;
     }, [ativa?.fase]);
 
     const limpar = useCallback(() => {

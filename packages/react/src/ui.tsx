@@ -12,6 +12,7 @@ import {
     useVersaoChat,
 } from './hooks';
 import { useMakaChat } from './provider';
+import { tocarSom } from './sons';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
@@ -892,6 +893,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
 
         const resposta = responderA;
         setResponderA(null);
+        tocarSom('enviada');
         void enviar({ conversa_id: conversaId, conteudo, resposta_a_id: resposta?.id });
     };
 
