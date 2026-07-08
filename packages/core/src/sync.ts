@@ -84,10 +84,20 @@ export class SyncEngine {
         await this.flushOutbox();
     }
 
-    /** Entra na sala da conversa (typing/presença) e garante rejoin após reconexão. */
+    /** Entra na sala da conversa (typing/presença), garante rejoin e a conversa no storage. */
     async entrarConversa(conversaId: string): Promise<void> {
         this.salas.add(conversaId);
         await this.socket.entrarConversa(conversaId).catch(() => undefined);
+
+        if (!(await this.storage.obterConversa(conversaId))) {
+            await this.api
+                .obterConversa(conversaId)
+                .then(async ({ conversa }) => {
+                    await this.storage.upsertConversas([conversa]);
+                    this.notificar();
+                })
+                .catch(() => undefined);
+        }
     }
 
     async atualizarConversas(): Promise<void> {
@@ -351,7 +361,18 @@ export class SyncEngine {
         );
 
         this.socket.on(EVENTOS_SERVIDOR.RECIBO, (recibo: Recibo) => {
-            void this.storage.aplicarRecibo(recibo).then(() => this.notificar());
+            void (async () => {
+                // sem a conversa local o recibo perder-se-ia — vai buscá-la primeiro
+                if (!(await this.storage.obterConversa(recibo.conversa_id))) {
+                    await this.api
+                        .obterConversa(recibo.conversa_id)
+                        .then(({ conversa }) => this.storage.upsertConversas([conversa]))
+                        .catch(() => undefined);
+                }
+
+                await this.storage.aplicarRecibo(recibo);
+                this.notificar();
+            })();
         });
 
         this.socket.on(

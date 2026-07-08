@@ -13,7 +13,7 @@ O contrato de eventos/REST é o `PROTOCOL.md` do [makachat-server](https://githu
 ```bash
 pnpm install
 pnpm build
-pnpm test
+pnpm test   # inclui a suite de integração biblioteca↔servidor: requer o makachat-server local ligado (pnpm start:dev)
 ```
 
 ## Estilos (pacote web)
