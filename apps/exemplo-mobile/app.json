@@ -1,0 +1,34 @@
+{
+    "expo": {
+        "name": "MakaChat Exemplo",
+        "slug": "makachat-exemplo",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "scheme": "makachat-exemplo",
+        "userInterfaceStyle": "light",
+        "newArchEnabled": true,
+        "ios": {
+            "bundleIdentifier": "com.hongayetu.makachat.exemplo",
+            "infoPlist": {
+                "NSCameraUsageDescription": "Chamadas de vídeo e envio de fotos",
+                "NSMicrophoneUsageDescription": "Chamadas de voz e mensagens de áudio",
+                "NSPhotoLibraryUsageDescription": "Envio de fotos e vídeos"
+            }
+        },
+        "android": {
+            "package": "com.hongayetu.makachat.exemplo",
+            "permissions": [
+                "CAMERA",
+                "RECORD_AUDIO",
+                "MODIFY_AUDIO_SETTINGS"
+            ]
+        },
+        "plugins": [
+            "expo-sqlite",
+            "expo-audio",
+            "expo-video",
+            "expo-image-picker",
+            "@livekit/react-native-expo-plugin"
+        ]
+    }
+}

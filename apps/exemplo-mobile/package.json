@@ -1,0 +1,37 @@
+{
+    "name": "exemplo-mobile",
+    "version": "0.0.1",
+    "private": true,
+    "main": "index.js",
+    "scripts": {
+        "start": "expo start",
+        "android": "expo run:android",
+        "ios": "expo run:ios"
+    },
+    "dependencies": {
+        "@expo/vector-icons": "^14.0.4",
+        "@hongayetu/makachat-core": "workspace:*",
+        "@hongayetu/makachat-react-native": "workspace:*",
+        "@livekit/react-native": "^2.11.1",
+        "@livekit/react-native-expo-plugin": "^1.0.2",
+        "@livekit/react-native-webrtc": "^144.1.1",
+        "@shopify/flash-list": "^2.2.0",
+        "crypto-js": "^4.2.0",
+        "expo": "~54.0.0",
+        "expo-audio": "~1.0.0",
+        "expo-document-picker": "~14.0.0",
+        "expo-file-system": "~19.0.0",
+        "expo-image-picker": "~17.0.0",
+        "expo-sqlite": "~16.0.0",
+        "expo-status-bar": "~3.0.0",
+        "expo-video": "~3.0.0",
+        "livekit-client": "^2.15.8",
+        "react": "19.1.0",
+        "react-native": "0.81.4"
+    },
+    "devDependencies": {
+        "@types/crypto-js": "^4.2.2",
+        "@types/react": "~19.1.0",
+        "typescript": "~5.9.0"
+    }
+}

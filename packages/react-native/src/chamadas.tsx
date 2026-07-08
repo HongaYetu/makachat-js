@@ -1,0 +1,539 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { obterLiveKit, obterLiveKitClient } from './opcionais';
+import { useMakaChat, useTema } from './provider';
+import { Avatar, duracaoMmSs, Pulso } from './ui/comum';
+
+interface EstadoChamada {
+    chamada: Chamada;
+    fase: 'a_receber' | 'a_ligar' | 'em_curso' | 'falhada';
+    iniciador?: { nome: string; foto_url: string | null };
+}
+
+interface Tile {
+    chave: string;
+    local: boolean;
+    nome: string;
+    trackRef: unknown | null;
+}
+
+export interface ChamadasApi {
+    iniciar(conversaId: string, tipo: 'audio' | 'video'): Promise<void>;
+    entrar(chamadaId: string, tipo: 'audio' | 'video'): Promise<void>;
+    ativa: EstadoChamada | null;
+    /** false quando a app não instalou @livekit/react-native */
+    suportado: boolean;
+}
+
+const Ctx = createContext<ChamadasApi | null>(null);
+
+export function useChamadas(): ChamadasApi {
+    const ctx = useContext(Ctx);
+
+    if (!ctx) throw new Error('useChamadas requer <ChamadasProvider>');
+
+    return ctx;
+}
+
+export function useChamadasOpcional(): ChamadasApi | null {
+    return useContext(Ctx);
+}
+
+let globalsRegistados = false;
+
+/**
+ * Chamadas LiveKit no mobile (padrão EiConnect): registerGlobals à primeira
+ * utilização, AudioSession communication, Room adaptiveStream/dynacast com
+ * reconexão progressiva (90s), câmara pausa em background. Mesmas regras da
+ * web: sem permissões a chamada não avança; falha → "Chamada falhada".
+ */
+export function ChamadasProvider({ children }: { children: React.ReactNode }) {
+    const { api, engine, subscreverChamadas } = useMakaChat();
+    const tema = useTema();
+    const livekit = useMemo(() => obterLiveKit(), []);
+    const lkClient = useMemo(() => obterLiveKitClient(), []);
+    const suportado = !!livekit && !!lkClient;
+
+    const [ativa, setAtiva] = useState<EstadoChamada | null>(null);
+    const [conversa, setConversa] = useState<Conversa | null>(null);
+    const [tiles, setTiles] = useState<Tile[]>([]);
+    const [inicioEm, setInicioEm] = useState<number | null>(null);
+    const [erro, setErro] = useState<string | null>(null);
+    const [mudo, setMudo] = useState(false);
+    const [camara, setCamara] = useState(false);
+    const [altifalante, setAltifalante] = useState(true);
+    const [minimizada, setMinimizada] = useState(false);
+
+    const room = useRef<any>(null);
+    const falhada = useRef(false);
+    const faseRef = useRef<EstadoChamada['fase'] | null>(null);
+    const facing = useRef<'user' | 'environment'>('user');
+
+    useEffect(() => {
+        faseRef.current = ativa?.fase ?? null;
+    }, [ativa?.fase]);
+
+    const limpar = useCallback(() => {
+        void room.current?.disconnect?.();
+        room.current = null;
+        falhada.current = false;
+
+        if (livekit?.AudioSession) void livekit.AudioSession.stopAudioSession?.();
+
+        setAtiva(null);
+        setConversa(null);
+        setTiles([]);
+        setInicioEm(null);
+        setErro(null);
+        setMudo(false);
+        setCamara(false);
+        setMinimizada(false);
+    }, [livekit]);
+
+    const comecarTimer = useCallback(() => {
+        setInicioEm((atual) => atual ?? Date.now());
+    }, []);
+
+    const sincronizarTiles = useCallback(() => {
+        const r = room.current;
+
+        if (!r || !lkClient) return;
+
+        const Track = lkClient.Track;
+        const novos: Tile[] = [];
+
+        const localCam = r.localParticipant?.getTrackPublication?.(Track.Source.Camera);
+        novos.push({
+            chave: 'local',
+            local: true,
+            nome: 'Tu',
+            trackRef: localCam?.track
+                ? { participant: r.localParticipant, publication: localCam, source: Track.Source.Camera }
+                : null,
+        });
+
+        for (const participante of r.remoteParticipants?.values?.() ?? []) {
+            const cam = participante.getTrackPublication?.(Track.Source.Camera);
+            const ecra = participante.getTrackPublication?.(Track.Source.ScreenShare);
+            const pub = ecra?.isSubscribed ? ecra : cam;
+            novos.push({
+                chave: participante.identity,
+                local: false,
+                nome: participante.name || 'Participante',
+                trackRef: pub?.track
+                    ? { participant: participante, publication: pub, source: pub === ecra ? Track.Source.ScreenShare : Track.Source.Camera }
+                    : null,
+            });
+        }
+
+        setTiles(novos);
+    }, [lkClient]);
+
+    const ligarSala = useCallback(
+        async (token: string, wsUrl: string, video: boolean): Promise<boolean> => {
+            if (!suportado) {
+                setErro('Chamadas indisponíveis — a app não inclui o módulo LiveKit.');
+
+                return false;
+            }
+
+            if (!globalsRegistados) {
+                livekit.registerGlobals();
+                globalsRegistados = true;
+            }
+
+            await livekit.AudioSession.configureAudio?.({
+                android: { audioTypeOptions: livekit.AndroidAudioTypePresets?.communication },
+            }).catch(() => undefined);
+            await livekit.AudioSession.startAudioSession?.().catch(() => undefined);
+
+            const r = new lkClient.Room({
+                adaptiveStream: true,
+                dynacast: true,
+                reconnectPolicy: {
+                    nextRetryDelayInMs: (contexto: { elapsedMs: number; retryCount: number }) =>
+                        contexto.elapsedMs > 90_000 ? null : Math.min(500 * 2 ** contexto.retryCount, 10_000),
+                },
+            });
+            room.current = r;
+
+            const RoomEvent = lkClient.RoomEvent;
+            r.on(RoomEvent.TrackSubscribed, sincronizarTiles);
+            r.on(RoomEvent.TrackUnsubscribed, sincronizarTiles);
+            r.on(RoomEvent.LocalTrackPublished, sincronizarTiles);
+            r.on(RoomEvent.LocalTrackUnpublished, sincronizarTiles);
+            r.on(RoomEvent.ParticipantConnected, sincronizarTiles);
+            r.on(RoomEvent.ParticipantDisconnected, sincronizarTiles);
+
+            try {
+                await r.connect(wsUrl, token);
+            } catch (e) {
+                console.error('[makachat] ligação LiveKit falhou:', e);
+                setErro('Não foi possível ligar ao servidor de chamadas.');
+
+                return false;
+            }
+
+            try {
+                await r.localParticipant.setMicrophoneEnabled(true);
+
+                if (video) {
+                    await r.localParticipant.setCameraEnabled(true);
+                    setCamara(true);
+                }
+            } catch (e) {
+                console.error('[makachat] media falhou:', e);
+                setErro(video ? 'Sem acesso à câmara/microfone — verifica as permissões.' : 'Sem acesso ao microfone — verifica as permissões.');
+
+                return false;
+            }
+
+            sincronizarTiles();
+
+            return true;
+        },
+        [suportado, livekit, lkClient, sincronizarTiles],
+    );
+
+    // câmara pausa em background, micro continua (padrão EiConnect/WhatsApp)
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (estado) => {
+            const r = room.current;
+
+            if (!r || !lkClient) return;
+
+            if (estado !== 'active' && camara) {
+                void r.localParticipant?.setCameraEnabled?.(false);
+            } else if (estado === 'active' && camara) {
+                void r.localParticipant?.setCameraEnabled?.(true);
+            }
+        });
+
+        return () => sub.remove();
+    }, [camara, lkClient]);
+
+    // eventos do servidor
+    useEffect(
+        () =>
+            subscreverChamadas((evento: EventoChamada) => {
+                if (evento.evento === 'iniciada') {
+                    setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
+                    void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                } else if (evento.evento === 'atendida') {
+                    if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
+                        setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
+                        comecarTimer();
+                    }
+                } else if (evento.evento === 'participante_saiu') {
+                    // chamada continua para os restantes
+                } else if (!falhada.current) {
+                    limpar();
+                }
+            }),
+        [subscreverChamadas, engine, limpar, comecarTimer],
+    );
+
+    const falhar = useCallback(
+        async (chamadaId: string) => {
+            falhada.current = true;
+            await api.terminarChamada(chamadaId).catch(() => undefined);
+            setAtiva((a) => (a ? { ...a, fase: 'falhada' } : a));
+        },
+        [api],
+    );
+
+    const iniciar = useCallback(
+        async (conversaId: string, tipo: 'audio' | 'video') => {
+            if (!suportado) return;
+
+            const r = await api.iniciarChamada(conversaId, tipo);
+            setAtiva({ chamada: r.chamada, fase: 'a_ligar' });
+            void engine.storage.obterConversa(conversaId).then(setConversa);
+
+            if (r.livekit_token && r.ws_url) {
+                const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+
+                if (!ok) await falhar(r.chamada.id);
+            }
+        },
+        [suportado, api, engine, ligarSala, falhar],
+    );
+
+    const entrar = useCallback(
+        async (chamadaId: string, tipo: 'audio' | 'video') => {
+            if (!suportado) return;
+
+            const r = await api.atenderChamada(chamadaId);
+            setAtiva({ chamada: r.chamada, fase: 'em_curso' });
+            void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
+
+            if (r.livekit_token && r.ws_url) {
+                const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+
+                if (!ok) {
+                    await falhar(chamadaId);
+
+                    return;
+                }
+            }
+
+            comecarTimer();
+        },
+        [suportado, api, engine, ligarSala, falhar, comecarTimer],
+    );
+
+    const atender = async () => {
+        if (!ativa) return;
+
+        const r = await api.atenderChamada(ativa.chamada.id);
+
+        if (r.livekit_token && r.ws_url) {
+            const ok = await ligarSala(r.livekit_token, r.ws_url, ativa.chamada.tipo === 'video');
+
+            if (!ok) {
+                await falhar(ativa.chamada.id);
+
+                return;
+            }
+        }
+
+        setAtiva({ ...ativa, fase: 'em_curso', chamada: r.chamada });
+        comecarTimer();
+    };
+
+    const desligar = async () => {
+        if (ativa && ativa.fase !== 'falhada') {
+            await (ativa.fase === 'a_receber'
+                ? api.rejeitarChamada(ativa.chamada.id)
+                : api.terminarChamada(ativa.chamada.id)
+            ).catch(() => undefined);
+        }
+
+        limpar();
+    };
+
+    const alternarCamara = async () => {
+        const novo = !camara;
+        setCamara(novo);
+        await room.current?.localParticipant?.setCameraEnabled?.(novo).catch(() => undefined);
+    };
+
+    const trocarCamara = async () => {
+        const Track = lkClient?.Track;
+        const pub = room.current?.localParticipant?.getTrackPublication?.(Track?.Source?.Camera);
+        const track = pub?.track;
+
+        if (!track?.restartTrack) return;
+
+        facing.current = facing.current === 'user' ? 'environment' : 'user';
+        await track.restartTrack({ facingMode: facing.current }).catch(() => undefined);
+    };
+
+    const alternarAltifalante = async () => {
+        const novo = !altifalante;
+        setAltifalante(novo);
+        await livekit?.AudioSession?.selectAudioOutput?.(novo ? 'speaker' : 'earpiece').catch(() => undefined);
+    };
+
+    const valor = useMemo<ChamadasApi>(() => ({ iniciar, entrar, ativa, suportado }), [iniciar, entrar, ativa, suportado]);
+
+    return (
+        <Ctx.Provider value={valor}>
+            {children}
+            {ativa && !minimizada && (
+                <EcraChamada
+                    ativa={ativa}
+                    conversa={conversa}
+                    tiles={tiles}
+                    inicioEm={inicioEm}
+                    erro={erro}
+                    mudo={mudo}
+                    camara={camara}
+                    altifalante={altifalante}
+                    livekit={livekit}
+                    aoAtender={() => void atender()}
+                    aoDesligar={() => void desligar()}
+                    aoMudo={() => {
+                        const m = !mudo;
+                        setMudo(m);
+                        void room.current?.localParticipant?.setMicrophoneEnabled?.(!m).catch(() => undefined);
+                    }}
+                    aoCamara={() => void alternarCamara()}
+                    aoTrocarCamara={() => void trocarCamara()}
+                    aoAltifalante={() => void alternarAltifalante()}
+                    aoMinimizar={() => setMinimizada(true)}
+                    tema={tema}
+                />
+            )}
+            {ativa && minimizada && (
+                <Pressable onPress={() => setMinimizada(false)} style={estilos.pill}>
+                    <Avatar nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={28} />
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                        {ativa.fase === 'em_curso' && inicioEm ? <Duracao desde={inicioEm} /> : 'Chamada…'}
+                    </Text>
+                    <Ionicons name="expand-outline" size={16} color="rgba(255,255,255,0.8)" />
+                </Pressable>
+            )}
+        </Ctx.Provider>
+    );
+}
+
+// ---------------------------------------------------------------- ecrã da chamada
+
+function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoMinimizar, tema }: {
+    ativa: EstadoChamada;
+    conversa: Conversa | null;
+    tiles: Tile[];
+    inicioEm: number | null;
+    erro: string | null;
+    mudo: boolean;
+    camara: boolean;
+    altifalante: boolean;
+    livekit: any;
+    aoAtender(): void;
+    aoDesligar(): void;
+    aoMudo(): void;
+    aoCamara(): void;
+    aoTrocarCamara(): void;
+    aoAltifalante(): void;
+    aoMinimizar(): void;
+    tema: { primaria: string };
+}) {
+    const { width, height } = useWindowDimensions();
+    const video = ativa.chamada.tipo === 'video';
+    const titulo = ativa.fase === 'a_receber' ? (ativa.iniciador?.nome ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
+    const foto = ativa.fase === 'a_receber' ? (ativa.iniciador?.foto_url ?? null) : (conversa?.foto_url ?? null);
+    const VideoTrack = livekit?.VideoTrack;
+    const remotos = tiles.filter((t) => !t.local && t.trackRef);
+    const local = tiles.find((t) => t.local && t.trackRef);
+    const emCurso = ativa.fase === 'em_curso';
+
+    const subtitulo =
+        ativa.fase === 'falhada'
+            ? 'Chamada falhada'
+            : ativa.fase === 'a_ligar'
+              ? 'A chamar…'
+              : ativa.fase === 'a_receber'
+                ? `Chamada de ${video ? 'vídeo' : 'voz'}`
+                : inicioEm
+                  ? undefined
+                  : 'A ligar…';
+
+    return (
+        <Modal visible animationType="slide" onRequestClose={aoMinimizar}>
+            <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+                {/* vídeos remotos */}
+                {emCurso && video && VideoTrack && remotos.length > 0 && (
+                    <View style={{ ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' }}>
+                        {remotos.map((t) => (
+                            <View key={t.chave} style={{ width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }}>
+                                <VideoTrack trackRef={t.trackRef} style={{ flex: 1 }} objectFit="cover" />
+                                <Text style={estilos.nomeTile}>{t.nome}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {/* preview local */}
+                {emCurso && video && VideoTrack && local && (
+                    <View style={estilos.pip}>
+                        <VideoTrack trackRef={local.trackRef} style={{ flex: 1 }} objectFit="cover" mirror />
+                    </View>
+                )}
+
+                {/* avatar central (áudio / a receber / a ligar) */}
+                {(!emCurso || !video || remotos.length === 0) && (
+                    <View style={estilos.centro}>
+                        {ativa.fase === 'a_receber' || ativa.fase === 'a_ligar' ? (
+                            <Pulso>
+                                <Avatar nome={titulo} url={foto} tamanho={110} />
+                            </Pulso>
+                        ) : (
+                            <Avatar nome={titulo} url={foto} tamanho={110} />
+                        )}
+                        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 16 }}>{titulo}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, marginTop: 5 }}>
+                            {subtitulo ?? (inicioEm ? <Duracao desde={inicioEm} /> : null)}
+                        </Text>
+                    </View>
+                )}
+
+                {/* topo */}
+                <View style={estilos.topo}>
+                    <Pressable onPress={aoMinimizar} style={{ padding: 8 }}>
+                        <Ionicons name="chevron-down" size={26} color="#fff" />
+                    </Pressable>
+                    {emCurso && inicioEm && video && remotos.length > 0 && (
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>
+                            <Duracao desde={inicioEm} />
+                        </Text>
+                    )}
+                    <View style={{ width: 42 }} />
+                </View>
+
+                {erro && (
+                    <View style={estilos.erro}>
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13, textAlign: 'center' }}>{erro}</Text>
+                    </View>
+                )}
+
+                {/* controlos */}
+                <View style={estilos.controlos}>
+                    {ativa.fase === 'falhada' ? (
+                        <Botao icone="close" cor="rgba(255,255,255,0.2)" aoTocar={aoDesligar} />
+                    ) : ativa.fase === 'a_receber' ? (
+                        <>
+                            <Pulso>
+                                <Botao icone="call" cor="#10b981" aoTocar={aoAtender} grande />
+                            </Pulso>
+                            <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} grande rodado />
+                        </>
+                    ) : (
+                        <>
+                            <Botao icone={mudo ? 'mic-off' : 'mic'} cor="rgba(255,255,255,0.2)" aoTocar={aoMudo} />
+                            {video && <Botao icone={camara ? 'videocam' : 'videocam-off'} cor="rgba(255,255,255,0.2)" aoTocar={aoCamara} />}
+                            {video && camara && <Botao icone="camera-reverse-outline" cor="rgba(255,255,255,0.2)" aoTocar={aoTrocarCamara} />}
+                            <Botao icone={altifalante ? 'volume-high' : 'volume-low'} cor="rgba(255,255,255,0.2)" aoTocar={aoAltifalante} />
+                            <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} rodado />
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+function Botao({ icone, cor, aoTocar, grande, rodado }: { icone: string; cor: string; aoTocar(): void; grande?: boolean; rodado?: boolean }) {
+    const lado = grande ? 64 : 54;
+
+    return (
+        <Pressable onPress={aoTocar} style={{ width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={icone as never} size={grande ? 28 : 24} color="#fff" style={rodado ? { transform: [{ rotate: '135deg' }] } : undefined} />
+        </Pressable>
+    );
+}
+
+/** Relógio isolado — só este componente re-renderiza a cada segundo. */
+function Duracao({ desde }: { desde: number }) {
+    const [, forcar] = useState(0);
+
+    useEffect(() => {
+        const timer = setInterval(() => forcar((n) => n + 1), 1000);
+
+        return () => clearInterval(timer);
+    }, []);
+
+    return <>{duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1000)))}</>;
+}
+
+const estilos = StyleSheet.create({
+    centro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+    topo: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: 10 },
+    pip: { position: 'absolute', right: 14, bottom: 150, width: 108, height: 158, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+    nomeTile: { position: 'absolute', left: 10, bottom: 10, color: '#fff', fontWeight: '700', fontSize: 12, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
+    erro: { position: 'absolute', bottom: 150, left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+    controlos: { position: 'absolute', bottom: 46, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 18 },
+    pill: { position: 'absolute', top: 58, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0f172a', borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+});

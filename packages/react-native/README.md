@@ -1,15 +1,53 @@
 # @hongayetu/makachat-react-native
 
-UI MakaChat para Expo/React Native, com storage persistente em `expo-sqlite` (offline-first via `SyncEngine` do core).
+UI MakaChat completa para Expo/React Native — paridade com o pacote web, com interações ao estilo WhatsApp/Messenger/Telegram: long-press com sheet de ações, swipe para responder, gravação de voz com timer, galeria fullscreen, ecrã de chamada nativo (LiveKit). Offline-first com `expo-sqlite`.
 
-> Estado: baseline funcional (lista + conversa + envio com outbox). A paridade com o pacote web (reações, media completa, grupos, chamadas, pesquisa) é a próxima fase — ver o plano no repositório.
+## Uso mínimo
 
 ```tsx
-import { MakaChatProvider, ConversasScreen, ChatScreen, SqliteStorage } from '@hongayetu/makachat-react-native';
+import { MakaChatProvider, ChamadasProvider, ConversasScreen, ChatScreen, InfoConversaScreen, useChamadas } from '@hongayetu/makachat-react-native';
 
-<MakaChatProvider serviceKey="humbi" identity={identidade} getToken={getToken}>
-    <ConversasScreen onAbrirConversa={(c) => navegarPara(c.id)} />
+<MakaChatProvider serviceKey="humbi" identity={identidade} getToken={getToken} tema={{ primaria: '#f97316' }} contactos={contactos}>
+    <ChamadasProvider>
+        {/* navegação da app: lista → conversa → info */}
+        <ConversasScreen onAbrirConversa={(c) => router.push(`/chat/${c.id}`)} />
+        <ChatScreen conversaId={id} chamadas={useChamadas()} onVoltar={router.back} onAbrirInfo={(c) => router.push(`/chat/${c.id}/info`)} />
+    </ChamadasProvider>
 </MakaChatProvider>
 ```
 
-Push: usar o pacote irmão `expo-makachat-push` (FCM/APNs registados em `POST /v1/dispositivos`).
+Para chamadas, regista os globals do LiveKit no entry da app (antes de tudo):
+
+```js
+// index.js
+const { registerGlobals } = require('@livekit/react-native');
+registerGlobals();
+```
+
+## Funcionalidades (gated pelas flags do serviço)
+
+Lista com pesquisa local+servidor, badges (não lidas/fixada/silenciada/chamada ativa/verificado), long-press (fixar, silenciar 8h/1sem/sempre, arquivar, não lida, eliminar), arquivadas, paginação, FAB nova conversa (1 pessoa → privada, 2+ → grupo). Conversa com bolhas agrupadas estilo Messenger, separadores de dia, swipe→responder, sheet de ações (reagir/responder/encaminhar multi/editar/eliminar para mim-todos), reações com lista de quem reagiu, citação com salto+destaque, pesquisa full-text na conversa (n/m), paginação para trás, typing, recibos ✓✓ azuis, botão de novas mensagens, banner "chamada a decorrer — Entrar", conversa fechada com motivo, cartões de registo de chamada e partilha/link, fotos multi com lobby+legenda, galeria fullscreen, vídeo (expo-video), ficheiros, mensagens de voz (gravador + player com velocidade), grupos completos (InfoConversaScreen: foto, renomear, membros, papéis, sair).
+
+## Dependências
+
+Obrigatórias (peer): `expo-sqlite`, `@expo/vector-icons`.
+
+Opcionais — cada uma ativa uma funcionalidade; sem ela o botão correspondente desaparece:
+
+| Peer | Ativa |
+|---|---|
+| `@shopify/flash-list` | listas de alta performance (senão FlatList) |
+| `expo-image-picker` | fotos e vídeos |
+| `expo-document-picker` | ficheiros |
+| `expo-audio` | mensagens de voz (gravar + ouvir) |
+| `expo-video` | player de vídeo interno |
+| `expo-file-system` | uploads em streaming |
+| `@livekit/react-native` + `@livekit/react-native-webrtc` + `livekit-client` | chamadas de voz/vídeo |
+
+Push: pacote irmão `expo-makachat-push` (inbox nativa FCM/APNs, tokens em `POST /v1/dispositivos`).
+
+## QA
+
+`apps/exemplo-mobile` (Expo): perfis demo, todos os módulos opcionais instalados. Ajustar o IP do servidor no `App.tsx`, `npx expo start` com o makachat-server local ligado.
+
+Fora do âmbito mobile v1: partilha de ecrã (iOS exige Broadcast Extension), VoIP push (CallKit/ConnectionService — fase própria).
