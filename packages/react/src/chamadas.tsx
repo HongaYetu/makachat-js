@@ -8,7 +8,7 @@ import { AvatarWeb } from './ui';
 
 interface EstadoChamada {
     chamada: Chamada;
-    fase: 'a_receber' | 'a_ligar' | 'em_curso';
+    fase: 'a_receber' | 'a_ligar' | 'em_curso' | 'falhada';
     iniciador?: { nome: string; foto_url: string | null };
 }
 
@@ -50,11 +50,15 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const room = useRef<Room | null>(null);
     const midia = useRef<HTMLDivElement>(null);
+    /** true enquanto mostramos o ecrã de falha — os eventos rejeitada/terminada não podem fechá-lo */
+    const falhada = useRef(false);
+    const [erroSolto, setErroSolto] = useState<string | null>(null);
     const arrasto = useRef<{ ativo: boolean; dx: number; dy: number }>({ ativo: false, dx: 0, dy: 0 });
 
     const limpar = useCallback(() => {
         void room.current?.disconnect();
         room.current = null;
+        falhada.current = false;
 
         setAtiva(null);
         setConversa(null);
@@ -70,14 +74,25 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         setInicioEm((atual) => atual ?? Date.now());
     }, []);
 
-    const ligarSala = useCallback(async (token: string, wsUrl: string, video: boolean) => {
-        // câmara/microfone exigem contexto seguro (https ou localhost)
+    /** Pede as permissões ANTES de tocar/atender — sem elas a chamada não avança. */
+    const verificarMedia = useCallback(async (video: boolean): Promise<string | null> => {
         if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-            setErro('O browser bloqueou a câmara/microfone — esta página precisa de HTTPS.');
-
-            return;
+            return 'O browser bloqueou a câmara/microfone — esta página precisa de HTTPS.';
         }
 
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+            stream.getTracks().forEach((tr) => tr.stop());
+
+            return null;
+        } catch {
+            return video
+                ? 'Sem acesso à câmara/microfone — permite o acesso nas definições do browser.'
+                : 'Sem acesso ao microfone — permite o acesso nas definições do browser.';
+        }
+    }, []);
+
+    const ligarSala = useCallback(async (token: string, wsUrl: string, video: boolean): Promise<boolean> => {
         const r = new Room();
         room.current = r;
 
@@ -109,7 +124,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             setErro('Não foi possível ligar ao servidor de chamadas.');
             console.error('[makachat] ligação LiveKit falhou:', e);
 
-            return;
+            return false;
         }
 
         // políticas de autoplay: desbloqueia a reprodução de áudio (estamos num gesto do utilizador)
@@ -117,20 +132,19 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
         try {
             await r.localParticipant.setMicrophoneEnabled(true);
-        } catch (e) {
-            setErro('Sem acesso ao microfone — verifica as permissões do browser.');
-            console.error('[makachat] microfone falhou:', e);
-        }
 
-        if (video) {
-            try {
+            if (video) {
                 await r.localParticipant.setCameraEnabled(true);
                 setCamara(true);
-            } catch (e) {
-                setErro('Sem acesso à câmara — verifica as permissões do browser.');
-                console.error('[makachat] câmara falhou:', e);
             }
+        } catch (e) {
+            setErro(video ? 'Sem acesso à câmara/microfone.' : 'Sem acesso ao microfone.');
+            console.error('[makachat] media falhou:', e);
+
+            return false;
         }
+
+        return true;
     }, []);
 
     useEffect(
@@ -149,7 +163,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 } else if (evento.evento === 'atendida') {
                     setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
                     comecarTimer();
-                } else {
+                } else if (!falhada.current) {
                     limpar();
                 }
             }),
@@ -158,29 +172,69 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const iniciar = useCallback(
         async (conversaId: string, tipo: 'audio' | 'video') => {
+            // sem permissões nem sequer tocamos do outro lado
+            const problema = await verificarMedia(tipo === 'video');
+
+            if (problema) {
+                setErroSolto(problema);
+                setTimeout(() => setErroSolto(null), 6000);
+
+                return;
+            }
+
             const r = await api.iniciarChamada(conversaId, tipo);
 
             setAtiva({ chamada: r.chamada, fase: 'a_ligar' });
             void engine.storage.obterConversa(conversaId).then(setConversa);
 
-            if (r.livekit_token && r.ws_url) await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+            if (r.livekit_token && r.ws_url) {
+                const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+
+                if (!ok) {
+                    falhada.current = true;
+                    await api.terminarChamada(r.chamada.id).catch(() => undefined);
+                    setAtiva((a) => (a ? { ...a, fase: 'falhada' } : a));
+                }
+            }
         },
-        [api, engine, ligarSala],
+        [api, engine, ligarSala, verificarMedia],
     );
 
     const atender = async () => {
         if (!ativa) return;
 
+        // sem permissões a chamada não é atendida — rejeitamos com o motivo à vista
+        const problema = await verificarMedia(ativa.chamada.tipo === 'video');
+
+        if (problema) {
+            falhada.current = true;
+            setErro(problema);
+            setAtiva({ ...ativa, fase: 'falhada' });
+            await api.rejeitarChamada(ativa.chamada.id).catch(() => undefined);
+
+            return;
+        }
+
         const r = await api.atenderChamada(ativa.chamada.id);
+
+        if (r.livekit_token && r.ws_url) {
+            const ok = await ligarSala(r.livekit_token, r.ws_url, ativa.chamada.tipo === 'video');
+
+            if (!ok) {
+                falhada.current = true;
+                await api.terminarChamada(ativa.chamada.id).catch(() => undefined);
+                setAtiva({ ...ativa, fase: 'falhada' });
+
+                return;
+            }
+        }
 
         setAtiva({ ...ativa, fase: 'em_curso', chamada: r.chamada });
         comecarTimer();
-
-        if (r.livekit_token && r.ws_url) await ligarSala(r.livekit_token, r.ws_url, ativa.chamada.tipo === 'video');
     };
 
     const desligar = async () => {
-        if (ativa) {
+        if (ativa && ativa.fase !== 'falhada') {
             await (ativa.fase === 'a_receber'
                 ? api.rejeitarChamada(ativa.chamada.id)
                 : api.terminarChamada(ativa.chamada.id)
@@ -212,6 +266,8 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const subtitulo =
         ativa?.fase === 'em_curso' && inicioEm ? (
             <Duracao desde={inicioEm} />
+        ) : ativa?.fase === 'falhada' ? (
+            'Chamada falhada'
         ) : ativa?.fase === 'a_ligar' ? (
             'A chamar…'
         ) : (
@@ -238,6 +294,12 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 .maka-video-remoto { width: 100%; max-height: 100%; object-fit: cover; border-radius: 12px; }
                 .maka-video-local { position: absolute; right: 10px; bottom: 10px; width: 28%; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 1; }
             `}</style>
+
+            {erroSolto && !ativa && (
+                <div className="fixed bottom-6 left-6 z-[9999] animate-maka-subir rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-2xl ring-1 ring-red-500/50">
+                    {erroSolto}
+                </div>
+            )}
 
             {ativa && modo === 'pill' && (
                 <button
@@ -295,7 +357,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
                     {/* controlos */}
                     <div className="flex items-center justify-center gap-3 px-4 py-3.5">
-                        {ativa.fase === 'a_receber' ? (
+                        {ativa.fase === 'falhada' ? (
+                            <B titulo="Fechar" onClick={() => void desligar()} classe="bg-white/15 hover:bg-white/25">
+                                <Icon icon="tabler:x" />
+                            </B>
+                        ) : ativa.fase === 'a_receber' ? (
                             <>
                                 <B titulo="Atender" onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400">
                                     <Icon icon="tabler:phone" />
