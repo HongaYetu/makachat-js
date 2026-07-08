@@ -276,7 +276,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                     </span>
                     {souAdmin ? (
                         <input
-                            className="w-full rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2 text-center text-sm font-bold text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                            className="w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2 text-center text-sm font-bold text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
                             value={nome}
                             onChange={(e) => setNome(e.target.value)}
                             onBlur={() => void renomear()}
@@ -288,7 +288,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                     <span className="text-xs text-[var(--maka-texto-suave)]">{grupo ? `${membros.length} membros` : ''}</span>
                 </div>
 
-                <div className="maka-scroll min-h-0 flex-1 overflow-auto border-t border-black/5">
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto border-t border-solid border-black/5">
                     {membros.map((p) => {
                         const souEu = p.identidade_id === eu.identidade_id;
 
@@ -421,7 +421,7 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
                 <div className="px-4 pb-2">
                     <input
                         autoFocus
-                        className="w-full rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                        className="w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
                         placeholder="Nome do grupo"
                         value={nome}
                         onChange={(e) => setNome(e.target.value)}
@@ -773,7 +773,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     return (
         <div className="relative flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
             {/* header */}
-            <div className={`z-[1] flex items-center gap-3 border-b border-black/[.08] bg-[var(--maka-superficie)] ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
+            <div className={`z-[1] flex items-center gap-3 border-b border-solid border-black/[.08] bg-[var(--maka-superficie)] ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
                 <span className="relative cursor-pointer" onClick={() => setInfoAberta(true)}>
                     <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 34 : 42} grupo={conversa?.tipo === 'grupo'} />
                     {presenca?.online && (
@@ -807,7 +807,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             </div>
 
             {contexto && (
-                <div className="border-b border-black/[.07] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
+                <div className="border-b border-solid border-black/[.07] bg-[var(--maka-superficie)] px-4 py-2 text-[13px]">
                     <span className="font-bold">{contexto.titulo}</span>
                     {contexto.subtitulo && <span className="text-[var(--maka-texto-suave)]"> — {contexto.subtitulo}</span>}
                     {contexto.linhas?.map((l, i) => (
@@ -1138,7 +1138,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
 
     if (aGravar) {
         return (
-            <div className={`flex items-center gap-3 border-t border-black/[.08] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
+            <div className={`flex items-center gap-3 border-t border-solid border-black/[.08] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
                 <span className="h-3 w-3 animate-maka-pulsar rounded-full bg-red-500" />
                 <span className="font-mono text-sm text-[var(--maka-texto)]">
                     {String(Math.floor(segundos / 60)).padStart(2, '0')}:{String(segundos % 60).padStart(2, '0')}
@@ -1156,7 +1156,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
     }
 
     return (
-        <div className={`flex items-center gap-2 border-t border-black/[.08] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
+        <div className={`flex items-center gap-2 border-t border-solid border-black/[.08] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
             {podeMedia && (
                 <BotaoIcone titulo="Anexar" onClick={aoAnexar}>
                     {aEnviarMedia ? <Icon icon="tabler:loader-2" className="animate-spin" /> : <Icon icon="tabler:paperclip" />}
@@ -1164,7 +1164,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
             )}
             <textarea
                 rows={1}
-                className="maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                className="maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
                 style={{ maxHeight: 132 }}
                 value={texto}
                 placeholder={placeholder}
@@ -1462,7 +1462,7 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
                 <div className="flex items-center gap-2 p-3">
                     <input
                         autoFocus
-                        className="min-w-0 flex-1 rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                        className="min-w-0 flex-1 rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
                         placeholder="Legenda (opcional)"
                         value={legenda}
                         onChange={(e) => setLegenda(e.target.value)}
