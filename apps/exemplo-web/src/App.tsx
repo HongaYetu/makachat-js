@@ -79,6 +79,11 @@ export function App() {
                 api_url: SERVIDOR,
             })}
             tema={perfil.servico === 'svc_demo_b' ? { primaria: '#FF5A00' } : undefined}
+            contactos={PERFIS.filter((p) => p.servico === perfil.servico && p.id !== perfil.id).map((p) => ({
+                id_externo: p.id,
+                tipo: p.tipo,
+                nome: p.nome,
+            }))}
         >
             <ChamadasProvider>
                 <Layout perfil={perfil} aoSair={() => setPerfil(null)} />

@@ -176,7 +176,7 @@ export class MakaApi {
 
     confirmarMedia(
         anexoId: string,
-        meta?: { largura?: number; altura?: number; duracao_segundos?: number; blurhash?: string },
+        meta?: { largura?: number; altura?: number; duracao_segundos?: number; blurhash?: string; duravel?: boolean },
     ) {
         return this.pedir<{ anexo: Anexo }>(`/v1/media/${anexoId}/confirmar`, {
             method: 'POST',

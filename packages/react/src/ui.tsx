@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { Anexo, Conversa, idMaiorOuIgual, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, Conversa, idMaiorOuIgual, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReprodutorAudio } from './audio';
 import { useChamadasOpcional } from './chamadas';
@@ -24,16 +24,44 @@ export interface MakaChatConversasProps {
 }
 
 export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa }: MakaChatConversasProps) {
-    const { engine } = useMakaChat();
+    const { engine, api, contactos } = useMakaChat();
+    const podeGrupos = useFuncionalidadeAtiva('grupos');
+    const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
     const versao = useVersaoChat();
+    const [verArquivadas, setVerArquivadas] = useState(arquivadas);
     const [conversas, setConversas] = useState<Conversa[]>([]);
+    const [menuDe, setMenuDe] = useState<string | null>(null);
+    const [criarGrupo, setCriarGrupo] = useState(false);
+    const [confirmarEliminar, setConfirmarEliminar] = useState<Conversa | null>(null);
 
     useEffect(() => {
-        void engine.storage.listarConversas(arquivadas).then(setConversas);
-    }, [engine, arquivadas, versao]);
+        void engine.storage.listarConversas(verArquivadas).then(setConversas);
+    }, [engine, verArquivadas, versao]);
+
+    const preferencia = async (c: Conversa, dados: { arquivada?: boolean; fixada?: boolean }) => {
+        setMenuDe(null);
+        await api.atualizarPreferencias(c.id, dados).catch(() => undefined);
+        await engine.atualizarConversas();
+        // arquivadas saem da lista local imediatamente
+        if (dados.arquivada !== undefined) setConversas((atuais) => atuais.filter((x) => x.id !== c.id));
+    };
 
     return (
-        <div className="maka-scroll h-full overflow-y-auto bg-[var(--maka-superficie)]">
+        <div className="flex h-full flex-col bg-[var(--maka-superficie)]">
+            <div className="flex items-center gap-1 px-4 py-2.5">
+                <span className="flex-1 text-[15px] font-bold text-[var(--maka-texto)]">
+                    {verArquivadas ? 'Arquivadas' : 'Conversas'}
+                </span>
+                <BotaoIcone titulo={verArquivadas ? 'Voltar às conversas' : 'Arquivadas'} onClick={() => setVerArquivadas(!verArquivadas)}>
+                    <Icon icon={verArquivadas ? 'mdi:arrow-left' : 'mdi:archive-outline'} />
+                </BotaoIcone>
+                {podeGrupos && (
+                    <BotaoIcone titulo="Novo grupo" onClick={() => setCriarGrupo(true)}>
+                        <Icon icon="mdi:account-multiple-plus-outline" />
+                    </BotaoIcone>
+                )}
+            </div>
+            <div className="maka-scroll min-h-0 flex-1 overflow-y-auto">
             {conversas.length === 0 && (
                 <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
                     <Icon icon="mdi:chat-outline" className="text-4xl opacity-40" />
@@ -45,14 +73,14 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                 const naoLidas = c.participante?.mensagens_nao_lidas ?? 0;
 
                 return (
+                    <div key={c.id} className="group relative">
                     <button
-                        key={c.id}
                         onClick={() => onAbrirConversa(c)}
                         className={`flex w-full cursor-pointer items-center gap-3 border-0 px-4 py-3 text-left transition-colors ${
                             ativa ? 'bg-[var(--maka-fundo)]' : 'bg-transparent hover:bg-[var(--maka-fundo)]'
                         }`}
                     >
-                        <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} />
+                        <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} grupo={c.tipo === 'grupo'} />
                         <span className="min-w-0 flex-1">
                             <span className={`block truncate text-sm text-[var(--maka-texto)] ${naoLidas ? 'font-bold' : 'font-semibold'}`}>
                                 {c.titulo ?? 'Conversa'}
@@ -68,10 +96,328 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                                     {naoLidas}
                                 </span>
                             )}
+                            {c.participante?.fixada && <Icon icon="mdi:pin" className="text-[13px] text-[var(--maka-texto-suave)]" />}
                         </span>
                     </button>
+                    <button
+                        onClick={() => setMenuDe(menuDe === c.id ? null : c.id)}
+                        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-superficie)] text-[var(--maka-texto-suave)] opacity-0 shadow ring-1 ring-black/10 transition-opacity group-hover:opacity-100"
+                        title="Opções"
+                    >
+                        <Icon icon="mdi:chevron-down" />
+                    </button>
+                    {menuDe === c.id && (
+                        <div className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                            <ItemMenu onClick={() => { setMenuDe(null); void engine.marcarNaoLida(c.id).catch(() => undefined); }}>
+                                <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
+                            </ItemMenu>
+                            <ItemMenu onClick={() => void preferencia(c, { fixada: !c.participante?.fixada })}>
+                                <Icon icon={c.participante?.fixada ? 'mdi:pin-off-outline' : 'mdi:pin-outline'} className="inline align-[-2px]" /> {c.participante?.fixada ? 'Desafixar' : 'Fixar'}
+                            </ItemMenu>
+                            <ItemMenu onClick={() => void preferencia(c, { arquivada: !verArquivadas })}>
+                                <Icon icon={verArquivadas ? 'mdi:archive-arrow-up-outline' : 'mdi:archive-arrow-down-outline'} className="inline align-[-2px]" /> {verArquivadas ? 'Desarquivar' : 'Arquivar'}
+                            </ItemMenu>
+                            {podeEliminarConversa && (
+                                <ItemMenu onClick={() => { setMenuDe(null); setConfirmarEliminar(c); }}>
+                                    <Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar conversa
+                                </ItemMenu>
+                            )}
+                        </div>
+                    )}
+                    </div>
                 );
             })}
+            </div>
+            {criarGrupo && (
+                <CriarGrupoModal
+                    conversas={conversas}
+                    contactos={contactos}
+                    aoFechar={() => setCriarGrupo(false)}
+                    aoCriada={(c) => { setCriarGrupo(false); onAbrirConversa(c); }}
+                />
+            )}
+            {confirmarEliminar && (
+                <ConfirmarDialogo
+                    titulo="Eliminar conversa?"
+                    descricao="O histórico desaparece para ti. A outra pessoa mantém a conversa dela."
+                    aoFechar={() => setConfirmarEliminar(null)}
+                    botoes={[{ rotulo: 'Eliminar conversa', destrutivo: true, acao: () => void engine.eliminarConversa(confirmarEliminar.id) }]}
+                />
+            )}
+        </div>
+    );
+}
+
+/** Contrapartes das conversas privadas + contactos da app, sem duplicados. */
+function pessoasConhecidas(conversas: Conversa[], contactos: AlvoParticipante[], excluir: Set<string> = new Set()): AlvoParticipante[] {
+    const mapa = new Map<string, AlvoParticipante>();
+
+    for (const c of contactos) mapa.set(`${c.tipo}:${c.id_externo}`, c);
+
+    for (const conversa of conversas) {
+        if (conversa.tipo !== 'privada') continue;
+
+        for (const p of conversa.participantes) {
+            mapa.set(`${p.tipo}:${p.id_externo}`, { id_externo: p.id_externo, tipo: p.tipo, nome: p.nome, foto: p.foto_url });
+        }
+    }
+
+    return [...mapa.values()].filter((p) => !excluir.has(`${p.tipo}:${p.id_externo}`));
+}
+
+/** Info da conversa/grupo: participantes, papéis e gestão (renomear, foto, membros, sair). */
+function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: {
+    conversa: Conversa; eu: ParticipanteConversa; aoFechar(): void;
+    aoAbrirOutraConversa?(id: string): void; aoSaiu(): void;
+}) {
+    const { api, engine, contactos } = useMakaChat();
+    const grupo = conversa.tipo === 'grupo';
+    const souAdmin = grupo && ['dono', 'admin'].includes(eu.papel);
+    const [nome, setNome] = useState(conversa.titulo ?? '');
+    const [adicionar, setAdicionar] = useState(false);
+    const [confirmarSair, setConfirmarSair] = useState(false);
+    const [aEnviarFoto, setAEnviarFoto] = useState(false);
+    const [conversas, setConversas] = useState<Conversa[]>([]);
+    const fotoInput = useRef<HTMLInputElement>(null);
+    const membros = conversa.participantes.filter((p) => !p.saiu_em);
+
+    useEffect(() => {
+        void engine.storage.listarConversas(false).then(setConversas);
+    }, [engine]);
+
+    const renomear = async () => {
+        if (nome.trim() && nome.trim() !== conversa.titulo) {
+            await api.atualizarGrupo(conversa.id, { titulo: nome.trim() }).catch(() => undefined);
+            await engine.atualizarConversas();
+        }
+    };
+
+    const mudarFoto = async (f: File) => {
+        setAEnviarFoto(true);
+
+        try {
+            const criado = await api.criarMedia({ tipo: 'foto', mime: f.type, nome_ficheiro: f.name });
+            await api.carregarMedia(criado.upload, f, f.type);
+            const { anexo } = await api.confirmarMedia(criado.anexo_id, { duravel: true });
+            await api.atualizarGrupo(conversa.id, { foto_url: anexo.url });
+            await engine.atualizarConversas();
+        } finally {
+            setAEnviarFoto(false);
+        }
+    };
+
+    const mensagemDireta = async (p: ParticipanteConversa) => {
+        const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
+        await engine.atualizarConversas();
+        aoFechar();
+        aoAbrirOutraConversa?.(nova.id);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
+            <div className="flex max-h-[80vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">{grupo ? 'Info do grupo' : 'Info da conversa'}</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                </div>
+
+                <div className="flex flex-col items-center gap-2 px-4 pb-3">
+                    <span className="relative">
+                        <AvatarWeb nome={conversa.titulo ?? '?'} url={conversa.foto_url} tamanho={72} grupo={grupo} />
+                        {souAdmin && (
+                            <button
+                                onClick={() => fotoInput.current?.click()}
+                                title="Mudar foto"
+                                className="absolute -bottom-1 -right-1 grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-sm text-[var(--maka-primaria-contraste)] shadow"
+                            >
+                                {aEnviarFoto ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:camera" />}
+                            </button>
+                        )}
+                        <input ref={fotoInput} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void mudarFoto(f); e.target.value = ''; }} />
+                    </span>
+                    {souAdmin ? (
+                        <input
+                            className="w-full rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2 text-center text-sm font-bold text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                            value={nome}
+                            onChange={(e) => setNome(e.target.value)}
+                            onBlur={() => void renomear()}
+                            onKeyDown={(e) => e.key === 'Enter' && void renomear()}
+                        />
+                    ) : (
+                        <span className="font-bold text-[var(--maka-texto)]">{conversa.titulo}</span>
+                    )}
+                    <span className="text-xs text-[var(--maka-texto-suave)]">{grupo ? `${membros.length} membros` : ''}</span>
+                </div>
+
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto border-t border-black/5">
+                    {membros.map((p) => {
+                        const souEu = p.identidade_id === eu.identidade_id;
+
+                        return (
+                            <div key={p.identidade_id} className="flex items-center gap-3 px-4 py-2.5">
+                                <AvatarWeb nome={p.nome} url={p.foto_url} tamanho={36} />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">{souEu ? 'Tu' : p.nome}</span>
+                                    <span className="text-xs text-[var(--maka-texto-suave)]">{p.papel !== 'membro' ? p.papel : p.tipo}</span>
+                                </span>
+                                {!souEu && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="mdi:chat-outline" /></BotaoIcone>}
+                                {!souEu && souAdmin && (
+                                    <BotaoIcone titulo="Remover do grupo" onClick={() => { void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas()); }}>
+                                        <Icon icon="mdi:account-remove-outline" className="text-red-500" />
+                                    </BotaoIcone>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {grupo && (
+                    <div className="flex gap-2 p-3">
+                        {souAdmin && (
+                            <button onClick={() => setAdicionar(true)} className="flex-1 cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-sm">
+                                Adicionar membros
+                            </button>
+                        )}
+                        <button onClick={() => setConfirmarSair(true)} className="flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-bold text-red-600">
+                            Sair do grupo
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {adicionar && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <AdicionarMembros
+                        conversa={conversa}
+                        conversas={conversas}
+                        contactos={contactos}
+                        aoFechar={() => setAdicionar(false)}
+                    />
+                </div>
+            )}
+            {confirmarSair && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <ConfirmarDialogo
+                        titulo="Sair do grupo?"
+                        aoFechar={() => setConfirmarSair(false)}
+                        botoes={[{ rotulo: 'Sair do grupo', destrutivo: true, acao: () => { void api.sairDaConversa(conversa.id).then(() => engine.atualizarConversas()); aoSaiu(); } }]}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
+    conversa: Conversa; conversas: Conversa[]; contactos: AlvoParticipante[]; aoFechar(): void;
+}) {
+    const { api, engine } = useMakaChat();
+    const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
+    const jaNoGrupo = new Set(conversa.participantes.filter((p) => !p.saiu_em).map((p) => `${p.tipo}:${p.id_externo}`));
+    const pessoas = pessoasConhecidas(conversas, contactos, jaNoGrupo);
+
+    const adicionar = async () => {
+        const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
+        await api.adicionarParticipantes(conversa.id, membros);
+        await engine.atualizarConversas();
+        aoFechar();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10003] grid place-items-center bg-slate-900/50" onClick={aoFechar}>
+            <div className="flex max-h-[70vh] w-[340px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">Adicionar membros</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                </div>
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto">
+                    {pessoas.length === 0 && <div className="px-4 py-6 text-sm text-[var(--maka-texto-suave)]">Toda a gente conhecida já está no grupo.</div>}
+                    {pessoas.map((p) => {
+                        const chave = `${p.tipo}:${p.id_externo}`;
+                        const marcado = escolhidos.has(chave);
+
+                        return (
+                            <button key={chave} onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })} className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]">
+                                <Icon icon={marcado ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
+                                <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={32} />
+                                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="p-3">
+                    <button disabled={escolhidos.size === 0} onClick={() => void adicionar()} className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] disabled:opacity-40">
+                        Adicionar{escolhidos.size > 0 ? ` (${escolhidos.size})` : ''}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
+    conversas: Conversa[]; contactos: AlvoParticipante[]; aoFechar(): void; aoCriada(c: Conversa): void;
+}) {
+    const { api, engine, identidade } = useMakaChat();
+    const [nome, setNome] = useState('');
+    const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
+    const pessoas = pessoasConhecidas(conversas, contactos, new Set([`${identidade.tipo}:${identidade.id}`]));
+
+    const criar = async () => {
+        if (!nome.trim() || escolhidos.size === 0) return;
+
+        const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
+        const { conversa } = await api.criarGrupo(nome.trim(), membros);
+        await engine.atualizarConversas();
+        aoCriada(conversa);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
+            <div className="flex max-h-[74vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">Novo grupo</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                </div>
+                <div className="px-4 pb-2">
+                    <input
+                        autoFocus
+                        className="w-full rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                        placeholder="Nome do grupo"
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                    />
+                </div>
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto">
+                    {pessoas.length === 0 && <div className="px-4 py-6 text-sm text-[var(--maka-texto-suave)]">Sem contactos conhecidos.</div>}
+                    {pessoas.map((p) => {
+                        const chave = `${p.tipo}:${p.id_externo}`;
+                        const marcado = escolhidos.has(chave);
+
+                        return (
+                            <button
+                                key={chave}
+                                onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })}
+                                className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]"
+                            >
+                                <Icon icon={marcado ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
+                                <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={34} />
+                                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
+                                <span className="text-xs text-[var(--maka-texto-suave)]">{p.tipo}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="p-3">
+                    <button
+                        disabled={!nome.trim() || escolhidos.size === 0}
+                        onClick={() => void criar()}
+                        className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-md disabled:cursor-default disabled:opacity-40"
+                    >
+                        Criar grupo{escolhidos.size > 0 ? ` (${escolhidos.size})` : ''}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -129,6 +475,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [destacada, setDestacada] = useState<string | null>(null);
     const [eliminarDe, setEliminarDe] = useState<Mensagem | null>(null);
     const [menuConversa, setMenuConversa] = useState(false);
+    const [infoAberta, setInfoAberta] = useState(false);
     const [confirmarEliminarConversa, setConfirmarEliminarConversa] = useState(false);
 
     const fim = useRef<HTMLDivElement>(null);
@@ -385,13 +732,13 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         <div className="relative flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
             {/* header */}
             <div className={`z-[1] flex items-center gap-3 bg-[var(--maka-superficie)] shadow-sm ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
-                <span className="relative">
-                    <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 34 : 42} />
+                <span className="relative cursor-pointer" onClick={() => setInfoAberta(true)}>
+                    <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 34 : 42} grupo={conversa?.tipo === 'grupo'} />
                     {presenca?.online && (
                         <span className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full border-2 border-[var(--maka-superficie)] bg-emerald-500" />
                     )}
                 </span>
-                <span className="min-w-0 flex-1">
+                <span className="min-w-0 flex-1 cursor-pointer" onClick={() => setInfoAberta(true)}>
                     <span className={`block truncate font-bold ${compacto ? 'text-[13px]' : 'text-[15px]'}`}>{conversa?.titulo ?? '…'}</span>
                     <span className={`block text-xs ${typingOutro ? 'italic text-[var(--maka-primaria)]' : presenca?.online ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
                         {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
@@ -430,9 +777,19 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             {/* mensagens */}
             <div className="relative min-h-0 flex-1">
             <div ref={lista} onScroll={aoScroll} className={`maka-scroll flex h-full flex-col gap-1 overflow-y-auto ${compacto ? 'p-2.5' : 'p-4'}`}>
-                {mensagens.map((m) => (
+                {mensagens.map((m, i) => {
+                    const anterior = mensagens[i - 1];
+                    const seguinte = mensagens[i + 1];
+                    const mesmaAnterior = anterior && anterior.tipo !== 'sistema' && anterior.remetente_identidade_id === m.remetente_identidade_id;
+                    const mesmaSeguinte = seguinte && seguinte.tipo !== 'sistema' && seguinte.remetente_identidade_id === m.remetente_identidade_id;
+                    const autor = conversa?.participantes.find((p) => p.identidade_id === m.remetente_identidade_id);
+
+                    return (
                     <Bolha
                         key={m.id}
+                        primeiraDoBloco={!mesmaAnterior}
+                        ultimaDoBloco={!mesmaSeguinte}
+                        autor={autor ?? null}
                         registarRef={(el) => {
                             if (el) refsBolhas.current.set(m.id, el);
                             else refsBolhas.current.delete(m.id);
@@ -458,7 +815,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         }}
                         todas={mensagens}
                     />
-                ))}
+                    );
+                })}
                 {typingOutro && (
                     <div className="flex justify-start pt-1">
                         <div className="flex items-center gap-2 rounded-[var(--maka-raio)] rounded-bl-md bg-[var(--maka-bolha-outro)] px-3.5 py-2.5 shadow-sm">
@@ -643,6 +1001,15 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     }]}
                 />
             )}
+            {infoAberta && conversa && eu && (
+                <InfoConversa
+                    conversa={conversa}
+                    eu={eu}
+                    aoFechar={() => setInfoAberta(false)}
+                    aoAbrirOutraConversa={aoAbrirOutraConversa}
+                    aoSaiu={() => { setInfoAberta(false); aoFechar?.(); }}
+                />
+            )}
             {reacoesDe && conversa && (
                 <ModalReacoes
                     mensagem={mensagens.find((m) => m.id === reacoesDe.id) ?? reacoesDe}
@@ -800,11 +1167,12 @@ interface AcoesBolha {
     encaminhar?: () => void;
 }
 
-function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir }: {
+function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir, primeiraDoBloco = true, ultimaDoBloco = true, autor = null }: {
     mensagem: Mensagem; minha: boolean; grupo?: boolean;
     participantes: ParticipanteConversa[]; outros: ParticipanteConversa[]; acoes: AcoesBolha; todas: Mensagem[];
     destacada: boolean; registarRef(el: HTMLDivElement | null): void;
     aoAbrirFoto(url: string): void; aoClicarCitacao(id: string): void; aoVerReacoes(): void; podeReagir: boolean;
+    primeiraDoBloco?: boolean; ultimaDoBloco?: boolean; autor?: ParticipanteConversa | null;
 }) {
     const [hover, setHover] = useState(false);
     const [picker, setPicker] = useState(false);
@@ -876,16 +1244,21 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 if (!picker) setMenu(false);
             }}
         >
+            {!minha && (
+                <span className="mr-1.5 w-7 shrink-0 self-end">
+                    {ultimaDoBloco && <AvatarWeb nome={autor?.nome ?? '?'} url={autor?.foto_url} tamanho={28} />}
+                </span>
+            )}
             <div
                 className={`relative flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm transition-shadow ${
                     destacada ? 'ring-2 ring-[var(--maka-primaria)]' : ''
-                } ${minha ? 'rounded-br-md bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)]' : 'rounded-bl-md bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)]'}`}
+                } ${minha
+                    ? `bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)] ${ultimaDoBloco ? 'rounded-br-md' : 'rounded-r-md'}`
+                    : `bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)] ${ultimaDoBloco ? 'rounded-bl-md' : 'rounded-l-md'}`}`}
             >
                 {barra}
-                {grupo && !minha && (
-                    <span className="text-xs font-bold text-[var(--maka-primaria)]">
-                        {participantes.find((p) => p.identidade_id === m.remetente_identidade_id)?.nome ?? '…'}
-                    </span>
+                {grupo && !minha && primeiraDoBloco && (
+                    <span className="text-xs font-bold text-[var(--maka-primaria)]">{autor?.nome ?? '…'}</span>
                 )}
                 {m.resposta_a_id && (
                     <button
@@ -1319,7 +1692,18 @@ function TicksWeb({ mensagem, outros }: { mensagem: Mensagem; outros: Participan
     return <Icon icon={entregue || lida ? 'mdi:check-all' : 'mdi:check'} className={`text-[13px] ${lida ? 'opacity-100' : 'opacity-60'}`} />;
 }
 
-export function AvatarWeb({ nome, url, tamanho = 44 }: { nome: string; url?: string | null; tamanho?: number }) {
+export function AvatarWeb({ nome, url, tamanho = 44, grupo = false }: { nome: string; url?: string | null; tamanho?: number; grupo?: boolean }) {
+    if (!url && grupo) {
+        return (
+            <span
+                className="grid shrink-0 place-items-center rounded-full bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] ring-2 ring-black/5"
+                style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.5 }}
+            >
+                <Icon icon="mdi:account-group" />
+            </span>
+        );
+    }
+
     if (url) {
         return (
             <img

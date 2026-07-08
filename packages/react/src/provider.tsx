@@ -1,4 +1,5 @@
 import {
+    AlvoParticipante,
     FlagFuncionalidade,
     IdentidadeConfig,
     MakaApi,
@@ -24,6 +25,8 @@ export interface MakaChatContexto {
     subscreverTyping(ouvinte: (typing: Typing) => void): () => void;
     subscreverPresenca(ouvinte: (presenca: Presenca) => void): () => void;
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
+    /** contactos fornecidos pela app (para criar grupos/conversas) */
+    contactos: AlvoParticipante[];
     /** ligação socket ativa? (para barras de estado offline) */
     ligado: boolean;
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
@@ -40,10 +43,12 @@ export interface MakaChatProviderProps {
     /** na web a fonte é o servidor; por omissão usa memória (sem persistência local) */
     storage?: StorageAdapter;
     tema?: MakaTema;
+    /** contactos conhecidos do serviço (opcional) — usados em criar grupo/adicionar membros */
+    contactos?: AlvoParticipante[];
     children: React.ReactNode;
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const [ligado, setLigado] = useState(false);
     const visiveis = useRef(new Map<string, number>());
@@ -100,6 +105,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
                 return () => ouvintesChamadas.current.delete(ouvinte);
             },
             ligado: false,
+            contactos: [],
             registarVisivel: (conversaId) => {
                 visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
 
@@ -129,7 +135,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     }, [valor]);
 
     return (
-        <Contexto.Provider value={{ ...valor, features, ligado }}>
+        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [] }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );
