@@ -319,6 +319,13 @@ export class SyncEngine {
     private registarEventos(): void {
         this.socket.on(EVENTOS_SERVIDOR.MENSAGEM_NOVA, (payload: { mensagem: Mensagem }) => {
             void (async () => {
+                // a mensagem chegou — mata já o "a escrever" do remetente (reaparece se voltar a escrever)
+                this.opcoes.aoTyping?.({
+                    conversa_id: payload.mensagem.conversa_id,
+                    identidade_id: payload.mensagem.remetente_identidade_id,
+                    ativo: false,
+                });
+
                 await this.storage.upsertMensagens([{ ...payload.mensagem, estado_envio: 'enviada' }]);
 
                 const conversa = await this.storage.obterConversa(payload.mensagem.conversa_id);
