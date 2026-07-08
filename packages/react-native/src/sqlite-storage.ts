@@ -131,6 +131,10 @@ export class SqliteStorage implements StorageAdapter {
         }
     }
 
+    async removerMensagem(conversaId: string, mensagemId: string): Promise<void> {
+        await this.db.runAsync(`DELETE FROM mensagens WHERE conversa_id = ? AND id = ?`, [conversaId, mensagemId]);
+    }
+
     async removerMensagemPorRef(conversaId: string, refCliente: string): Promise<void> {
         await this.db.runAsync(`DELETE FROM mensagens WHERE conversa_id = ? AND ref_cliente = ?`, [
             conversaId,

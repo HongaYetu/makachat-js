@@ -199,6 +199,77 @@ export class SyncEngine {
         this.notificar();
     }
 
+    // ---- ações com aplicação local (o gateway exclui o remetente do broadcast) ----
+
+    private async minhaIdentidadeId(conversaId: string): Promise<string | null> {
+        const conversa = await this.storage.obterConversa(conversaId);
+        const eu = conversa?.participantes.find(
+            (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo,
+        );
+
+        return eu?.identidade_id ?? null;
+    }
+
+    async alternarReacao(conversaId: string, mensagemId: string, emoji: string): Promise<void> {
+        const ack = await this.socket.alternarReacao(mensagemId, emoji);
+
+        if (ack.estado !== 'ok') throw new Error(ack.texto ?? 'Erro ao reagir');
+
+        const minhaId = await this.minhaIdentidadeId(conversaId);
+        const lista = await this.storage.listarMensagens(conversaId, { limite: 500 });
+        const alvo = lista.find((m) => m.id === mensagemId);
+
+        if (alvo && minhaId) {
+            const reacoes = alvo.reacoes.filter((r) => r.identidade_id !== minhaId);
+
+            if (ack.emoji) reacoes.push({ identidade_id: minhaId, emoji: ack.emoji });
+
+            await this.storage.upsertMensagens([{ ...alvo, reacoes }]);
+            this.notificar();
+        }
+    }
+
+    async editarMensagem(mensagemId: string, conteudo: string): Promise<void> {
+        const ack = await this.socket.editarMensagem(mensagemId, conteudo);
+
+        if (ack.estado !== 'ok') throw new Error(ack.texto ?? 'Erro ao editar');
+
+        await this.storage.upsertMensagens([{ ...ack.mensagem, estado_envio: 'enviada' }]);
+        this.notificar();
+    }
+
+    async eliminarMensagem(conversaId: string, mensagemId: string, paraTodos: boolean): Promise<void> {
+        const ack = await this.socket.eliminarMensagem(mensagemId, paraTodos);
+
+        if (ack.estado !== 'ok') throw new Error(ack.texto ?? 'Erro ao eliminar');
+
+        if (paraTodos) {
+            await this.storage.upsertMensagens([{ ...ack.mensagem, eliminada: true, conteudo: null, estado_envio: 'enviada' }]);
+        } else {
+            await this.storage.removerMensagem(conversaId, mensagemId);
+        }
+
+        this.notificar();
+    }
+
+    async eliminarConversa(conversaId: string): Promise<void> {
+        await this.api.eliminarConversa(conversaId);
+        await this.storage.removerConversa(conversaId);
+        this.notificar();
+    }
+
+    async marcarNaoLida(conversaId: string): Promise<void> {
+        const r = await this.api.marcarNaoLida(conversaId);
+        const conversa = await this.storage.obterConversa(conversaId);
+
+        if (conversa?.participante) {
+            await this.storage.upsertConversas([
+                { ...conversa, participante: { ...conversa.participante, mensagens_nao_lidas: r.mensagens_nao_lidas } },
+            ]);
+            this.notificar();
+        }
+    }
+
     // ---- leituras ----
 
     async marcarLidas(conversaId: string): Promise<void> {

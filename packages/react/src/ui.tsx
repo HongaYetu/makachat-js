@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { Anexo, Conversa, idMaiorOuIgual, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ReprodutorAudio } from './audio';
 import { useChamadasOpcional } from './chamadas';
 import {
     useEnviarMensagem,
@@ -111,6 +112,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const podeAudioMedia = useFuncionalidadeAtiva('media.audio');
     const podeReagir = useFuncionalidadeAtiva('reacoes');
     const podeEncaminhar = useFuncionalidadeAtiva('encaminhar');
+    const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
     const podeMedia = podeFicheiro || podeFoto;
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
@@ -124,6 +126,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [aEnviarMedia, setAEnviarMedia] = useState(false);
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [destacada, setDestacada] = useState<string | null>(null);
+    const [eliminarDe, setEliminarDe] = useState<Mensagem | null>(null);
+    const [menuConversa, setMenuConversa] = useState(false);
+    const [confirmarEliminarConversa, setConfirmarEliminarConversa] = useState(false);
 
     const fim = useRef<HTMLDivElement>(null);
     const ficheiro = useRef<HTMLInputElement>(null);
@@ -167,7 +172,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         if (editar) {
             const alvo = editar;
             setEditar(null);
-            await socket.editarMensagem(alvo.id, conteudo).catch(() => undefined);
+            await engine.editarMensagem(alvo.id, conteudo).catch(() => undefined);
 
             return;
         }
@@ -247,6 +252,21 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 </span>
                 {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
                 {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="mdi:video-outline" /></BotaoIcone>}
+                <span className="relative">
+                    <BotaoIcone titulo="Opções da conversa" onClick={() => setMenuConversa(!menuConversa)}><Icon icon="mdi:dots-vertical" /></BotaoIcone>
+                    {menuConversa && (
+                        <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                            <ItemMenu onClick={() => { setMenuConversa(false); void engine.marcarNaoLida(conversaId).catch(() => undefined); aoFechar?.(); }}>
+                                <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
+                            </ItemMenu>
+                            {podeEliminarConversa && (
+                                <ItemMenu onClick={() => { setMenuConversa(false); setConfirmarEliminarConversa(true); }}>
+                                    <Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar conversa
+                                </ItemMenu>
+                            )}
+                        </div>
+                    )}
+                </span>
                 {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>}
             </div>
 
@@ -280,14 +300,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         aoClicarCitacao={(id) => void irParaMensagem(id)}
                         aoVerReacoes={() => setReacoesDe(m)}
                         acoes={{
-                            reagir: podeReagir ? (emoji) => void socket.alternarReacao(m.id, emoji) : undefined,
+                            reagir: podeReagir ? (emoji) => void engine.alternarReacao(conversaId, m.id, emoji) : undefined,
                             responder: () => { setEditar(null); setResponderA(m); },
                             editar: m.remetente_identidade_id === eu?.identidade_id && m.tipo === 'texto' && !m.eliminada
                                 ? () => { setResponderA(null); setEditar(m); setTexto(m.conteudo ?? ''); }
                                 : undefined,
-                            eliminar: m.remetente_identidade_id === eu?.identidade_id && !m.eliminada
-                                ? () => void socket.eliminarMensagem(m.id, true)
-                                : undefined,
+                            eliminar: !m.eliminada ? () => setEliminarDe(m) : undefined,
                             encaminhar: podeEncaminhar ? () => setEncaminhar(m) : undefined,
                         }}
                         todas={mensagens}
@@ -382,13 +400,48 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     </button>
                 </div>
             )}
+            {eliminarDe && (
+                <ConfirmarDialogo
+                    titulo="Eliminar mensagem?"
+                    aoFechar={() => setEliminarDe(null)}
+                    botoes={[
+                        ...(eliminarDe.remetente_identidade_id === eu?.identidade_id
+                            ? [{
+                                  rotulo: 'Eliminar para todos',
+                                  destrutivo: true,
+                                  acao: () => void engine.eliminarMensagem(conversaId, eliminarDe.id, true),
+                              }]
+                            : []),
+                        {
+                            rotulo: 'Eliminar para mim',
+                            destrutivo: true,
+                            acao: () => void engine.eliminarMensagem(conversaId, eliminarDe.id, false),
+                        },
+                    ]}
+                />
+            )}
+            {confirmarEliminarConversa && (
+                <ConfirmarDialogo
+                    titulo="Eliminar conversa?"
+                    descricao="O histórico desaparece para ti. A outra pessoa mantém a conversa dela."
+                    aoFechar={() => setConfirmarEliminarConversa(false)}
+                    botoes={[{
+                        rotulo: 'Eliminar conversa',
+                        destrutivo: true,
+                        acao: () => {
+                            void engine.eliminarConversa(conversaId);
+                            aoFechar?.();
+                        },
+                    }]}
+                />
+            )}
             {reacoesDe && conversa && (
                 <ModalReacoes
                     mensagem={mensagens.find((m) => m.id === reacoesDe.id) ?? reacoesDe}
                     conversa={conversa}
                     euId={eu?.identidade_id ?? null}
                     aoFechar={() => setReacoesDe(null)}
-                    aoRemoverMinha={(emoji) => void socket.alternarReacao(reacoesDe.id, emoji)}
+                    aoRemoverMinha={(emoji) => void engine.alternarReacao(conversaId, reacoesDe.id, emoji)}
                     aoMensagem={
                         conversa.tipo === 'grupo' && aoAbrirOutraConversa
                             ? async (p) => {
@@ -490,12 +543,24 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
                     {aEnviarMedia ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:paperclip" />}
                 </BotaoIcone>
             )}
-            <input
-                className="min-w-0 flex-1 rounded-full border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
+            <textarea
+                rows={1}
+                className="maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                style={{ maxHeight: 132 }}
                 value={texto}
                 placeholder={placeholder}
-                onChange={(e) => setTexto(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && aoEnviar()}
+                onChange={(e) => {
+                    setTexto(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 132)}px`;
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        aoEnviar();
+                        (e.target as HTMLTextAreaElement).style.height = 'auto';
+                    }
+                }}
             />
             {texto.trim() === '' && podeGravar ? (
                 <button
@@ -761,7 +826,7 @@ function AnexoView({ anexo: a, aoAbrirFoto }: { anexo: Anexo; aoAbrirFoto(url: s
     if (a.tipo === 'foto')
         return <img src={a.url} className="max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90" alt="" onClick={() => aoAbrirFoto(a.url as string)} />;
     if (a.tipo === 'video') return <video src={a.url} controls className="max-w-[260px] rounded-xl" />;
-    if (a.tipo === 'audio') return <audio src={a.url} controls className="max-w-[240px]" />;
+    if (a.tipo === 'audio') return <ReprodutorAudio url={a.url} />;
 
     return (
         <a href={a.url} target="_blank" rel="noreferrer" className="text-inherit underline-offset-2 hover:underline">
@@ -787,6 +852,38 @@ function BotaoIcone({ onClick, titulo, children }: { onClick(): void; titulo: st
         >
             {children}
         </button>
+    );
+}
+
+/** Diálogo de confirmação da lib (nada de window.confirm). */
+function ConfirmarDialogo({ titulo, descricao, botoes, aoFechar }: {
+    titulo: string; descricao?: string;
+    botoes: { rotulo: string; destrutivo?: boolean; acao(): void }[];
+    aoFechar(): void;
+}) {
+    return (
+        <div className="fixed inset-0 z-[10002] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
+            <div className="w-[320px] animate-maka-subir overflow-hidden rounded-2xl bg-[var(--maka-superficie)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-1 font-bold text-[var(--maka-texto)]">{titulo}</div>
+                {descricao && <div className="mb-3 text-[13px] text-[var(--maka-texto-suave)]">{descricao}</div>}
+                <div className="mt-3 flex flex-col gap-2">
+                    {botoes.map((b) => (
+                        <button
+                            key={b.rotulo}
+                            onClick={() => { b.acao(); aoFechar(); }}
+                            className={`w-full cursor-pointer rounded-full border-0 py-2.5 text-sm font-bold shadow-sm transition-transform hover:scale-[1.02] ${
+                                b.destrutivo ? 'bg-red-600 text-white' : 'bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)]'
+                            }`}
+                        >
+                            {b.rotulo}
+                        </button>
+                    ))}
+                    <button onClick={aoFechar} className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-fundo)] py-2.5 text-sm font-semibold text-[var(--maka-texto)]">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }
 

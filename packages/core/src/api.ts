@@ -138,6 +138,14 @@ export class MakaApi {
         return this.pedir(`/v1/conversas/${conversaId}/sair`, { method: 'POST' });
     }
 
+    eliminarConversa(conversaId: string) {
+        return this.pedir(`/v1/conversas/${conversaId}`, { method: 'DELETE' });
+    }
+
+    marcarNaoLida(conversaId: string) {
+        return this.pedir<{ mensagens_nao_lidas: number }>(`/v1/conversas/${conversaId}/nao-lida`, { method: 'POST' });
+    }
+
     listarFeatures() {
         return this.pedir<{ features: FlagFuncionalidade[] }>('/v1/features');
     }

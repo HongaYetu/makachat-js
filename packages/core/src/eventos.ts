@@ -40,6 +40,7 @@ export const FUNCIONALIDADES = [
     'chamadas.audio',
     'chamadas.video',
     'chamadas.partilha_ecra',
+    'conversas.eliminar',
 ] as const;
 
 export type Funcionalidade = (typeof FUNCIONALIDADES)[number];

@@ -15,6 +15,7 @@ export interface StorageAdapter {
 
     upsertMensagens(mensagens: Mensagem[]): Promise<void>;
     removerMensagemPorRef(conversaId: string, refCliente: string): Promise<void>;
+    removerMensagem(conversaId: string, mensagemId: string): Promise<void>;
     listarMensagens(conversaId: string, opcoes?: { antes_de?: string; limite?: number }): Promise<Mensagem[]>;
     cursores(): Promise<CursorConversa[]>;
 
@@ -85,6 +86,14 @@ export class MemoryStorage implements StorageAdapter {
         this.mensagens.set(
             conversaId,
             lista.filter((m) => m.ref_cliente !== refCliente),
+        );
+    }
+
+    async removerMensagem(conversaId: string, mensagemId: string): Promise<void> {
+        const lista = this.mensagens.get(conversaId) ?? [];
+        this.mensagens.set(
+            conversaId,
+            lista.filter((m) => m.id !== mensagemId),
         );
     }
 
