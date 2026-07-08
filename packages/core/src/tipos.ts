@@ -20,6 +20,7 @@ export type ObterToken = () => Promise<CredenciaisSessao>;
 export interface Anexo {
     id: string;
     tipo: 'foto' | 'video' | 'audio' | 'ficheiro';
+    nome_ficheiro?: string | null;
     mime: string | null;
     tamanho_bytes: number | null;
     largura: number | null;

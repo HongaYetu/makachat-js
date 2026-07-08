@@ -124,7 +124,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
     const [ficheiroPendente, setFicheiroPendente] = useState<File | null>(null);
     const [aEnviarMedia, setAEnviarMedia] = useState(false);
-    const [lightbox, setLightbox] = useState<string | null>(null);
+    const [lightbox, setLightbox] = useState<{ urls: string[]; indice: number } | null>(null);
+    const [menuAnexo, setMenuAnexo] = useState(false);
     const [destacada, setDestacada] = useState<string | null>(null);
     const [eliminarDe, setEliminarDe] = useState<Mensagem | null>(null);
     const [menuConversa, setMenuConversa] = useState(false);
@@ -132,6 +133,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
 
     const fim = useRef<HTMLDivElement>(null);
     const ficheiro = useRef<HTMLInputElement>(null);
+    const fotoInput = useRef<HTMLInputElement>(null);
     const ultimoTyping = useRef(0);
     const refsBolhas = useRef(new Map<string, HTMLDivElement>());
 
@@ -183,11 +185,11 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     };
 
     /** Upload + envio via engine: aparece já no chat com preview local. */
-    const enviarFicheiro = async (f: File, legenda?: string) => {
+    const enviarFicheiro = async (f: File, legenda?: string, forcarTipo?: 'ficheiro') => {
         setAEnviarMedia(true);
 
         try {
-            const tipo = f.type.startsWith('image/') ? 'foto' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'ficheiro';
+            const tipo = forcarTipo ?? (f.type.startsWith('image/') ? 'foto' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'ficheiro');
             const criado = await api.criarMedia({ tipo, mime: f.type, nome_ficheiro: f.name });
             await api.carregarMedia(criado.upload, f, f.type);
             await api.confirmarMedia(criado.anexo_id);
@@ -195,6 +197,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             const preview: Anexo = {
                 id: criado.anexo_id,
                 tipo: tipo as Anexo['tipo'],
+                nome_ficheiro: f.name,
                 mime: f.type,
                 tamanho_bytes: f.size,
                 largura: null,
@@ -212,6 +215,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         } finally {
             setAEnviarMedia(false);
         }
+    };
+
+    const abrirGaleria = (url: string) => {
+        const urls = mensagens.flatMap((m) => m.anexos.filter((a) => a.tipo === 'foto' && a.url).map((a) => a.url as string));
+        const indice = Math.max(0, urls.indexOf(url));
+        setLightbox({ urls, indice });
     };
 
     /** Scroll até à mensagem citada, com destaque. */
@@ -235,7 +244,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     };
 
     return (
-        <div className="flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
+        <div className="relative flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
             {/* header */}
             <div className={`z-[1] flex items-center gap-3 bg-[var(--maka-superficie)] shadow-sm ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
                 <span className="relative">
@@ -296,7 +305,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         outros={outros}
                         destacada={destacada === m.id}
                         podeReagir={podeReagir}
-                        aoAbrirFoto={setLightbox}
+                        aoAbrirFoto={abrirGaleria}
                         aoClicarCitacao={(id) => void irParaMensagem(id)}
                         aoVerReacoes={() => setReacoesDe(m)}
                         acoes={{
@@ -342,12 +351,23 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 podeMedia={podeMedia}
                 podeGravar={podeAudioMedia}
                 aEnviarMedia={aEnviarMedia}
-                aoAnexar={() => ficheiro.current?.click()}
+                aoAnexar={() => setMenuAnexo(!menuAnexo)}
                 aoGravarAudio={(blob) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }))}
             />
+            {menuAnexo && (
+                <div className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-xl ring-1 ring-black/5">
+                    <ItemMenu onClick={() => { setMenuAnexo(false); fotoInput.current?.click(); }}>
+                        <Icon icon="mdi:image-outline" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Fotos e vídeos
+                    </ItemMenu>
+                    <ItemMenu onClick={() => { setMenuAnexo(false); ficheiro.current?.click(); }}>
+                        <Icon icon="mdi:file-outline" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Ficheiro
+                    </ItemMenu>
+                </div>
+            )}
             <input
-                ref={ficheiro}
+                ref={fotoInput}
                 type="file"
+                accept="image/*,video/*"
                 hidden
                 onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -356,6 +376,18 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         if (f.type.startsWith('image/')) setFicheiroPendente(f);
                         else void enviarFicheiro(f);
                     }
+
+                    e.target.value = '';
+                }}
+            />
+            <input
+                ref={ficheiro}
+                type="file"
+                hidden
+                onChange={(e) => {
+                    const f = e.target.files?.[0];
+
+                    if (f) void enviarFicheiro(f, undefined, 'ficheiro');
 
                     e.target.value = '';
                 }}
@@ -393,12 +425,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 />
             )}
             {lightbox && (
-                <div className="fixed inset-0 z-[10001] grid cursor-zoom-out place-items-center bg-black/85 backdrop-blur-sm" onClick={() => setLightbox(null)}>
-                    <img src={lightbox} className="max-h-[90vh] max-w-[92vw] rounded-xl shadow-2xl" alt="" />
-                    <button className="absolute right-5 top-5 grid h-10 w-10 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-xl text-white hover:bg-white/25">
-                        <Icon icon="mdi:close" />
-                    </button>
-                </div>
+                <Galeria urls={lightbox.urls} indiceInicial={lightbox.indice} aoFechar={() => setLightbox(null)} />
             )}
             {eliminarDe && (
                 <ConfirmarDialogo
@@ -828,10 +855,95 @@ function AnexoView({ anexo: a, aoAbrirFoto }: { anexo: Anexo; aoAbrirFoto(url: s
     if (a.tipo === 'video') return <video src={a.url} controls className="max-w-[260px] rounded-xl" />;
     if (a.tipo === 'audio') return <ReprodutorAudio url={a.url} />;
 
+    return <CartaoFicheiro anexo={a} />;
+}
+
+const ICONE_POR_EXTENSAO: Record<string, string> = {
+    pdf: 'mdi:file-pdf-box',
+    doc: 'mdi:file-word-box', docx: 'mdi:file-word-box',
+    xls: 'mdi:file-excel-box', xlsx: 'mdi:file-excel-box', csv: 'mdi:file-excel-box',
+    ppt: 'mdi:file-powerpoint-box', pptx: 'mdi:file-powerpoint-box',
+    zip: 'mdi:folder-zip', rar: 'mdi:folder-zip', '7z': 'mdi:folder-zip',
+    mp3: 'mdi:file-music', wav: 'mdi:file-music', webm: 'mdi:file-music',
+    jpg: 'mdi:file-image', jpeg: 'mdi:file-image', png: 'mdi:file-image', gif: 'mdi:file-image',
+    txt: 'mdi:file-document-outline',
+};
+
+function CartaoFicheiro({ anexo: a }: { anexo: Anexo }) {
+    const nome = a.nome_ficheiro ?? 'Ficheiro';
+    const extensao = (nome.includes('.') ? nome.split('.').pop() ?? '' : '').toLowerCase();
+    const icone = ICONE_POR_EXTENSAO[extensao] ?? 'mdi:file-outline';
+    const tamanho = a.tamanho_bytes
+        ? a.tamanho_bytes >= 1024 * 1024
+            ? `${(a.tamanho_bytes / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.max(1, Math.round(a.tamanho_bytes / 1024))} KB`
+        : '';
+
     return (
-        <a href={a.url} target="_blank" rel="noreferrer" className="text-inherit underline-offset-2 hover:underline">
-            <Icon icon="mdi:file-outline" className="inline align-[-2px]" /> Ficheiro{a.tamanho_bytes ? ` (${Math.round(a.tamanho_bytes / 1024)} KB)` : ''}
-        </a>
+        <div className="flex w-[250px] items-center gap-2.5 rounded-xl bg-black/10 p-2.5">
+            <Icon icon={icone} className="shrink-0 text-4xl opacity-90" />
+            <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold" title={nome}>{nome}</span>
+                <span className="block text-[11px] opacity-70">
+                    {[extensao.toUpperCase(), tamanho].filter(Boolean).join(' · ')}
+                </span>
+            </span>
+            <a
+                href={a.url as string}
+                target="_blank"
+                rel="noreferrer"
+                download={nome}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/15 text-inherit transition-transform hover:scale-105"
+                title="Descarregar"
+            >
+                <Icon icon="mdi:download" className="text-lg" />
+            </a>
+        </div>
+    );
+}
+
+/** Galeria de fotos da conversa: navegação ←/→ (rato e teclado) + contador. */
+function Galeria({ urls, indiceInicial, aoFechar }: { urls: string[]; indiceInicial: number; aoFechar(): void }) {
+    const [indice, setIndice] = useState(indiceInicial);
+
+    useEffect(() => {
+        const aoTecla = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') aoFechar();
+            if (e.key === 'ArrowLeft') setIndice((i) => Math.max(0, i - 1));
+            if (e.key === 'ArrowRight') setIndice((i) => Math.min(urls.length - 1, i + 1));
+        };
+
+        window.addEventListener('keydown', aoTecla);
+
+        return () => window.removeEventListener('keydown', aoTecla);
+    }, [urls.length, aoFechar]);
+
+    return (
+        <div className="fixed inset-0 z-[10001] grid place-items-center bg-black/90 backdrop-blur-sm" onClick={aoFechar}>
+            <img src={urls[indice]} className="max-h-[88vh] max-w-[90vw] rounded-xl shadow-2xl" alt="" onClick={(e) => e.stopPropagation()} />
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1 text-sm text-white">
+                {indice + 1} / {urls.length}
+            </div>
+            <button className="absolute right-5 top-5 grid h-10 w-10 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-xl text-white hover:bg-white/25" onClick={aoFechar}>
+                <Icon icon="mdi:close" />
+            </button>
+            {indice > 0 && (
+                <button
+                    className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-2xl text-white hover:bg-white/25"
+                    onClick={(e) => { e.stopPropagation(); setIndice(indice - 1); }}
+                >
+                    <Icon icon="mdi:chevron-left" />
+                </button>
+            )}
+            {indice < urls.length - 1 && (
+                <button
+                    className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-2xl text-white hover:bg-white/25"
+                    onClick={(e) => { e.stopPropagation(); setIndice(indice + 1); }}
+                >
+                    <Icon icon="mdi:chevron-right" />
+                </button>
+            )}
+        </div>
     );
 }
 
