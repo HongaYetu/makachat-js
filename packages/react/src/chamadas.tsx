@@ -1,7 +1,7 @@
 import { Icon } from '@iconify/react';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
-import { RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { LocalTrackPublication, RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { mostrarNotificacao } from './notificacoes';
 import { useMakaChat } from './provider';
 import { AvatarWeb } from './ui';
@@ -40,7 +40,9 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const [ativa, setAtiva] = useState<EstadoChamada | null>(null);
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [modo, setModo] = useState<'janela' | 'cheio' | 'pill'>('janela');
-    const [segundos, setSegundos] = useState(0);
+    /** timestamp de quando a chamada entrou em curso — o relógio vive num componente-folha */
+    const [inicioEm, setInicioEm] = useState<number | null>(null);
+    const [erro, setErro] = useState<string | null>(null);
     const [mudo, setMudo] = useState(false);
     const [camara, setCamara] = useState(false);
     const [ecra, setEcra] = useState(false);
@@ -48,35 +50,38 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const room = useRef<Room | null>(null);
     const midia = useRef<HTMLDivElement>(null);
-    const timer = useRef<ReturnType<typeof setInterval> | null>(null);
     const arrasto = useRef<{ ativo: boolean; dx: number; dy: number }>({ ativo: false, dx: 0, dy: 0 });
 
     const limpar = useCallback(() => {
         void room.current?.disconnect();
         room.current = null;
 
-        if (timer.current) clearInterval(timer.current);
-        timer.current = null;
         setAtiva(null);
         setConversa(null);
         setModo('janela');
-        setSegundos(0);
+        setInicioEm(null);
+        setErro(null);
         setMudo(false);
         setCamara(false);
         setEcra(false);
     }, []);
 
     const comecarTimer = useCallback(() => {
-        if (timer.current) return;
-
-        setSegundos(0);
-        timer.current = setInterval(() => setSegundos((s) => s + 1), 1000);
+        setInicioEm((atual) => atual ?? Date.now());
     }, []);
 
     const ligarSala = useCallback(async (token: string, wsUrl: string, video: boolean) => {
+        // câmara/microfone exigem contexto seguro (https ou localhost)
+        if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+            setErro('O browser bloqueou a câmara/microfone — esta página precisa de HTTPS.');
+
+            return;
+        }
+
         const r = new Room();
         room.current = r;
 
+        // remotos: vídeo e ÁUDIO (o attach do áudio cria o <audio> que toca a voz)
         r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
             const el = track.attach();
 
@@ -85,19 +90,45 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         });
         r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => track.detach().forEach((e) => e.remove()));
 
-        await r.connect(wsUrl, token);
-        await r.localParticipant.setMicrophoneEnabled(true);
-
-        if (video) {
-            await r.localParticipant.setCameraEnabled(true);
-            setCamara(true);
-
-            const local = r.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-
-            if (local) {
-                const el = local.attach();
+        // locais: preview da câmara/partilha anexado por evento — cobre o arranque
+        // E o ligar/desligar da câmara a meio da chamada
+        r.on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication) => {
+            if (pub.track && pub.kind === Track.Kind.Video) {
+                const el = pub.track.attach();
                 el.className = 'maka-video-local';
                 midia.current?.appendChild(el);
+            }
+        });
+        r.on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
+            pub.track?.detach().forEach((e) => e.remove());
+        });
+
+        try {
+            await r.connect(wsUrl, token);
+        } catch (e) {
+            setErro('Não foi possível ligar ao servidor de chamadas.');
+            console.error('[makachat] ligação LiveKit falhou:', e);
+
+            return;
+        }
+
+        // políticas de autoplay: desbloqueia a reprodução de áudio (estamos num gesto do utilizador)
+        void r.startAudio().catch(() => undefined);
+
+        try {
+            await r.localParticipant.setMicrophoneEnabled(true);
+        } catch (e) {
+            setErro('Sem acesso ao microfone — verifica as permissões do browser.');
+            console.error('[makachat] microfone falhou:', e);
+        }
+
+        if (video) {
+            try {
+                await r.localParticipant.setCameraEnabled(true);
+                setCamara(true);
+            } catch (e) {
+                setErro('Sem acesso à câmara — verifica as permissões do browser.');
+                console.error('[makachat] câmara falhou:', e);
             }
         }
     }, []);
@@ -178,9 +209,14 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const titulo = ativa?.fase === 'a_receber' ? (ativa.iniciador?.nome ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
     const foto = ativa?.fase === 'a_receber' ? (ativa.iniciador?.foto_url ?? null) : (conversa?.foto_url ?? null);
-    const duracao = `${String(Math.floor(segundos / 60)).padStart(2, '0')}:${String(segundos % 60).padStart(2, '0')}`;
     const subtitulo =
-        ativa?.fase === 'em_curso' ? duracao : ativa?.fase === 'a_ligar' ? 'A chamar…' : `Chamada de ${ativa?.chamada.tipo === 'video' ? 'vídeo' : 'áudio'}`;
+        ativa?.fase === 'em_curso' && inicioEm ? (
+            <Duracao desde={inicioEm} />
+        ) : ativa?.fase === 'a_ligar' ? (
+            'A chamar…'
+        ) : (
+            `Chamada de ${ativa?.chamada.tipo === 'video' ? 'vídeo' : 'áudio'}`
+        );
 
     const B = (p: { onClick(): void; titulo: string; classe?: string; children: React.ReactNode }) => (
         <button
@@ -192,8 +228,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         </button>
     );
 
+    const valorCtx = useMemo(() => ({ iniciar, ativa }), [iniciar, ativa]);
+
     return (
-        <Ctx.Provider value={{ iniciar, ativa }}>
+        <Ctx.Provider value={valorCtx}>
             {children}
             {/* estilos dos vídeos anexados imperativamente */}
             <style>{`
@@ -207,7 +245,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     className="fixed bottom-6 left-6 z-[9999] flex animate-maka-subir cursor-pointer items-center gap-2.5 rounded-full border-0 bg-slate-900 py-2 pl-2 pr-4 text-white shadow-2xl"
                 >
                     <AvatarWeb nome={titulo} url={foto} tamanho={30} />
-                    <span className="text-sm font-semibold">{ativa.fase === 'em_curso' ? duracao : subtitulo}</span>
+                    <span className="text-sm font-semibold">{subtitulo}</span>
                     <Icon icon="tabler:arrows-maximize" className="text-white/70" />
                 </button>
             )}
@@ -248,6 +286,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                                 <span className="text-sm text-white/70">{subtitulo}</span>
                             </div>
                         )}
+                        {erro && (
+                            <div className="absolute inset-x-3 bottom-3 z-[2] rounded-xl bg-red-500/90 px-3 py-2 text-center text-xs font-semibold text-white">
+                                {erro}
+                            </div>
+                        )}
                     </div>
 
                     {/* controlos */}
@@ -283,5 +326,24 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 </div>
             )}
         </Ctx.Provider>
+    );
+}
+
+/** Relógio da chamada isolado: só este componente re-renderiza a cada segundo. */
+function Duracao({ desde }: { desde: number }) {
+    const [, forcar] = useState(0);
+
+    useEffect(() => {
+        const timer = setInterval(() => forcar((n) => n + 1), 1000);
+
+        return () => clearInterval(timer);
+    }, []);
+
+    const segundos = Math.max(0, Math.floor((Date.now() - desde) / 1000));
+
+    return (
+        <>
+            {String(Math.floor(segundos / 60)).padStart(2, '0')}:{String(segundos % 60).padStart(2, '0')}
+        </>
     );
 }
