@@ -3,4 +3,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
     plugins: [react()],
+    optimizeDeps: {
+        // pacotes do workspace mudam a cada build — nunca pré-empacotar/cachear
+        exclude: ['@hongayetu/makachat-react', '@hongayetu/makachat-core'],
+    },
 });
