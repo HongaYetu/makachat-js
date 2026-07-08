@@ -1013,6 +1013,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 })}
                 {typingOutro && (
                     <div className="flex justify-start pt-1">
+                        <span className="mr-1.5 w-7 shrink-0" />
                         <div className="flex items-center gap-2 rounded-[var(--maka-raio)] rounded-bl-md bg-[var(--maka-bolha-outro)] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,.04),0_4px_14px_-4px_rgba(15,23,42,.08)]">
                             {conversa?.tipo === 'grupo' && nomeTyping && (
                                 <span className="text-xs font-bold text-[var(--maka-primaria)]">{nomeTyping}</span>
