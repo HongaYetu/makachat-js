@@ -202,11 +202,8 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
 
                 <div className="relative mb-4">
                     {popover && (
-                        <div className="absolute bottom-16 right-0 flex max-h-[420px] w-[320px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl ring-1 ring-black/10">
-                            <div className="px-4 py-3 text-[15px] font-bold text-[var(--maka-texto)]">Mensagens</div>
-                            <div className="maka-scroll flex-1 overflow-auto">
-                                <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
-                            </div>
+                        <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl ring-1 ring-black/10">
+                            <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
                         </div>
                     )}
                     <button
