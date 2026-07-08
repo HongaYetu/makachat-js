@@ -58,10 +58,21 @@ interface FakeSocket {
     handlers: Map<string, (payload: never) => void>;
     modo: 'ok' | 'erro' | 'rede';
     proximoId: number;
+    /** resposta do próximo sync:desde e registo dos pedidos feitos */
+    delta: { lotes: { conversa_id: string; mensagens: Mensagem[] }[]; agora?: string };
+    syncPedidos: { alteradasDesde?: string }[];
 }
 
-function criarFakes() {
-    const estado: FakeSocket = { ligado: false, enviados: [], handlers: new Map(), modo: 'ok', proximoId: 1 };
+function criarFakes(aoMensagem?: (mensagem: Mensagem) => void) {
+    const estado: FakeSocket = {
+        ligado: false,
+        enviados: [],
+        handlers: new Map(),
+        modo: 'ok',
+        proximoId: 1,
+        delta: { lotes: [] },
+        syncPedidos: [],
+    };
 
     const socket = {
         get ligado() {
@@ -112,8 +123,13 @@ function criarFakes() {
         async marcarLidas() {
             return { estado: 'ok' } as Ack;
         },
-        async sincronizarDesde() {
-            return { estado: 'ok', lotes: [] } as unknown as Ack<{ lotes: [] }>;
+        async sincronizarDesde(_cursores: unknown, alteradasDesde?: string) {
+            estado.syncPedidos.push({ alteradasDesde });
+
+            return { estado: 'ok', ...estado.delta } as unknown as Ack<{
+                lotes: { conversa_id: string; mensagens: Mensagem[] }[];
+                agora?: string;
+            }>;
         },
         async ligar() {
             estado.ligado = true;
@@ -134,10 +150,29 @@ function criarFakes() {
         storage,
         api as unknown as MakaApi,
         socket as unknown as MakaSocket,
-        { identidade: IDENTIDADE },
+        { identidade: IDENTIDADE, aoMensagem },
     );
 
     return { estado, socket, storage, engine };
+}
+
+function mensagemFake(id: string, remetente: string, extra: Partial<Mensagem> = {}): Mensagem {
+    return {
+        id,
+        conversa_id: 'c1',
+        remetente_identidade_id: remetente,
+        tipo: 'texto',
+        conteudo: `msg ${id}`,
+        resposta_a_id: null,
+        encaminhada_de_id: null,
+        ref_cliente: `ref-${id}`,
+        editada_em: null,
+        eliminada: false,
+        reacoes: [],
+        anexos: [],
+        criada_em: '2026-07-07T10:00:00Z',
+        ...extra,
+    };
 }
 
 describe('SyncEngine', () => {
@@ -293,5 +328,75 @@ describe('SyncEngine', () => {
 
         const cursores = await storage.cursores();
         expect(cursores).toEqual([{ conversa_id: 'c1', ultimo_id: '01-servidor' }]);
+    });
+
+    it('delta recupera alteradas e novas; aoMensagem só dispara para novas não-minhas', async () => {
+        const recebidas: Mensagem[] = [];
+        const { engine, storage, estado } = criarFakes((m) => recebidas.push(m));
+        estado.ligado = true;
+
+        await storage.upsertConversas([conversaFake('c1')]);
+        await storage.upsertMensagens([mensagemFake('01', 'ident-b', { estado_envio: 'enviada' })]);
+
+        estado.delta = {
+            agora: '2026-07-08T22:00:00.000Z',
+            lotes: [
+                {
+                    conversa_id: 'c1',
+                    mensagens: [
+                        // alterada (id <= cursor): ganhou uma reação enquanto offline
+                        mensagemFake('01', 'ident-b', { reacoes: [{ identidade_id: 'ident-a', emoji: '👍' }] }),
+                        // nova do outro lado → deve correr o fluxo normal
+                        mensagemFake('02', 'ident-b'),
+                        // nova minha (outra sessão) → sem aoMensagem
+                        mensagemFake('03', 'ident-a'),
+                    ],
+                },
+            ],
+        };
+
+        await engine.sincronizarDelta();
+
+        const mensagens = await storage.listarMensagens('c1');
+        expect(mensagens).toHaveLength(3);
+        expect(mensagens.find((m) => m.id === '01')?.reacoes).toEqual([{ identidade_id: 'ident-a', emoji: '👍' }]);
+
+        expect(recebidas.map((m) => m.id)).toEqual(['02']);
+        expect(await storage.obterMeta('sync_em')).toBe('2026-07-08T22:00:00.000Z');
+    });
+
+    it('delta envia a água alta gravada e não grava meta quando o ack não traz agora', async () => {
+        const { engine, storage, estado } = criarFakes();
+        estado.ligado = true;
+
+        await storage.upsertConversas([conversaFake('c1')]);
+        await storage.upsertMensagens([mensagemFake('01', 'ident-b', { estado_envio: 'enviada' })]);
+        await storage.gravarMeta('sync_em', '2026-07-08T21:00:00.000Z');
+
+        estado.delta = { lotes: [] }; // servidor antigo: sem `agora`
+        await engine.sincronizarDelta();
+
+        expect(estado.syncPedidos[0].alteradasDesde).toBe('2026-07-08T21:00:00.000Z');
+        expect(await storage.obterMeta('sync_em')).toBe('2026-07-08T21:00:00.000Z'); // inalterada
+    });
+
+    it('recibo de leitura da própria identidade (outro dispositivo) zera o badge local', async () => {
+        const { storage, estado } = criarFakes();
+
+        const conversa = conversaFake('c1');
+        conversa.participante!.mensagens_nao_lidas = 3;
+        await storage.upsertConversas([conversa]);
+
+        const handler = estado.handlers.get('recibo:atualizado') as (r: unknown) => void;
+
+        // leitura do OUTRO participante não mexe no meu badge
+        handler({ conversa_id: 'c1', identidade_id: 'ident-b', entregue_ate: null, lido_ate: '09' });
+        await new Promise((r) => setTimeout(r, 10));
+        expect((await storage.obterConversa('c1'))?.participante?.mensagens_nao_lidas).toBe(3);
+
+        // leitura MINHA noutro dispositivo zera
+        handler({ conversa_id: 'c1', identidade_id: 'ident-a', entregue_ate: null, lido_ate: '09' });
+        await new Promise((r) => setTimeout(r, 10));
+        expect((await storage.obterConversa('c1'))?.participante?.mensagens_nao_lidas).toBe(0);
     });
 });

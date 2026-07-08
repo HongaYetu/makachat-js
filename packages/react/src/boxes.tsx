@@ -138,6 +138,13 @@ interface BoxAberta {
     minimizada: boolean;
 }
 
+/** Quantas boxes cabem no ecrã: launcher + margens reservam ~96px; cada box ocupa 336 + 12 de gap. */
+function boxesQueCabem(): number {
+    if (typeof window === 'undefined') return 1;
+
+    return Math.max(1, Math.floor((window.innerWidth - 96) / 348));
+}
+
 /**
  * Boxes múltiplas fixas no canto inferior direito: launcher com não lidas e
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
@@ -148,8 +155,24 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
     const versao = useVersaoChat();
     const [boxes, setBoxes] = useState<BoxAberta[]>([]);
     const [popover, setPopover] = useState(false);
+    const [capacidade, setCapacidade] = useState(() => boxesQueCabem());
 
     useFecharFora(popover, 'dock-popover', () => setPopover(false));
+
+    // o limite real depende do espaço disponível — abrir mais fecha a mais antiga
+    const limite = Math.max(1, Math.min(maxBoxes, capacidade));
+
+    useEffect(() => {
+        const aoRedimensionar = () => setCapacidade(boxesQueCabem());
+
+        window.addEventListener('resize', aoRedimensionar);
+
+        return () => window.removeEventListener('resize', aoRedimensionar);
+    }, []);
+
+    useEffect(() => {
+        setBoxes((atuais) => (atuais.length > limite ? atuais.slice(-limite) : atuais));
+    }, [limite]);
 
     const abrir = useCallback(
         (conversaId: string) => {
@@ -159,10 +182,10 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
                     return atuais.map((b) => (b.conversaId === conversaId ? { ...b, minimizada: false } : b));
                 }
 
-                return [...atuais, { conversaId, minimizada: false }].slice(-maxBoxes);
+                return [...atuais, { conversaId, minimizada: false }].slice(-limite);
             });
         },
-        [maxBoxes],
+        [limite],
     );
 
     const fechar = useCallback((conversaId: string) => {
@@ -208,36 +231,45 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
                             key={box.conversaId}
                             className={`flex w-[336px] animate-maka-subir flex-col overflow-hidden rounded-t-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/[.05] transition-[height] duration-200 ${box.minimizada ? 'h-12' : 'h-[480px]'}`}
                         >
-                            <button
-                                className="flex w-full cursor-pointer items-center gap-2.5 border-0 bg-[var(--maka-primaria)] px-3 py-2 text-left text-[var(--maka-primaria-contraste)]"
-                                onClick={() => setBoxes((a) => a.map((b) => (b.conversaId === box.conversaId ? { ...b, minimizada: !b.minimizada } : b)))}
-                            >
-                                <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={26} />
-                                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{conversa?.titulo ?? 'Conversa'}</span>
-                                {(conversa?.participante?.mensagens_nao_lidas ?? 0) > 0 && (
-                                    <span className="animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
-                                        {conversa?.participante?.mensagens_nao_lidas}
-                                    </span>
-                                )}
-                                <span
-                                    className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/15"
-                                    onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}
+                            {box.minimizada ? (
+                                // minimizada: barra com título/não-lidas; aberta usa só o header do painel (header único)
+                                <button
+                                    className="flex w-full cursor-pointer items-center gap-2.5 border-0 bg-[var(--maka-primaria)] px-3 py-2 text-left text-[var(--maka-primaria-contraste)]"
+                                    onClick={() => setBoxes((a) => a.map((b) => (b.conversaId === box.conversaId ? { ...b, minimizada: false } : b)))}
                                 >
-                                    <Icon icon="tabler:x" className="text-sm" />
-                                </span>
-                            </button>
-                            {!box.minimizada && (
+                                    <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={26} />
+                                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{conversa?.titulo ?? 'Conversa'}</span>
+                                    {(conversa?.participante?.mensagens_nao_lidas ?? 0) > 0 && (
+                                        <span className="animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
+                                            {conversa?.participante?.mensagens_nao_lidas}
+                                        </span>
+                                    )}
+                                    <span
+                                        className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/15"
+                                        onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}
+                                    >
+                                        <Icon icon="tabler:x" className="text-sm" />
+                                    </span>
+                                </button>
+                            ) : (
                                 <div className="min-h-0 flex-1">
-                                    <ConversaPainel conversaId={box.conversaId} compacto aoAbrirOutraConversa={abrir} />
+                                    <ConversaPainel
+                                        conversaId={box.conversaId}
+                                        compacto
+                                        aoAbrirOutraConversa={abrir}
+                                        aoMinimizar={() => setBoxes((a) => a.map((b) => (b.conversaId === box.conversaId ? { ...b, minimizada: true } : b)))}
+                                        aoFechar={() => fechar(box.conversaId)}
+                                    />
                                 </div>
                             )}
                         </div>
                     );
                 })}
 
-                <div className="relative mb-4" data-maka-pop="dock-popover">
+                <div className="relative z-[20] mb-4" data-maka-pop="dock-popover">
                     {popover && (
-                        <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/[.05]">
+                        // z acima dos menus internos das boxes (z-[1..6]) — senão os popovers das bolhas atravessam a lista
+                        <div className="absolute bottom-16 right-0 z-[20] flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/[.05]">
                             <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
                         </div>
                     )}

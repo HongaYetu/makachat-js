@@ -153,9 +153,10 @@ export class MakaSocket {
         return this.emitirComAck(EVENTOS_CLIENTE.ENTRAR_CONVERSA, { conversa_id: conversaId });
     }
 
-    sincronizarDesde(cursores: CursorConversa[]) {
-        return this.emitirComAck<{ lotes: { conversa_id: string; mensagens: Mensagem[] }[] }>(EVENTOS_CLIENTE.SYNC, {
+    sincronizarDesde(cursores: CursorConversa[], alteradasDesde?: string) {
+        return this.emitirComAck<{ lotes: { conversa_id: string; mensagens: Mensagem[] }[]; agora?: string }>(EVENTOS_CLIENTE.SYNC, {
             cursores,
+            ...(alteradasDesde ? { alteradas_desde: alteradasDesde } : {}),
         });
     }
 }

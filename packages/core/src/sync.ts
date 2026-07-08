@@ -110,6 +110,12 @@ export class SyncEngine {
         this.notificar();
     }
 
+    /**
+     * Delta pós-reconexão: recupera mensagens novas E alteradas (reações,
+     * edições, eliminações — via água alta `sync_em`) e faz as novas correr
+     * o fluxo normal (aoMensagem → notificações/badges, marcar entregues),
+     * como se tivessem chegado ao vivo.
+     */
     async sincronizarDelta(): Promise<void> {
         const cursores = await this.storage.cursores();
 
@@ -117,14 +123,54 @@ export class SyncEngine {
             return;
         }
 
-        const ack = await this.socket.sincronizarDesde(cursores).catch(() => null);
+        const alteradasDesde = await this.storage.obterMeta('sync_em');
+        const ack = await this.socket.sincronizarDesde(cursores, alteradasDesde ?? undefined).catch(() => null);
 
-        if (ack?.estado === 'ok' && ack.lotes.length) {
-            for (const lote of ack.lotes) {
-                await this.storage.upsertMensagens(lote.mensagens.map((m) => ({ ...m, estado_envio: 'enviada' as const })));
+        if (ack?.estado !== 'ok') {
+            return;
+        }
+
+        const cursorPorConversa = new Map(cursores.map((c) => [c.conversa_id, c.ultimo_id]));
+        const recuperadas: Mensagem[] = [];
+
+        for (const lote of ack.lotes) {
+            await this.storage.upsertMensagens(lote.mensagens.map((m) => ({ ...m, estado_envio: 'enviada' as const })));
+
+            const cursor = cursorPorConversa.get(lote.conversa_id) ?? null;
+            const novas = lote.mensagens.filter((m) => !cursor || m.id > cursor);
+
+            if (!novas.length) {
+                continue;
             }
 
+            await this.socket.marcarEntregues(lote.conversa_id, novas.at(-1)!.id).catch(() => undefined);
+
+            const conversa = await this.storage.obterConversa(lote.conversa_id);
+
+            for (const mensagem of novas) {
+                const remetente = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
+                const minha =
+                    remetente?.id_externo === this.opcoes.identidade.id && remetente?.tipo === this.opcoes.identidade.tipo;
+
+                if (!minha) {
+                    recuperadas.push(mensagem);
+                }
+            }
+        }
+
+        // previews/não-lidas NÃO se mexem aqui: vieram frescos do atualizarConversas
+        // que corre antes no aoLigar — incrementar localmente duplicaria a contagem
+        if (ack.agora) {
+            await this.storage.gravarMeta('sync_em', ack.agora);
+        }
+
+        if (ack.lotes.length) {
             this.notificar();
+        }
+
+        // fluxo normal para as novas recuperadas (notificações, useMensagemRecebida...)
+        for (const mensagem of recuperadas) {
+            this.opcoes.aoMensagem?.(mensagem);
         }
     }
 
@@ -458,6 +504,21 @@ export class SyncEngine {
                 }
 
                 await this.storage.aplicarRecibo(recibo);
+
+                // li noutro dispositivo → o servidor já zerou; zera também o badge local
+                if (recibo.lido_ate) {
+                    const conversa = await this.storage.obterConversa(recibo.conversa_id);
+                    const eu = conversa?.participantes.find(
+                        (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo,
+                    );
+
+                    if (conversa?.participante && eu && recibo.identidade_id === eu.identidade_id && conversa.participante.mensagens_nao_lidas > 0) {
+                        await this.storage.upsertConversas([
+                            { ...conversa, participante: { ...conversa.participante, mensagens_nao_lidas: 0 } },
+                        ]);
+                    }
+                }
+
                 this.notificar();
             })();
         });

@@ -69,6 +69,11 @@ export class SqliteStorage implements StorageAdapter {
                 criado_em TEXT NOT NULL,
                 dados TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS meta (
+                chave TEXT PRIMARY KEY,
+                valor TEXT NOT NULL
+            );
         `);
     }
 
@@ -208,8 +213,18 @@ export class SqliteStorage implements StorageAdapter {
         await this.upsertConversas([conversa]);
     }
 
+    async obterMeta(chave: string): Promise<string | null> {
+        const linhas = await this.db.getAllAsync<{ valor: string }>(`SELECT valor FROM meta WHERE chave = ? LIMIT 1`, [chave]);
+
+        return linhas[0]?.valor ?? null;
+    }
+
+    async gravarMeta(chave: string, valor: string): Promise<void> {
+        await this.db.runAsync(`INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)`, [chave, valor]);
+    }
+
     async limpar(): Promise<void> {
-        await this.db.execAsync(`DELETE FROM conversas; DELETE FROM mensagens; DELETE FROM outbox;`);
+        await this.db.execAsync(`DELETE FROM conversas; DELETE FROM mensagens; DELETE FROM outbox; DELETE FROM meta;`);
     }
 }
 

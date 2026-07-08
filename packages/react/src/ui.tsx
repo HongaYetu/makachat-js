@@ -112,11 +112,29 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const [menuDirecao, setMenuDirecao] = useState<'cima' | 'baixo'>('baixo');
     const [resultadosServidor, setResultadosServidor] = useState<Conversa[] | null>(null);
     const [proximoCursor, setProximoCursor] = useState<string | null>(null);
+    const [aCarregar, setACarregar] = useState(true);
     const aPaginar = useRef(false);
 
     useEffect(() => {
         void engine.storage.listarConversas(verArquivadas).then(setConversas);
     }, [engine, verArquivadas, versao]);
+
+    // busca ao servidor ao montar — o popover do dock pode abrir antes do socket
+    // ligar (ou com o socket em falha) e o storage ainda estar vazio
+    useEffect(() => {
+        let ativo = true;
+
+        void engine
+            .atualizarConversas()
+            .catch(() => undefined)
+            .finally(() => {
+                if (ativo) setACarregar(false);
+            });
+
+        return () => {
+            ativo = false;
+        };
+    }, [engine]);
 
     // pesquisa também no servidor (debounce 300ms) — apanha conversas fora do cache local
     useEffect(() => {
@@ -212,10 +230,17 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
             </div>
             <div className="maka-scroll min-h-0 flex-1 overflow-y-auto" onScroll={(e) => void aoScrollLista(e)}>
             {conversas.length === 0 && (
-                <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
-                    <Icon icon="tabler:message-circle" className="text-4xl opacity-40" />
-                    <span className="text-sm">Sem conversas</span>
-                </div>
+                aCarregar ? (
+                    <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
+                        <Icon icon="tabler:loader-2" className="animate-spin text-3xl text-[var(--maka-primaria)]" />
+                        <span className="text-sm">A carregar conversas…</span>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
+                        <Icon icon="tabler:message-circle" className="text-4xl opacity-40" />
+                        <span className="text-sm">Sem conversas</span>
+                    </div>
+                )
             )}
             {(busca.trim() && resultadosServidor
                 ? resultadosServidor
@@ -627,11 +652,13 @@ export interface ConversaPainelProps {
     conversaId: string;
     compacto?: boolean;
     aoFechar?(): void;
+    /** box do dock: botão de minimizar no header (header único, sem barra própria da box) */
+    aoMinimizar?(): void;
     /** abrir outra conversa (ex.: "mensagem" a partir do modal de reações) */
     aoAbrirOutraConversa?(conversaId: string): void;
 }
 
-export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrirOutraConversa }: ConversaPainelProps) {
+export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, aoAbrirOutraConversa }: ConversaPainelProps) {
     const { engine, socket, identidade, api, registarVisivel } = useMakaChat();
     const chamadas = useChamadasOpcional();
     const versao = useVersaoChat();
@@ -668,6 +695,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [resultadoIdx, setResultadoIdx] = useState(0);
     const aCarregarAntigas = useRef(false);
     const semMaisAntigas = useRef(false);
+    const [aCarregarIniciais, setACarregarIniciais] = useState(true);
     const [menuConversa, setMenuConversa] = useState(false);
     const [infoAberta, setInfoAberta] = useState(false);
     const [confirmarEliminarConversa, setConfirmarEliminarConversa] = useState(false);
@@ -701,9 +729,22 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         setPesquisaQ('');
         setResultados([]);
         semMaisAntigas.current = false;
-        void engine.carregarMensagens(conversaId).catch(() => undefined);
+        setACarregarIniciais(true);
+
+        let ativo = true;
+
+        void engine
+            .carregarMensagens(conversaId)
+            .catch(() => undefined)
+            .finally(() => {
+                if (ativo) setACarregarIniciais(false);
+            });
         void api.obterContexto(conversaId).then((r) => setContexto(r.contexto ?? null)).catch(() => undefined);
         void engine.entrarConversa(conversaId);
+
+        return () => {
+            ativo = false;
+        };
     }, [engine, api, socket, conversaId]);
 
     // foco da página (só marcamos lida com a janela ativa)
@@ -817,6 +858,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         if (typing?.ativo && noFundo) fim.current?.scrollIntoView({ behavior: 'smooth' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [typing?.ativo]);
+
+    // fechada pelo serviço (ex.: sem encomendas ativas) — histórico visível, envio bloqueado
+    const fechada = conversa?.estado === 'fechada';
 
     const eu = useMemo(
         () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
@@ -990,15 +1034,33 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
                 </span>
-                <BotaoIcone titulo="Pesquisar na conversa" onClick={() => { setPesquisaAberta(!pesquisaAberta); setResultados([]); setPesquisaQ(''); }}>
-                    <Icon icon="tabler:search" />
-                </BotaoIcone>
-                {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="tabler:phone" /></BotaoIcone>}
-                {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="tabler:video" /></BotaoIcone>}
+                {/* no dock (compacto) o header é único e estreito: pesquisa e chamadas vivem no menu ⋯ */}
+                {!compacto && (
+                    <BotaoIcone titulo="Pesquisar na conversa" onClick={() => { setPesquisaAberta(!pesquisaAberta); setResultados([]); setPesquisaQ(''); }}>
+                        <Icon icon="tabler:search" />
+                    </BotaoIcone>
+                )}
+                {!compacto && chamadas && podeAudioChamada && !fechada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="tabler:phone" /></BotaoIcone>}
+                {!compacto && chamadas && podeVideoChamada && !fechada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="tabler:video" /></BotaoIcone>}
                 <span className="relative" data-maka-pop="menu-cabecalho">
                     <BotaoIcone titulo="Opções da conversa" onClick={() => setMenuConversa(!menuConversa)}><Icon icon="tabler:dots-vertical" /></BotaoIcone>
                     {menuConversa && (
                         <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]">
+                            {compacto && (
+                                <ItemMenu onClick={() => { setMenuConversa(false); setPesquisaAberta(!pesquisaAberta); setResultados([]); setPesquisaQ(''); }}>
+                                    <Icon icon="tabler:search" className="inline align-[-2px]" /> Pesquisar na conversa
+                                </ItemMenu>
+                            )}
+                            {compacto && chamadas && podeAudioChamada && !fechada && (
+                                <ItemMenu onClick={() => { setMenuConversa(false); void chamadas.iniciar(conversaId, 'audio'); }}>
+                                    <Icon icon="tabler:phone" className="inline align-[-2px]" /> Chamada de áudio
+                                </ItemMenu>
+                            )}
+                            {compacto && chamadas && podeVideoChamada && !fechada && (
+                                <ItemMenu onClick={() => { setMenuConversa(false); void chamadas.iniciar(conversaId, 'video'); }}>
+                                    <Icon icon="tabler:video" className="inline align-[-2px]" /> Chamada de vídeo
+                                </ItemMenu>
+                            )}
                             <ItemMenu onClick={() => { setMenuConversa(false); void engine.marcarNaoLida(conversaId).catch(() => undefined); aoFechar?.(); }}>
                                 <Icon icon="tabler:mail-opened" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
@@ -1010,6 +1072,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         </div>
                     )}
                 </span>
+                {aoMinimizar && <BotaoIcone titulo="Minimizar" onClick={aoMinimizar}><Icon icon="tabler:minus" /></BotaoIcone>}
                 {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>}
             </div>
 
@@ -1063,7 +1126,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
 
             {/* mensagens */}
             <div className="relative min-h-0 flex-1">
-            <div ref={lista} onScroll={aoScroll} className={`maka-scroll flex h-full flex-col gap-1 overflow-y-auto ${compacto ? 'p-2.5' : 'p-4'}`}>
+            <div ref={lista} onScroll={aoScroll} className={`maka-scroll flex h-full flex-col gap-1 overflow-y-auto overflow-x-hidden ${compacto ? 'p-2.5' : 'p-4'}`}>
+                {aCarregarIniciais && mensagens.length === 0 && (
+                    <div className="grid flex-1 place-items-center text-[var(--maka-texto-suave)]">
+                        <Icon icon="tabler:loader-2" className="animate-spin text-2xl text-[var(--maka-primaria)]" />
+                    </div>
+                )}
                 {mensagens.map((m, i) => {
                     const anterior = mensagens[i - 1];
                     const seguinte = mensagens[i + 1];
@@ -1074,6 +1142,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     return (
                     <Bolha
                         key={m.id}
+                        compacto={compacto}
                         primeiraDoBloco={!mesmaAnterior}
                         ultimaDoBloco={!mesmaSeguinte}
                         autor={autor ?? null}
@@ -1139,8 +1208,19 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             )}
             </div>
 
+            {/* conversa fechada pelo serviço: aviso no lugar do input */}
+            {fechada && (
+                <div className="flex items-center justify-center gap-2 border-0 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] px-4 py-3 text-center text-[13px] text-[var(--maka-texto-suave)]">
+                    <Icon icon="tabler:lock" className="shrink-0 text-base" />
+                    <span>
+                        <span className="font-semibold text-[var(--maka-texto)]">Esta conversa está fechada.</span>
+                        {conversa?.fecho_motivo ? ` ${conversa.fecho_motivo}` : ''}
+                    </span>
+                </div>
+            )}
+
             {/* barra de resposta/edição */}
-            {(responderA || editar) && (
+            {!fechada && (responderA || editar) && (
                 <div className="flex items-center gap-2 border-t-2 border-[var(--maka-primaria)] bg-[var(--maka-superficie)] px-3 py-1.5 text-[13px]">
                     <span className="font-bold text-[var(--maka-primaria)]">{editar ? 'Editar' : 'Responder'}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--maka-texto-suave)]">{(editar ?? responderA)?.conteudo ?? '📎 anexo'}</span>
@@ -1149,6 +1229,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             )}
 
             {/* input com gravação de áudio */}
+            {!fechada && (
             <div data-maka-pop="menu-anexo">
             <BarraInput
                 compacto={compacto}
@@ -1182,6 +1263,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 </div>
             )}
             </div>
+            )}
             <input
                 ref={fotoInput}
                 type="file"
@@ -1457,12 +1539,12 @@ interface AcoesBolha {
     encaminhar?: () => void;
 }
 
-function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir, primeiraDoBloco = true, ultimaDoBloco = true, autor = null }: {
+function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir, primeiraDoBloco = true, ultimaDoBloco = true, autor = null, compacto = false }: {
     mensagem: Mensagem; minha: boolean; grupo?: boolean;
     participantes: ParticipanteConversa[]; outros: ParticipanteConversa[]; acoes: AcoesBolha; todas: Mensagem[];
     destacada: boolean; registarRef(el: HTMLDivElement | null): void;
     aoAbrirFoto(url: string): void; aoClicarCitacao(id: string): void; aoVerReacoes(): void; podeReagir: boolean;
-    primeiraDoBloco?: boolean; ultimaDoBloco?: boolean; autor?: ParticipanteConversa | null;
+    primeiraDoBloco?: boolean; ultimaDoBloco?: boolean; autor?: ParticipanteConversa | null; compacto?: boolean;
 }) {
     const [hover, setHover] = useState(false);
     const [picker, setPicker] = useState(false);
@@ -1495,7 +1577,11 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     const mostrarBarra = hover || picker || menu;
 
     const barra = mostrarBarra && !m.eliminada && (
-        <div data-maka-pop={`bolha-${m.id}`} className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/[.05] ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
+        <div data-maka-pop={`bolha-${m.id}`} className={`absolute z-[2] flex items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/[.05] ${
+            compacto
+                ? `bottom-full ${minha ? 'right-1' : 'left-1'}` // dock: colada ao topo da bolha, sem tapar o conteúdo — ao lado não cabe
+                : `top-1/2 -translate-y-1/2 ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`
+        }`}>
             {podeReagir && (
                 <button
                     className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]"
@@ -1513,9 +1599,19 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                     <Icon icon="tabler:dots" />
                 </button>
             )}
+        </div>
+    );
 
+    // ancorados à bolha e a abrir para o interior — nas boxes estreitas do dock
+    // nunca saem do contentor (a lista corta overflow-x; para fora dava scroll x).
+    // Verticalmente seguem a POSIÇÃO DA BARRA (topo no dock, centro no normal),
+    // senão numa mensagem comprida o menu abria longe do botão.
+    const posBaixo = compacto ? 'top-0' : 'top-1/2 mt-5';
+    const posCima = compacto ? 'bottom-full mb-10' : 'bottom-1/2 mb-5';
+    const popovers = !m.eliminada && (
+        <>
             {picker && (
-                <div className={`absolute ${pickerBaixo ? 'top-9' : '-top-11'} z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
+                <div data-maka-pop={`bolha-${m.id}`} className={`absolute ${pickerBaixo ? posBaixo : posCima} z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
                     {EMOJIS.map((e) => (
                         <button
                             key={e}
@@ -1528,13 +1624,13 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </div>
             )}
             {menu && (
-                <div className={`absolute ${menuCima ? 'bottom-9' : 'top-9'} z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
+                <div data-maka-pop={`bolha-${m.id}`} className={`absolute ${menuCima ? posCima : posBaixo} z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
                     {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="tabler:share-3" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
                     {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="tabler:pencil" className="inline align-[-2px]" /> Editar</ItemMenu>}
                     {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="tabler:trash" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
                 </div>
             )}
-        </div>
+        </>
     );
 
     return (
@@ -1561,6 +1657,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                     : `bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)] ${ultimaDoBloco ? 'rounded-bl-md' : 'rounded-l-md'}`}`}
             >
                 {barra}
+                {popovers}
                 {grupo && !minha && primeiraDoBloco && (
                     <span className="text-xs font-bold text-[var(--maka-primaria)]">
                         <NomeComBadge nome={autor?.nome ?? '…'} metadados={autor?.metadados} />
@@ -1594,7 +1691,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             {grupos.length > 0 && (
                 <button
                     onClick={aoVerReacoes}
-                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/[.05] transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-3'}`}
+                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/[.05] transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-10'}`}
                 >
                     {grupos.map((g) => (
                         <span key={g.emoji}>

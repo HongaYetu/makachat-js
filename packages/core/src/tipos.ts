@@ -119,6 +119,10 @@ export interface Conversa {
     foto_url: string | null;
     contexto_tipo: string | null;
     contexto_id: string | null;
+    /** fechada pelo serviço (ex.: sem encomendas ativas) — histórico visível, envio bloqueado; undefined = aberta (cache antiga) */
+    estado?: 'aberta' | 'fechada';
+    fecho_motivo?: string | null;
+    fechada_em?: string | null;
     ultima_atividade_em: string;
     criada_em: string;
     participantes: ParticipanteConversa[];

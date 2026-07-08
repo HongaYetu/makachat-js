@@ -26,6 +26,10 @@ export interface StorageAdapter {
 
     aplicarRecibo(recibo: Recibo): Promise<void>;
 
+    /** metadados do sync (ex.: `sync_em` — água alta do delta de alteradas) */
+    obterMeta(chave: string): Promise<string | null>;
+    gravarMeta(chave: string, valor: string): Promise<void>;
+
     limpar(): Promise<void>;
 }
 
@@ -34,6 +38,7 @@ export class MemoryStorage implements StorageAdapter {
     private conversas = new Map<string, Conversa>();
     private mensagens = new Map<string, Mensagem[]>();
     private outbox = new Map<string, ItemOutbox>();
+    private meta = new Map<string, string>();
 
     async init(): Promise<void> {}
 
@@ -158,10 +163,19 @@ export class MemoryStorage implements StorageAdapter {
         );
     }
 
+    async obterMeta(chave: string): Promise<string | null> {
+        return this.meta.get(chave) ?? null;
+    }
+
+    async gravarMeta(chave: string, valor: string): Promise<void> {
+        this.meta.set(chave, valor);
+    }
+
     async limpar(): Promise<void> {
         this.conversas.clear();
         this.mensagens.clear();
         this.outbox.clear();
+        this.meta.clear();
     }
 }
 

@@ -162,8 +162,9 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         try {
             await r.connect(wsUrl, token);
         } catch (e) {
-            setErro('Não foi possível ligar ao servidor de chamadas.');
-            console.error('[makachat] ligação LiveKit falhou:', e);
+            const detalhe = e instanceof Error && e.message ? ` (${e.message})` : '';
+            setErro(`Não foi possível ligar ao servidor de chamadas${detalhe}.`);
+            console.error('[makachat] ligação LiveKit falhou:', wsUrl, e);
 
             return false;
         }
@@ -206,6 +207,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
                         setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
                         comecarTimer();
+                    } else if (faseRef.current === 'a_receber') {
+                        // 1:1 e ainda a tocar: só pode ter sido EU a atender noutro dispositivo — para de tocar aqui
+                        void engine.storage.obterConversa(evento.chamada.conversa_id).then((c) => {
+                            if (c?.tipo !== 'grupo' && faseRef.current === 'a_receber') limpar();
+                        });
                     }
                 } else if (evento.evento === 'participante_saiu') {
                     // a chamada continua para os restantes — nada a fazer
