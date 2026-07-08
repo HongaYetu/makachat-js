@@ -124,6 +124,8 @@ export interface Conversa {
     participantes: ParticipanteConversa[];
     participante?: PreferenciasParticipante;
     ultima_mensagem?: PreviewMensagem | null;
+    /** chamada a tocar/em curso nesta conversa (banner "entrar") */
+    chamada_ativa?: { id: string; tipo: 'audio' | 'video'; estado: string; iniciada_em: string; atendida_em: string | null } | null;
 }
 
 export interface Recibo {
@@ -158,9 +160,10 @@ export interface Chamada {
 }
 
 export interface EventoChamada {
-    evento: 'iniciada' | 'atendida' | 'rejeitada' | 'terminada';
+    evento: 'iniciada' | 'atendida' | 'rejeitada' | 'terminada' | 'participante_saiu';
     chamada: Chamada;
     iniciador?: { identidade_id: string; nome: string; foto_url: string | null };
+    identidade_id?: string;
 }
 
 export interface RespostaChamada {

@@ -27,6 +27,7 @@ export const EVENTOS_SERVIDOR = {
     CHAMADA_ATENDIDA: 'chamada:atendida',
     CHAMADA_REJEITADA: 'chamada:rejeitada',
     CHAMADA_TERMINADA: 'chamada:terminada',
+    CHAMADA_PARTICIPANTE_SAIU: 'chamada:participante_saiu',
 } as const;
 
 export const FUNCIONALIDADES = [

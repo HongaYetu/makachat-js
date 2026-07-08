@@ -128,6 +128,27 @@ export class SyncEngine {
         }
     }
 
+    /** Reflete o estado da chamada da conversa no storage — banner "a decorrer" na UI. */
+    private async atualizarChamadaAtiva(evento: EventoChamada): Promise<void> {
+        const conversa = await this.storage.obterConversa(evento.chamada.conversa_id);
+
+        if (!conversa) return;
+
+        const ativa =
+            evento.evento === 'iniciada' || evento.evento === 'atendida' || evento.evento === 'participante_saiu'
+                ? {
+                      id: evento.chamada.id,
+                      tipo: evento.chamada.tipo,
+                      estado: evento.chamada.estado,
+                      iniciada_em: evento.chamada.iniciada_em,
+                      atendida_em: evento.chamada.atendida_em,
+                  }
+                : null;
+
+        await this.storage.upsertConversas([{ ...conversa, chamada_ativa: ativa }]);
+        this.notificar();
+    }
+
     /** Mantém a lista viva: preview, ordem (topo) e contador sem esperar pelo REST. */
     private async atualizarPreviewLocal(mensagem: Mensagem, recebida: boolean): Promise<void> {
         const conversa = await this.storage.obterConversa(mensagem.conversa_id);
@@ -476,10 +497,12 @@ export class SyncEngine {
             [EVENTOS_SERVIDOR.CHAMADA_ATENDIDA, 'atendida'],
             [EVENTOS_SERVIDOR.CHAMADA_REJEITADA, 'rejeitada'],
             [EVENTOS_SERVIDOR.CHAMADA_TERMINADA, 'terminada'],
+            [EVENTOS_SERVIDOR.CHAMADA_PARTICIPANTE_SAIU, 'participante_saiu'],
         ] as const) {
-            this.socket.on(nome, (payload: Omit<EventoChamada, 'evento'>) =>
-                this.opcoes.aoChamada?.({ ...payload, evento }),
-            );
+            this.socket.on(nome, (payload: Omit<EventoChamada, 'evento'>) => {
+                void this.atualizarChamadaAtiva({ ...payload, evento });
+                this.opcoes.aoChamada?.({ ...payload, evento });
+            });
         }
 
         this.socket.on(EVENTOS_SERVIDOR.TYPING, (typing: Typing) => this.opcoes.aoTyping?.(typing));

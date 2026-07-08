@@ -251,6 +251,9 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                                 </span>
                             )}
                             <span className="flex items-center gap-1">
+                                {c.chamada_ativa && (
+                                    <Icon icon="tabler:phone-filled" className="animate-maka-pulsar text-[13px] text-emerald-500" />
+                                )}
                                 {c.participante?.silenciada_ate && new Date(c.participante.silenciada_ate) > new Date() && (
                                     <Icon icon="tabler:bell-off" className="text-[13px] text-[var(--maka-texto-suave)]" />
                                 )}
@@ -615,7 +618,7 @@ function previewConversa(c: Conversa): string {
 
     const p: Record<string, string> = { foto: '📷 Foto', video: '🎬 Vídeo', audio: '🎤 Áudio', ficheiro: '📎 Ficheiro', chamada: '📞 Chamada', partilha: '🔗 Partilha', link: '🔗 Link' };
 
-    return u.tipo === 'texto' || u.tipo === 'sistema' ? (u.conteudo ?? '') : (p[u.tipo] ?? '');
+    return u.tipo === 'texto' || u.tipo === 'sistema' || u.tipo === 'chamada' ? (u.conteudo ?? '') : (p[u.tipo] ?? '');
 }
 
 // ---------------------------------------------------------------- painel
@@ -1030,6 +1033,22 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     <BotaoIcone titulo="Anterior" onClick={() => navegarResultado(-1)}><Icon icon="tabler:chevron-up" /></BotaoIcone>
                     <BotaoIcone titulo="Seguinte" onClick={() => navegarResultado(1)}><Icon icon="tabler:chevron-down" /></BotaoIcone>
                     <BotaoIcone titulo="Fechar" onClick={() => setPesquisaAberta(false)}><Icon icon="tabler:x" /></BotaoIcone>
+                </div>
+            )}
+            {conversa?.chamada_ativa && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && (
+                <div className="flex items-center gap-2.5 border-0 border-b border-solid border-black/[.06] bg-emerald-50 px-4 py-2">
+                    <span className="grid h-8 w-8 animate-maka-pulsar place-items-center rounded-full bg-emerald-500 text-white">
+                        <Icon icon={conversa.chamada_ativa.tipo === 'video' ? 'tabler:video' : 'tabler:phone'} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-emerald-800">
+                        Chamada de {conversa.chamada_ativa.tipo === 'video' ? 'vídeo' : 'voz'} a decorrer
+                    </span>
+                    <button
+                        onClick={() => void chamadas.entrar(conversa.chamada_ativa!.id, conversa.chamada_ativa!.tipo)}
+                        className="cursor-pointer rounded-full border-0 bg-emerald-500 px-4 py-1.5 text-sm font-bold text-white shadow-sm transition-transform hover:scale-105"
+                    >
+                        Entrar
+                    </button>
                 </div>
             )}
             {contexto && (
@@ -1461,6 +1480,14 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
         return (
             <div ref={registarRef} className="my-1 self-center rounded-full bg-slate-500/10 px-3.5 py-1 text-xs text-[var(--maka-texto-suave)]">
                 {m.conteudo}
+            </div>
+        );
+    }
+
+    if (m.tipo === 'chamada') {
+        return (
+            <div ref={registarRef} className="my-1 self-center">
+                <CartaoRegistoChamada mensagem={m} />
             </div>
         );
     }
@@ -2020,4 +2047,38 @@ export function horaCurtaWeb(iso: string): string {
     }
 
     return data.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+}
+
+/** Registo de chamada no chat — mais robusto que texto de sistema: resultado, duração e ligar de novo. */
+function CartaoRegistoChamada({ mensagem: m }: { mensagem: Mensagem }) {
+    const chamadas = useChamadasOpcional();
+    const meta = (m.metadados ?? {}) as { chamada_tipo?: string; resultado?: string; duracao_segundos?: number | null };
+    const video = meta.chamada_tipo === 'video';
+    const atendida = meta.resultado === 'atendida';
+    const dur = meta.duracao_segundos ?? 0;
+    const mmss = `${String(Math.floor(dur / 60)).padStart(2, '0')}:${String(dur % 60).padStart(2, '0')}`;
+    const podeLigar = useFuncionalidadeAtiva(video ? 'chamadas.video' : 'chamadas.audio');
+
+    return (
+        <div className="flex items-center gap-3 rounded-2xl bg-[var(--maka-superficie)] px-4 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,.04),0_4px_14px_-4px_rgba(15,23,42,.08)]">
+            <span className={`grid h-9 w-9 place-items-center rounded-full ${atendida ? 'bg-emerald-500/15 text-emerald-600' : 'bg-red-500/15 text-red-500'}`}>
+                <Icon icon={video ? (atendida ? 'tabler:video' : 'tabler:video-off') : (atendida ? 'tabler:phone' : 'tabler:phone-x')} />
+            </span>
+            <span className="flex flex-col">
+                <span className="text-sm font-semibold text-[var(--maka-texto)]">Chamada de {video ? 'vídeo' : 'voz'}</span>
+                <span className={`text-xs ${atendida ? 'text-[var(--maka-texto-suave)]' : 'font-semibold text-red-500'}`}>
+                    {atendida ? `Duração ${mmss}` : 'Não atendida'} · {horaCurtaWeb(m.criada_em)}
+                </span>
+            </span>
+            {chamadas && podeLigar && (
+                <button
+                    title="Ligar de novo"
+                    onClick={() => void chamadas.iniciar(m.conversa_id, video ? 'video' : 'audio')}
+                    className="ml-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-sm transition-transform hover:scale-105"
+                >
+                    <Icon icon={video ? 'tabler:video' : 'tabler:phone'} />
+                </button>
+            )}
+        </div>
+    );
 }

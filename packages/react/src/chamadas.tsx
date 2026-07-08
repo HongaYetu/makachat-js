@@ -14,6 +14,8 @@ interface EstadoChamada {
 
 interface ChamadasApi {
     iniciar(conversaId: string, tipo: 'audio' | 'video'): Promise<void>;
+    /** entra numa chamada de grupo já a decorrer (banner "a decorrer") */
+    entrar(chamadaId: string, tipo: 'audio' | 'video'): Promise<void>;
     ativa: EstadoChamada | null;
 }
 
@@ -54,6 +56,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const elementos = useRef(new Map<string, HTMLElement>());
     /** true enquanto mostramos o ecrã de falha — os eventos rejeitada/terminada não podem fechá-lo */
     const falhada = useRef(false);
+    const faseRef = useRef<EstadoChamada['fase'] | null>(null);
     const [erroSolto, setErroSolto] = useState<string | null>(null);
     const arrasto = useRef<{ ativo: boolean; dx: number; dy: number }>({ ativo: false, dx: 0, dy: 0 });
 
@@ -72,6 +75,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         setCamara(false);
         setEcra(false);
     }, []);
+
+    useEffect(() => {
+        faseRef.current = ativa?.fase ?? null;
+    }, [ativa?.fase]);
 
     const comecarTimer = useCallback(() => {
         setInicioEm((atual) => atual ?? Date.now());
@@ -195,8 +202,13 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
                     void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
                 } else if (evento.evento === 'atendida') {
-                    setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
-                    comecarTimer();
+                    // num grupo, outro atender não me arrasta: se ainda estou a_receber, continuo a tocar (posso "entrar")
+                    if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
+                        setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
+                        comecarTimer();
+                    }
+                } else if (evento.evento === 'participante_saiu') {
+                    // a chamada continua para os restantes — nada a fazer
                 } else if (!falhada.current) {
                     limpar();
                 }
@@ -232,6 +244,39 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             }
         },
         [api, engine, ligarSala, verificarMedia],
+    );
+
+    const entrar = useCallback(
+        async (chamadaId: string, tipo: 'audio' | 'video') => {
+            const problema = await verificarMedia(tipo === 'video');
+
+            if (problema) {
+                setErroSolto(problema);
+                setTimeout(() => setErroSolto(null), 6000);
+
+                return;
+            }
+
+            const r = await api.atenderChamada(chamadaId);
+
+            setAtiva({ chamada: r.chamada, fase: 'em_curso' });
+            void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
+
+            if (r.livekit_token && r.ws_url) {
+                const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+
+                if (!ok) {
+                    falhada.current = true;
+                    await api.terminarChamada(chamadaId).catch(() => undefined);
+                    setAtiva((a) => (a ? { ...a, fase: 'falhada' } : a));
+
+                    return;
+                }
+            }
+
+            comecarTimer();
+        },
+        [api, engine, ligarSala, verificarMedia, comecarTimer],
     );
 
     const atender = async () => {
@@ -323,7 +368,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         </button>
     );
 
-    const valorCtx = useMemo(() => ({ iniciar, ativa }), [iniciar, ativa]);
+    const valorCtx = useMemo(() => ({ iniciar, entrar, ativa }), [iniciar, entrar, ativa]);
 
     return (
         <Ctx.Provider value={valorCtx}>
