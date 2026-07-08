@@ -434,7 +434,7 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
 
                         return (
                             <button key={chave} onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })} className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]">
-                                <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
+                                <Icon icon={marcado ? 'tabler:circle-check-filled' : 'tabler:circle'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={32} />
                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
                             </button>
@@ -459,13 +459,15 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
     const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
     const pessoas = pessoasConhecidas(conversas, contactos, new Set([`${identidade.tipo}:${identidade.id}`]));
     const grupo = escolhidos.size > 1;
+    const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
+    // sem nome escrito, o grupo nasce com os primeiros nomes dos membros
+    const nomePadrao = membros.map((p) => (p.nome ?? p.id_externo).split(' ')[0]).join(', ');
 
     const criar = async () => {
-        if (escolhidos.size === 0 || (grupo && !nome.trim())) return;
+        if (escolhidos.size === 0) return;
 
-        const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
         const { conversa } = grupo
-            ? await api.criarGrupo(nome.trim(), membros)
+            ? await api.criarGrupo(nome.trim() || nomePadrao, membros)
             : await api.criarPrivada({ id_externo: membros[0].id_externo, tipo: membros[0].tipo, nome: membros[0].nome });
         await engine.atualizarConversas();
         aoCriada(conversa);
@@ -488,7 +490,7 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                         <input
                             autoFocus
                             className="w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
-                            placeholder="Nome do grupo"
+                            placeholder={`Nome do grupo (padrão: ${nomePadrao})`}
                             value={nome}
                             onChange={(e) => setNome(e.target.value)}
                         />
@@ -511,7 +513,7 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                                 })}
                                 className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
                             >
-                                <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
+                                <Icon icon={marcado ? 'tabler:circle-check-filled' : 'tabler:circle'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={34} />
                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
                                 <span className="text-xs text-[var(--maka-texto-suave)]">{p.tipo}</span>
@@ -521,7 +523,7 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                 </div>
                 <div className="p-3">
                     <button
-                        disabled={escolhidos.size === 0 || (grupo && !nome.trim())}
+                        disabled={escolhidos.size === 0}
                         onClick={() => void criar()}
                         className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-md disabled:cursor-default disabled:opacity-40"
                     >
@@ -1857,7 +1859,7 @@ function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; 
                             className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
                         >
                             <Icon
-                                icon={escolhidas.has(c.id) ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'}
+                                icon={escolhidas.has(c.id) ? 'tabler:circle-check-filled' : 'tabler:circle'}
                                 className={`text-xl ${escolhidas.has(c.id) ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`}
                             />
                             <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} tamanho={34} />
