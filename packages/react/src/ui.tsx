@@ -154,7 +154,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
         if (mensagens.length) void engine.marcarLidas(conversaId);
 
         fim.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [engine, conversaId, mensagens.length]);
+    }, [engine, conversaId, mensagens.length, typing?.ativo]);
 
     const eu = useMemo(
         () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
@@ -163,6 +163,11 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em);
     const contraparte = conversa?.tipo === 'privada' ? outros[0] : null;
     const presenca = usePresenca(contraparte?.identidade_id ?? null);
+    // nunca mostrar o "a escrever" da própria identidade (ex.: mesma conta em duas abas)
+    const typingOutro = typing && typing.identidade_id !== eu?.identidade_id ? typing : null;
+    const nomeTyping = typingOutro
+        ? (conversa?.participantes.find((p) => p.identidade_id === typingOutro.identidade_id)?.nome ?? null)
+        : null;
 
     const aoEnviar = async () => {
         const conteudo = texto.trim();
@@ -297,8 +302,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 </span>
                 <span className="min-w-0 flex-1">
                     <span className={`block truncate font-bold ${compacto ? 'text-[13px]' : 'text-[15px]'}`}>{conversa?.titulo ?? '…'}</span>
-                    <span className={`block text-xs ${typing ? 'italic text-[var(--maka-primaria)]' : presenca?.online ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
-                        {typing ? 'a escrever…' : presenca?.online ? 'online' : ''}
+                    <span className={`block text-xs ${typingOutro ? 'italic text-[var(--maka-primaria)]' : presenca?.online ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
+                        {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
                 </span>
                 {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
@@ -362,6 +367,20 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         todas={mensagens}
                     />
                 ))}
+                {typingOutro && (
+                    <div className="flex justify-start pt-1">
+                        <div className="flex items-center gap-2 rounded-[var(--maka-raio)] rounded-bl-md bg-[var(--maka-bolha-outro)] px-3.5 py-2.5 shadow-sm">
+                            {conversa?.tipo === 'grupo' && nomeTyping && (
+                                <span className="text-xs font-bold text-[var(--maka-primaria)]">{nomeTyping}</span>
+                            )}
+                            <span className="flex items-end gap-1">
+                                <span className="h-2 w-2 animate-maka-salto rounded-full bg-[var(--maka-texto-suave)]" />
+                                <span className="h-2 w-2 animate-maka-salto rounded-full bg-[var(--maka-texto-suave)] [animation-delay:.15s]" />
+                                <span className="h-2 w-2 animate-maka-salto rounded-full bg-[var(--maka-texto-suave)] [animation-delay:.3s]" />
+                            </span>
+                        </div>
+                    </div>
+                )}
                 <div ref={fim} />
             </div>
 
