@@ -122,7 +122,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [editar, setEditar] = useState<Mensagem | null>(null);
     const [encaminhar, setEncaminhar] = useState<Mensagem | null>(null);
     const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
-    const [ficheiroPendente, setFicheiroPendente] = useState<File | null>(null);
+    const [fotosPendentes, setFotosPendentes] = useState<File[]>([]);
     const [aEnviarMedia, setAEnviarMedia] = useState(false);
     const [lightbox, setLightbox] = useState<{ urls: string[]; indice: number } | null>(null);
     const [menuAnexo, setMenuAnexo] = useState(false);
@@ -211,6 +211,44 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             await enviar(
                 { conversa_id: conversaId, tipo: tipo as never, conteudo: legenda, anexo_ids: [criado.anexo_id] },
                 [preview],
+            );
+        } finally {
+            setAEnviarMedia(false);
+        }
+    };
+
+    /** Lobby multi-fotos: uploads em paralelo → UMA mensagem com todos os anexos. */
+    const enviarFotos = async (ficheiros: File[], legenda?: string) => {
+        setAEnviarMedia(true);
+
+        try {
+            const resultados = await Promise.all(
+                ficheiros.map(async (f) => {
+                    const criado = await api.criarMedia({ tipo: 'foto', mime: f.type, nome_ficheiro: f.name });
+                    await api.carregarMedia(criado.upload, f, f.type);
+                    await api.confirmarMedia(criado.anexo_id);
+
+                    const preview: Anexo = {
+                        id: criado.anexo_id,
+                        tipo: 'foto',
+                        nome_ficheiro: f.name,
+                        mime: f.type,
+                        tamanho_bytes: f.size,
+                        largura: null,
+                        altura: null,
+                        duracao_segundos: null,
+                        blurhash: null,
+                        estado: 'pronto',
+                        url: URL.createObjectURL(f),
+                    };
+
+                    return { anexo_id: criado.anexo_id, preview };
+                }),
+            );
+
+            await enviar(
+                { conversa_id: conversaId, tipo: 'foto', conteudo: legenda, anexo_ids: resultados.map((r) => r.anexo_id) },
+                resultados.map((r) => r.preview),
             );
         } finally {
             setAEnviarMedia(false);
@@ -368,14 +406,16 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 ref={fotoInput}
                 type="file"
                 accept="image/*,video/*"
+                multiple
                 hidden
                 onChange={(e) => {
-                    const f = e.target.files?.[0];
+                    const escolhidos = Array.from(e.target.files ?? []);
+                    const imagens = escolhidos.filter((f) => f.type.startsWith('image/'));
+                    const videos = escolhidos.filter((f) => !f.type.startsWith('image/'));
 
-                    if (f) {
-                        if (f.type.startsWith('image/')) setFicheiroPendente(f);
-                        else void enviarFicheiro(f);
-                    }
+                    if (imagens.length) setFotosPendentes((atuais) => [...atuais, ...imagens].slice(0, 10));
+
+                    for (const v of videos) void enviarFicheiro(v);
 
                     e.target.value = '';
                 }}
@@ -413,14 +453,16 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     }}
                 />
             )}
-            {ficheiroPendente && (
-                <PreviewFoto
-                    ficheiro={ficheiroPendente}
-                    aoFechar={() => setFicheiroPendente(null)}
+            {fotosPendentes.length > 0 && (
+                <PreviewFotos
+                    ficheiros={fotosPendentes}
+                    aoRemover={(indice) => setFotosPendentes((atuais) => atuais.filter((_, i) => i !== indice))}
+                    aoAdicionarMais={() => fotoInput.current?.click()}
+                    aoFechar={() => setFotosPendentes([])}
                     aoEnviar={(legenda) => {
-                        const f = ficheiroPendente;
-                        setFicheiroPendente(null);
-                        void enviarFicheiro(f, legenda || undefined);
+                        const lista = fotosPendentes;
+                        setFotosPendentes([]);
+                        void enviarFotos(lista, legenda || undefined);
                     }}
                 />
             )}
@@ -809,22 +851,56 @@ function ModalReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMe
     );
 }
 
-// ---------------------------------------------------------------- preview de foto antes de enviar
+// ---------------------------------------------------------------- lobby de fotos antes de enviar
 
-function PreviewFoto({ ficheiro, aoFechar, aoEnviar }: { ficheiro: File; aoFechar(): void; aoEnviar(legenda: string): void }) {
+function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnviar }: {
+    ficheiros: File[];
+    aoRemover(indice: number): void;
+    aoAdicionarMais(): void;
+    aoFechar(): void;
+    aoEnviar(legenda: string): void;
+}) {
     const [legenda, setLegenda] = useState('');
-    const url = useMemo(() => URL.createObjectURL(ficheiro), [ficheiro]);
+    const urls = useMemo(() => ficheiros.map((f) => URL.createObjectURL(f)), [ficheiros]);
 
-    useEffect(() => () => URL.revokeObjectURL(url), [url]);
+    useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
 
     return (
         <div className="fixed inset-0 z-[10001] grid place-items-center bg-slate-900/70 backdrop-blur-sm" onClick={aoFechar}>
-            <div className="flex w-[420px] max-w-[92vw] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex w-[460px] max-w-[94vw] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
-                    <span className="font-bold text-[var(--maka-texto)]">Enviar foto</span>
+                    <span className="font-bold text-[var(--maka-texto)]">
+                        Enviar {ficheiros.length === 1 ? 'foto' : `${ficheiros.length} fotos`}
+                    </span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
                 </div>
-                <img src={url} className="max-h-[52vh] w-full bg-black object-contain" alt="" />
+
+                {/* destaque da primeira + grelha de miniaturas */}
+                <img src={urls[0]} className="max-h-[42vh] w-full bg-black object-contain" alt="" />
+                <div className="maka-scroll flex gap-2 overflow-x-auto px-3 py-2.5">
+                    {urls.map((u, i) => (
+                        <span key={i} className="relative shrink-0">
+                            <img src={u} className="h-16 w-16 rounded-lg object-cover ring-1 ring-black/10" alt="" />
+                            <button
+                                onClick={() => aoRemover(i)}
+                                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 cursor-pointer place-items-center rounded-full border-0 bg-slate-900 text-[10px] text-white shadow"
+                                title="Remover"
+                            >
+                                <Icon icon="mdi:close" />
+                            </button>
+                        </span>
+                    ))}
+                    {ficheiros.length < 10 && (
+                        <button
+                            onClick={aoAdicionarMais}
+                            className="grid h-16 w-16 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-slate-300 bg-transparent text-xl text-[var(--maka-texto-suave)] hover:border-[var(--maka-primaria)] hover:text-[var(--maka-primaria)]"
+                            title="Adicionar mais"
+                        >
+                            <Icon icon="mdi:plus" />
+                        </button>
+                    )}
+                </div>
+
                 <div className="flex items-center gap-2 p-3">
                     <input
                         autoFocus
