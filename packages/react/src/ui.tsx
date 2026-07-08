@@ -132,6 +132,11 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     const [confirmarEliminarConversa, setConfirmarEliminarConversa] = useState(false);
 
     const fim = useRef<HTMLDivElement>(null);
+    const lista = useRef<HTMLDivElement>(null);
+    const [noFundo, setNoFundo] = useState(true);
+    const [novas, setNovas] = useState(0);
+    const [focada, setFocada] = useState(() => (typeof document === 'undefined' ? true : document.hasFocus()));
+    const anteriorUltimaId = useRef<string | null>(null);
     const ficheiro = useRef<HTMLInputElement>(null);
     const fotoInput = useRef<HTMLInputElement>(null);
     const ultimoTyping = useRef(0);
@@ -145,16 +150,86 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
 
     useEffect(() => {
         setContexto(null);
+        anteriorUltimaId.current = null;
+        setNovas(0);
+        setNoFundo(true);
         void engine.carregarMensagens(conversaId).catch(() => undefined);
         void api.obterContexto(conversaId).then((r) => setContexto(r.contexto ?? null)).catch(() => undefined);
         void engine.entrarConversa(conversaId);
     }, [engine, api, socket, conversaId]);
 
+    // foco da página (só marcamos lida com a janela ativa)
     useEffect(() => {
-        if (mensagens.length) void engine.marcarLidas(conversaId);
+        const aoFoco = () => setFocada(true);
+        const aoBlur = () => setFocada(false);
+        const aoVisibilidade = () => setFocada(document.visibilityState === 'visible' && document.hasFocus());
 
-        fim.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [engine, conversaId, mensagens.length, typing?.ativo]);
+        window.addEventListener('focus', aoFoco);
+        window.addEventListener('blur', aoBlur);
+        document.addEventListener('visibilitychange', aoVisibilidade);
+
+        return () => {
+            window.removeEventListener('focus', aoFoco);
+            window.removeEventListener('blur', aoBlur);
+            document.removeEventListener('visibilitychange', aoVisibilidade);
+        };
+    }, []);
+
+    const scrollParaFundo = (suave = true) => {
+        const el = lista.current;
+
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: suave ? 'smooth' : 'auto' });
+    };
+
+    const aoScroll = () => {
+        const el = lista.current;
+
+        if (!el) return;
+
+        const fundo = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        setNoFundo(fundo);
+
+        if (fundo) setNovas(0);
+    };
+
+    // chegada de mensagens: scroll/lida só com foco + fundo; recuado conta as novas
+    useEffect(() => {
+        const ultima = mensagens.at(-1);
+
+        if (!ultima) return;
+
+        const primeiraCarga = anteriorUltimaId.current === null;
+        const haNova = ultima.id !== anteriorUltimaId.current;
+        anteriorUltimaId.current = ultima.id;
+
+        if (!haNova) return;
+
+        const minha = ultima.remetente_identidade_id === eu?.identidade_id || ultima.estado_envio === 'a_enviar';
+
+        if (primeiraCarga || minha || (noFundo && focada)) {
+            scrollParaFundo(!primeiraCarga);
+
+            if (focada && (noFundo || primeiraCarga)) void engine.marcarLidas(conversaId);
+        } else {
+            setNovas((n) => n + 1);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mensagens, conversaId]);
+
+    // ganhar foco ou voltar ao fundo com a conversa aberta → marca lida
+    useEffect(() => {
+        if (focada && noFundo && mensagens.length) {
+            void engine.marcarLidas(conversaId);
+            setNovas(0);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [focada, noFundo]);
+
+    // typing só arrasta o scroll se já estiver no fundo
+    useEffect(() => {
+        if (typing?.ativo && noFundo) fim.current?.scrollIntoView({ behavior: 'smooth' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [typing?.ativo]);
 
     const eu = useMemo(
         () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
@@ -337,7 +412,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
             )}
 
             {/* mensagens */}
-            <div className={`maka-scroll flex flex-1 flex-col gap-1 overflow-y-auto ${compacto ? 'p-2.5' : 'p-4'}`}>
+            <div className="relative min-h-0 flex-1">
+            <div ref={lista} onScroll={aoScroll} className={`maka-scroll flex h-full flex-col gap-1 overflow-y-auto ${compacto ? 'p-2.5' : 'p-4'}`}>
                 {mensagens.map((m) => (
                     <Bolha
                         key={m.id}
@@ -382,6 +458,21 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                     </div>
                 )}
                 <div ref={fim} />
+            </div>
+
+            {!noFundo && (
+                <button
+                    onClick={() => { scrollParaFundo(); setNovas(0); }}
+                    className={`absolute bottom-3 right-4 z-[4] flex animate-maka-subir cursor-pointer items-center gap-1.5 rounded-full border-0 shadow-lg transition-transform hover:scale-105 ${
+                        novas > 0
+                            ? 'bg-[var(--maka-primaria)] px-3.5 py-2 text-[13px] font-bold text-[var(--maka-primaria-contraste)]'
+                            : 'grid h-10 w-10 place-items-center bg-[var(--maka-superficie)] text-lg text-[var(--maka-texto)] ring-1 ring-black/10'
+                    }`}
+                >
+                    {novas > 0 ? `${novas} ${novas === 1 ? 'mensagem nova' : 'mensagens novas'}` : <Icon icon="mdi:chevron-down" />}
+                    {novas > 0 && <Icon icon="mdi:chevron-down" />}
+                </button>
+            )}
             </div>
 
             {/* barra de resposta/edição */}
