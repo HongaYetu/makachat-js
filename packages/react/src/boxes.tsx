@@ -24,7 +24,7 @@ export function MakaChatBoxFull({ conversaAbertaId }: BoxProps = {}) {
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
 export function MakaChatBoxMin({ conversaAbertaId }: BoxProps = {}) {
     return (
-        <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/[.05]">
+        <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/[.08]">
             <DuasColunas conversaAbertaId={conversaAbertaId} />
         </div>
     );
@@ -63,7 +63,7 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
             )}
             <div className="flex min-h-0 flex-1">
             {mostrarLista && (
-                <div className={`h-full border-r border-black/[.06] ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
+                <div className={`h-full border-r border-black/[.08] ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
                     <MakaChatConversas conversaAtivaId={ativa} onAbrirConversa={(c: Conversa) => setAtiva(c.id)} />
                 </div>
             )}

@@ -18,7 +18,7 @@ export interface MakaTema {
 const PADRAO: Required<MakaTema> = {
     primaria: '#4f46e5',
     primariaContraste: '#ffffff',
-    fundo: '#f1f5f9',
+    fundo: '#e9eef5',
     superficie: '#ffffff',
     bolhaMinha: '#4f46e5',
     bolhaMinhaTexto: '#ffffff',
