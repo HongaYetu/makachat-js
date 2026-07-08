@@ -20,6 +20,8 @@ export default defineConfig({
         'expo-image-picker',
         'expo-document-picker',
         'expo-file-system',
+        '@notifee/react-native',
+        '@hongayetu/expo-makachat-push',
     ],
     outExtension: ({ format }) => ({ js: format === 'esm' ? '.js' : '.cjs' }),
 });

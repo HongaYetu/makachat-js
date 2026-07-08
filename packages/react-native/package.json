@@ -44,7 +44,9 @@
         "@shopify/flash-list": ">=1.6.0",
         "expo-audio": ">=0.3.0",
         "expo-video": ">=2.0.0",
-        "livekit-client": ">=2.0.0"
+        "livekit-client": ">=2.0.0",
+        "@notifee/react-native": ">=7.0.0",
+        "@hongayetu/expo-makachat-push": ">=0.1.0"
     },
     "devDependencies": {
         "@types/react": "^18.3.0",
@@ -77,6 +79,12 @@
             "optional": true
         },
         "livekit-client": {
+            "optional": true
+        },
+        "@notifee/react-native": {
+            "optional": true
+        },
+        "@hongayetu/expo-makachat-push": {
             "optional": true
         }
     }

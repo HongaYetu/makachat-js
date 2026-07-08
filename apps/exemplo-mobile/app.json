@@ -20,7 +20,12 @@
             "permissions": [
                 "CAMERA",
                 "RECORD_AUDIO",
-                "MODIFY_AUDIO_SETTINGS"
+                "MODIFY_AUDIO_SETTINGS",
+                "FOREGROUND_SERVICE",
+                "FOREGROUND_SERVICE_MICROPHONE",
+                "FOREGROUND_SERVICE_MEDIA_PROJECTION",
+                "POST_NOTIFICATIONS",
+                "USE_FULL_SCREEN_INTENT"
             ]
         },
         "plugins": [

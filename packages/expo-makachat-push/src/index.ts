@@ -8,11 +8,23 @@ export interface MensagemPushInbox {
     recebida_em: string;
 }
 
+export interface ChamadaPush {
+    chamada_id: string;
+    chamada_tipo: 'audio' | 'video';
+    conversa_id: string;
+    chave_servico: string;
+    /** tocar (abriu pela notificação) | atender | rejeitar (ações) */
+    acao: 'tocar' | 'atender' | 'rejeitar';
+    recebida_em?: string;
+}
+
 interface ModuloNativo {
     drenarInbox(): Promise<string>;
     contagemInbox(): Promise<number>;
     /** iOS: App Group para a NSE partilhar o inbox (ex: group.com.hongayetu.humbi) */
     configurar(appGroup: string | null): void;
+    obterChamadaPendente(): Promise<string | null>;
+    cancelarNotificacaoChamada(chamadaId: string): void;
 }
 
 const nativo = requireNativeModule<ModuloNativo>('ExpoMakachatPush');
@@ -34,4 +46,24 @@ export function contagemInbox(): Promise<number> {
 /** Emitido quando o nativo grava um push com a app viva em background. */
 export function aoReceberPush(ouvinte: (item: MensagemPushInbox) => void): { remove(): void } {
     return emissor.addListener('onMensagemPush', ouvinte);
+}
+
+/**
+ * Chamada recebida com a app FECHADA (guardada pela notificação nativa) —
+ * ler no arranque; devolve também a ação escolhida (atender/rejeitar).
+ */
+export async function obterChamadaPendente(): Promise<ChamadaPush | null> {
+    const json = await nativo.obterChamadaPendente();
+
+    return json ? (JSON.parse(json) as ChamadaPush) : null;
+}
+
+/** Push de chamada com a app viva em background (Android). */
+export function aoChamadaPush(ouvinte: (chamada: ChamadaPush) => void): { remove(): void } {
+    return emissor.addListener('onChamadaPush', ouvinte as never);
+}
+
+/** Cancela a notificação de chamada (depois de atender/rejeitar na app). */
+export function cancelarNotificacaoChamada(chamadaId: string): void {
+    nativo.cancelarNotificacaoChamada(chamadaId);
 }

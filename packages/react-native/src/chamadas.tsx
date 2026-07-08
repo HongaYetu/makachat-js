@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { obterLiveKit, obterLiveKitClient } from './opcionais';
+import { AppState, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { obterLiveKit, obterLiveKitClient, obterNotifee, obterPushMakaChat } from './opcionais';
+import { useFuncionalidadeAtiva } from './hooks';
 import { useMakaChat, useTema } from './provider';
 import { Avatar, duracaoMmSs, Pulso } from './ui/comum';
 
@@ -22,6 +23,8 @@ interface Tile {
 export interface ChamadasApi {
     iniciar(conversaId: string, tipo: 'audio' | 'video'): Promise<void>;
     entrar(chamadaId: string, tipo: 'audio' | 'video'): Promise<void>;
+    /** retoma uma chamada vinda de push com a app fechada (atender/rejeitar/tocar) */
+    retomarPendente(): Promise<void>;
     ativa: EstadoChamada | null;
     /** false quando a app não instalou @livekit/react-native */
     suportado: boolean;
@@ -43,6 +46,42 @@ export function useChamadasOpcional(): ChamadasApi | null {
 
 let globalsRegistados = false;
 
+/** Foreground service Android: mantém o áudio da chamada vivo em background. */
+async function iniciarServicoChamada(titulo: string): Promise<void> {
+    if (Platform.OS !== 'android') return;
+
+    const notifee = obterNotifee();
+
+    if (!notifee?.displayNotification) return;
+
+    try {
+        await notifee.createChannel({ id: 'makachat_chamada_ativa', name: 'Chamada em curso', importance: 3 });
+        await notifee.displayNotification({
+            id: 'makachat_chamada_ativa',
+            title: 'Chamada em curso',
+            body: titulo,
+            android: {
+                channelId: 'makachat_chamada_ativa',
+                asForegroundService: true,
+                ongoing: true,
+                smallIcon: 'ic_launcher',
+                pressAction: { id: 'default' },
+            },
+        });
+    } catch {
+        // sem serviço registado na app — a chamada funciona, só não sobrevive tanto em background
+    }
+}
+
+async function pararServicoChamada(): Promise<void> {
+    if (Platform.OS !== 'android') return;
+
+    const notifee = obterNotifee();
+
+    await notifee?.stopForegroundService?.().catch?.(() => undefined);
+    await notifee?.cancelNotification?.('makachat_chamada_ativa').catch?.(() => undefined);
+}
+
 /**
  * Chamadas LiveKit no mobile (padrão EiConnect): registerGlobals à primeira
  * utilização, AudioSession communication, Room adaptiveStream/dynacast com
@@ -55,6 +94,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const livekit = useMemo(() => obterLiveKit(), []);
     const lkClient = useMemo(() => obterLiveKitClient(), []);
     const suportado = !!livekit && !!lkClient;
+    const podePartilhaEcra = useFuncionalidadeAtiva('chamadas.partilha_ecra');
 
     const [ativa, setAtiva] = useState<EstadoChamada | null>(null);
     const [conversa, setConversa] = useState<Conversa | null>(null);
@@ -64,6 +104,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const [mudo, setMudo] = useState(false);
     const [camara, setCamara] = useState(false);
     const [altifalante, setAltifalante] = useState(true);
+    const [ecra, setEcra] = useState(false);
     const [minimizada, setMinimizada] = useState(false);
 
     const room = useRef<any>(null);
@@ -89,12 +130,16 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         setErro(null);
         setMudo(false);
         setCamara(false);
+        setEcra(false);
         setMinimizada(false);
+        void pararServicoChamada();
     }, [livekit]);
 
     const comecarTimer = useCallback(() => {
         setInicioEm((atual) => atual ?? Date.now());
-    }, []);
+        void iniciarServicoChamada(conversa?.titulo ?? 'MakaChat');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversa?.titulo]);
 
     const sincronizarTiles = useCallback(() => {
         const r = room.current;
@@ -284,6 +329,59 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         [suportado, api, engine, ligarSala, falhar, comecarTimer],
     );
 
+    const retomarPendente = useCallback(async () => {
+        const push = obterPushMakaChat();
+
+        if (!push?.obterChamadaPendente) return;
+
+        const pendente = await push.obterChamadaPendente().catch(() => null);
+
+        if (!pendente) return;
+
+        push.cancelarNotificacaoChamada?.(pendente.chamada_id);
+
+        if (pendente.acao === 'rejeitar') {
+            await api.rejeitarChamada(pendente.chamada_id).catch(() => undefined);
+
+            return;
+        }
+
+        if (pendente.acao === 'atender') {
+            await entrar(pendente.chamada_id, pendente.chamada_tipo).catch(() => undefined);
+
+            return;
+        }
+
+        // 'tocar': mostra o ringing normal com os dados que temos
+        const conversaLocal = await engine.storage.obterConversa(pendente.conversa_id);
+        setConversa(conversaLocal);
+        setAtiva({
+            chamada: {
+                id: pendente.chamada_id,
+                conversa_id: pendente.conversa_id,
+                iniciador_identidade_id: '',
+                tipo: pendente.chamada_tipo,
+                estado: 'a_tocar',
+                iniciada_em: new Date().toISOString(),
+                atendida_em: null,
+                terminada_em: null,
+                duracao_segundos: null,
+            },
+            fase: 'a_receber',
+        });
+    }, [api, engine, entrar]);
+
+    // app aberta por uma notificação de chamada (arranque frio ou background)
+    useEffect(() => {
+        void retomarPendente();
+
+        const sub = AppState.addEventListener('change', (estado) => {
+            if (estado === 'active') void retomarPendente();
+        });
+
+        return () => sub.remove();
+    }, [retomarPendente]);
+
     const atender = async () => {
         if (!ativa) return;
 
@@ -331,13 +429,24 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         await track.restartTrack({ facingMode: facing.current }).catch(() => undefined);
     };
 
+    const alternarEcra = async () => {
+        const novo = !ecra;
+        setEcra(novo);
+        await room.current?.localParticipant?.setScreenShareEnabled?.(novo).catch?.(() => {
+            setEcra(!novo);
+        });
+    };
+
     const alternarAltifalante = async () => {
         const novo = !altifalante;
         setAltifalante(novo);
         await livekit?.AudioSession?.selectAudioOutput?.(novo ? 'speaker' : 'earpiece').catch(() => undefined);
     };
 
-    const valor = useMemo<ChamadasApi>(() => ({ iniciar, entrar, ativa, suportado }), [iniciar, entrar, ativa, suportado]);
+    const valor = useMemo<ChamadasApi>(
+        () => ({ iniciar, entrar, retomarPendente, ativa, suportado }),
+        [iniciar, entrar, retomarPendente, ativa, suportado],
+    );
 
     return (
         <Ctx.Provider value={valor}>
@@ -352,6 +461,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     mudo={mudo}
                     camara={camara}
                     altifalante={altifalante}
+                    ecra={ecra}
                     livekit={livekit}
                     aoAtender={() => void atender()}
                     aoDesligar={() => void desligar()}
@@ -363,6 +473,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     aoCamara={() => void alternarCamara()}
                     aoTrocarCamara={() => void trocarCamara()}
                     aoAltifalante={() => void alternarAltifalante()}
+                    aoEcra={Platform.OS === 'android' && podePartilhaEcra ? () => void alternarEcra() : undefined}
                     aoMinimizar={() => setMinimizada(true)}
                     tema={tema}
                 />
@@ -382,7 +493,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
 // ---------------------------------------------------------------- ecrã da chamada
 
-function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoMinimizar, tema }: {
+function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }: {
     ativa: EstadoChamada;
     conversa: Conversa | null;
     tiles: Tile[];
@@ -391,6 +502,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     mudo: boolean;
     camara: boolean;
     altifalante: boolean;
+    ecra: boolean;
     livekit: any;
     aoAtender(): void;
     aoDesligar(): void;
@@ -398,6 +510,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     aoCamara(): void;
     aoTrocarCamara(): void;
     aoAltifalante(): void;
+    aoEcra?(): void;
     aoMinimizar(): void;
     tema: { primaria: string };
 }) {
@@ -496,6 +609,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                             {video && <Botao icone={camara ? 'videocam' : 'videocam-off'} cor="rgba(255,255,255,0.2)" aoTocar={aoCamara} />}
                             {video && camara && <Botao icone="camera-reverse-outline" cor="rgba(255,255,255,0.2)" aoTocar={aoTrocarCamara} />}
                             <Botao icone={altifalante ? 'volume-high' : 'volume-low'} cor="rgba(255,255,255,0.2)" aoTocar={aoAltifalante} />
+                            {aoEcra && <Botao icone={ecra ? 'stop-circle-outline' : 'share-outline'} cor={ecra ? '#10b981' : 'rgba(255,255,255,0.2)'} aoTocar={aoEcra} />}
                             <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} rodado />
                         </>
                     )}

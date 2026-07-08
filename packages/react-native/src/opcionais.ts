@@ -24,3 +24,9 @@ export const obterFileSystem = (): any => carregar('expo-file-system');
 export const obterLiveKit = (): any => carregar('@livekit/react-native');
 export const obterLiveKitClient = (): any => carregar('livekit-client');
 export const obterFlashList = (): { FlashList: unknown } | null => carregar('@shopify/flash-list');
+export const obterNotifee = (): any => {
+    const m = carregar<{ default?: unknown }>('@notifee/react-native');
+
+    return (m as { default?: unknown })?.default ?? m;
+};
+export const obterPushMakaChat = (): any => carregar('@hongayetu/expo-makachat-push');

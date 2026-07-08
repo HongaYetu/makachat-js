@@ -8,8 +8,9 @@ import {
     useChamadas,
 } from '@hongayetu/makachat-react-native';
 import CryptoJS from 'crypto-js';
+import { useMakaChat } from '@hongayetu/makachat-react-native';
 import { StatusBar } from 'expo-status-bar';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 /**
@@ -114,6 +115,8 @@ function Chat({ perfil, aoSair }: { perfil: Perfil; aoSair(): void }) {
 function Ecras({ ecra, setEcra, aoSair }: { ecra: Ecra; setEcra(e: Ecra): void; aoSair(): void }) {
     const chamadas = useChamadas();
 
+    usarPush(setEcra);
+
     if (ecra.nome === 'chat') {
         return (
             <ChatScreen
@@ -152,6 +155,33 @@ function Ecras({ ecra, setEcra, aoSair }: { ecra: Ecra; setEcra(e: Ecra): void; 
             />
         </View>
     );
+}
+
+/** Push ligado: drena o inbox nativo ao arrancar/voltar e refresca badges. */
+function usarPush(setEcra: (e: Ecra) => void) {
+    const { engine } = useMakaChat();
+
+    useEffect(() => {
+        let push: {
+            drenarInbox(): Promise<unknown[]>;
+            aoReceberPush(cb: (i: { conversa_id: string }) => void): { remove(): void };
+        } | null = null;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            push = require('@hongayetu/expo-makachat-push');
+        } catch {
+            return;
+        }
+
+        void push!.drenarInbox().then((itens) => {
+            if (itens.length) void engine.atualizarConversas();
+        });
+
+        const sub = push!.aoReceberPush(() => void engine.atualizarConversas());
+
+        return () => sub.remove();
+    }, [engine, setEcra]);
 }
 
 export default function App() {
