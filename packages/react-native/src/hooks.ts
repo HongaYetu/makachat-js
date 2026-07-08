@@ -1,6 +1,7 @@
 import { Anexo, Conversa, DadosEnvioMensagem, Funcionalidade, Mensagem, Presenca, Typing } from '@hongayetu/makachat-core';
 import { useCallback, useEffect, useState } from 'react';
 import { useMakaChat } from './provider';
+import { useRef } from 'react';
 
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
 export function useVersaoChat(): number {
@@ -131,4 +132,36 @@ export function useFuncionalidadeAtiva(funcionalidade: Funcionalidade, tipoConve
     }
 
     return features.find((f) => f.funcionalidade === funcionalidade && f.tipo_conversa === '*')?.ativo ?? false;
+}
+
+/** Estado da ligação socket (true = online). */
+export function useLigacao(): boolean {
+    return useMakaChat().ligado;
+}
+
+/**
+ * Reage a QUALQUER mensagem nova recebida, em qualquer ecrã da app — o
+ * servidor emite para a sala da identidade, sem depender da conversa aberta.
+ */
+export function useMensagemRecebida(handler: (mensagem: Mensagem) => void): void {
+    const { subscreverMensagens } = useMakaChat();
+    const ref = useRef(handler);
+    ref.current = handler;
+
+    useEffect(() => subscreverMensagens((m) => ref.current(m)), [subscreverMensagens]);
+}
+
+/** Total de não lidas em todas as conversas — badge global (tab bar, título...). */
+export function useTotalNaoLidas(): number {
+    const { engine } = useMakaChat();
+    const versao = useVersaoChat();
+    const [total, setTotal] = useState(0);
+
+    useEffect(() => {
+        void engine.storage
+            .listarConversas(false)
+            .then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
+    }, [engine, versao]);
+
+    return total;
 }

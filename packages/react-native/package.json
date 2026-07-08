@@ -21,7 +21,9 @@
             "require": "./dist/index.cjs"
         }
     },
-    "files": ["dist"],
+    "files": [
+        "dist"
+    ],
     "scripts": {
         "build": "tsup",
         "test": "echo 'sem testes (requer dispositivo)'"
@@ -31,12 +33,43 @@
     },
     "peerDependencies": {
         "expo-sqlite": ">=14.0.0",
+        "@expo/vector-icons": ">=14.0.0",
         "react": ">=18.0.0",
-        "react-native": ">=0.73.0"
+        "react-native": ">=0.73.0",
+        "@livekit/react-native": ">=2.0.0",
+        "@livekit/react-native-webrtc": ">=104.0.0",
+        "expo-av": ">=14.0.0",
+        "expo-image-picker": ">=15.0.0",
+        "expo-document-picker": ">=12.0.0",
+        "expo-file-system": ">=17.0.0",
+        "@shopify/flash-list": ">=1.6.0"
     },
     "devDependencies": {
         "@types/react": "^18.3.0",
         "tsup": "^8.3.0",
         "typescript": "^5.7.0"
+    },
+    "peerDependenciesMeta": {
+        "@livekit/react-native": {
+            "optional": true
+        },
+        "@livekit/react-native-webrtc": {
+            "optional": true
+        },
+        "expo-av": {
+            "optional": true
+        },
+        "expo-image-picker": {
+            "optional": true
+        },
+        "expo-document-picker": {
+            "optional": true
+        },
+        "expo-file-system": {
+            "optional": true
+        },
+        "@shopify/flash-list": {
+            "optional": true
+        }
     }
 }

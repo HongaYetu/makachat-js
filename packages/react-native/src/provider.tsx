@@ -1,8 +1,11 @@
 import {
+    AlvoParticipante,
     FlagFuncionalidade,
     IdentidadeConfig,
     MakaApi,
     MakaSocket,
+    Mensagem,
+    MetadadosPartilha,
     ObterToken,
     EventoChamada,
     Presenca,
@@ -12,6 +15,7 @@ import {
 } from '@hongayetu/makachat-core';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { SqliteStorage } from './sqlite-storage';
+import { MakaTema, resolverTema, TemaResolvido } from './tema';
 
 export interface MakaChatContexto {
     engine: SyncEngine;
@@ -20,9 +24,21 @@ export interface MakaChatContexto {
     serviceKey: string;
     identidade: IdentidadeConfig;
     features: FlagFuncionalidade[];
+    /** ligação socket ativa? (barras de estado offline) */
+    ligado: boolean;
+    /** contactos fornecidos pela app — criar conversas/grupos */
+    contactos: AlvoParticipante[];
+    tema: TemaResolvido;
     subscreverTyping(ouvinte: (typing: Typing) => void): () => void;
     subscreverPresenca(ouvinte: (presenca: Presenca) => void): () => void;
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
+    /** mensagens novas recebidas (deduplicadas, sem as próprias) — em qualquer ecrã da app */
+    subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
+    /** ChatScreen regista-se como visível — marcar-lidas e badges respeitam isto */
+    registarVisivel(conversaId: string): () => void;
+    estaVisivel(conversaId: string): boolean;
+    /** clique num cartão de partilha/link — a app navega (deep link/router) */
+    aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -33,6 +49,9 @@ export interface MakaChatProviderProps {
     getToken: ObterToken;
     /** storage alternativo (por omissão: expo-sqlite, um ficheiro por identidade) */
     storage?: StorageAdapter;
+    tema?: MakaTema;
+    contactos?: AlvoParticipante[];
+    aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     children: React.ReactNode;
 }
 
@@ -51,13 +70,27 @@ function abrirStoragePadrao(serviceKey: string, identity: IdentidadeConfig): Sto
     return new SqliteStorage(sqlite.openDatabaseSync(nome));
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, children }: MakaChatProviderProps) {
+export function MakaChatProvider({
+    serviceKey,
+    identity,
+    getToken,
+    storage,
+    tema,
+    contactos,
+    aoAbrirPartilha,
+    children,
+}: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
+    const [ligado, setLigado] = useState(false);
+    const visiveis = useRef(new Map<string, number>());
     const ouvintesTyping = useRef(new Set<(typing: Typing) => void>());
     const ouvintesPresenca = useRef(new Set<(presenca: Presenca) => void>());
     const ouvintesChamadas = useRef(new Set<(evento: EventoChamada) => void>());
+    const ouvintesMensagens = useRef(new Set<(mensagem: Mensagem) => void>());
 
-    const valor = useMemo<MakaChatContexto>(() => {
+    const valor = useMemo<
+        Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'tema' | 'aoAbrirPartilha'>
+    >(() => {
         const api = new MakaApi(getToken);
         const adapter = storage ?? abrirStoragePadrao(serviceKey, identity);
 
@@ -69,7 +102,11 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
 
                 return api.sessao();
             },
-            aoLigar: () => void engine.aoLigar(),
+            aoLigar: () => {
+                setLigado(true);
+                void engine.aoLigar();
+            },
+            aoDesligar: () => setLigado(false),
         });
 
         engine = new SyncEngine(adapter, api, socket, {
@@ -77,6 +114,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
             aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
             aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
             aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
+            aoMensagem: (mensagem) => ouvintesMensagens.current.forEach((o) => o(mensagem)),
         });
 
         return {
@@ -85,7 +123,6 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
             socket,
             serviceKey,
             identidade: identity,
-            features: [],
             subscreverTyping: (ouvinte) => {
                 ouvintesTyping.current.add(ouvinte);
 
@@ -101,6 +138,22 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
 
                 return () => ouvintesChamadas.current.delete(ouvinte);
             },
+            subscreverMensagens: (ouvinte) => {
+                ouvintesMensagens.current.add(ouvinte);
+
+                return () => ouvintesMensagens.current.delete(ouvinte);
+            },
+            registarVisivel: (conversaId: string) => {
+                visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
+
+                return () => {
+                    const atual = (visiveis.current.get(conversaId) ?? 1) - 1;
+
+                    if (atual <= 0) visiveis.current.delete(conversaId);
+                    else visiveis.current.set(conversaId, atual);
+                };
+            },
+            estaVisivel: (conversaId: string) => (visiveis.current.get(conversaId) ?? 0) > 0,
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [serviceKey, identity.id, identity.tipo]);
@@ -115,7 +168,15 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, chil
         return () => valor.socket.desligar();
     }, [valor]);
 
-    return <Contexto.Provider value={{ ...valor, features }}>{children}</Contexto.Provider>;
+    const temaResolvido = useMemo(() => resolverTema(tema), [tema]);
+
+    return (
+        <Contexto.Provider
+            value={{ ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha }}
+        >
+            {children}
+        </Contexto.Provider>
+    );
 }
 
 export function useMakaChat(): MakaChatContexto {
@@ -126,4 +187,9 @@ export function useMakaChat(): MakaChatContexto {
     }
 
     return contexto;
+}
+
+/** Tema resolvido (cores) — todos os componentes MakaChat leem daqui. */
+export function useTema(): TemaResolvido {
+    return useMakaChat().tema;
 }
