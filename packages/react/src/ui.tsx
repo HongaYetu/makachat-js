@@ -15,6 +15,13 @@ import { useMakaChat } from './provider';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+/** 'cima' quando não há espaço abaixo do elemento clicado para um menu de ~alturaEstimada px. */
+function direcaoMenu(e: React.MouseEvent, alturaEstimada = 220): 'cima' | 'baixo' {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+
+    return r.bottom + alturaEstimada > window.innerHeight && r.top > alturaEstimada ? 'cima' : 'baixo';
+}
+
 /** Fecha um popup ao clicar fora do elemento marcado com data-maka-pop=chave. */
 export function useFecharFora(ativo: boolean, chave: string, fechar: () => void): void {
     useEffect(() => {
@@ -50,6 +57,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const [criarGrupo, setCriarGrupo] = useState(false);
     const [confirmarEliminar, setConfirmarEliminar] = useState<Conversa | null>(null);
 
+    const [menuDirecao, setMenuDirecao] = useState<'cima' | 'baixo'>('baixo');
     const [resultadosServidor, setResultadosServidor] = useState<Conversa[] | null>(null);
     const [proximoCursor, setProximoCursor] = useState<string | null>(null);
     const aPaginar = useRef(false);
@@ -195,14 +203,14 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                     </button>
                     <button
                         data-maka-pop="menu-lista"
-                        onClick={() => setMenuDe(menuDe === c.id ? null : c.id)}
+                        onClick={(e) => { setMenuDirecao(direcaoMenu(e)); setMenuDe(menuDe === c.id ? null : c.id); }}
                         className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-superficie)] text-[var(--maka-texto-suave)] opacity-0 shadow ring-1 ring-black/[.05] transition-opacity group-hover:opacity-100"
                         title="Opções"
                     >
                         <Icon icon="tabler:chevron-down" />
                     </button>
                     {menuDe === c.id && (
-                        <div data-maka-pop="menu-lista" className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]">
+                        <div data-maka-pop="menu-lista" className={`absolute right-3 ${menuDirecao === 'cima' ? 'bottom-12' : 'top-12'} z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]`}>
                             <ItemMenu onClick={() => { setMenuDe(null); void engine.marcarNaoLida(c.id).catch(() => undefined); }}>
                                 <Icon icon="tabler:mail-opened" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
@@ -1374,6 +1382,8 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     const [hover, setHover] = useState(false);
     const [picker, setPicker] = useState(false);
     const [menu, setMenu] = useState(false);
+    const [menuCima, setMenuCima] = useState(false);
+    const [pickerBaixo, setPickerBaixo] = useState(false);
 
     useFecharFora(picker || menu, `bolha-${m.id}`, () => { setPicker(false); setMenu(false); });
 
@@ -1396,7 +1406,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 <button
                     className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]"
                     title="Reagir"
-                    onClick={() => { setPicker(!picker); setMenu(false); }}
+                    onClick={(e) => { setPickerBaixo(direcaoMenu(e, 70) === 'baixo' && (e.currentTarget as HTMLElement).getBoundingClientRect().top < 90); setPicker(!picker); setMenu(false); }}
                 >
                     <Icon icon="tabler:mood-smile" />
                 </button>
@@ -1405,13 +1415,13 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 <Icon icon="tabler:arrow-back-up" />
             </button>
             {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
-                <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]" title="Mais opções" onClick={() => { setMenu(!menu); setPicker(false); }}>
+                <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-black/[.04] hover:text-[var(--maka-texto)]" title="Mais opções" onClick={(e) => { setMenuCima(direcaoMenu(e, 170) === 'cima'); setMenu(!menu); setPicker(false); }}>
                     <Icon icon="tabler:dots" />
                 </button>
             )}
 
             {picker && (
-                <div className={`absolute -top-11 z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute ${pickerBaixo ? 'top-9' : '-top-11'} z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
                     {EMOJIS.map((e) => (
                         <button
                             key={e}
@@ -1424,7 +1434,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </div>
             )}
             {menu && (
-                <div className={`absolute top-9 z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute ${menuCima ? 'bottom-9' : 'top-9'} z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
                     {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="tabler:share-3" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
                     {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="tabler:pencil" className="inline align-[-2px]" /> Editar</ItemMenu>}
                     {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="tabler:trash" className="inline align-[-2px]" /> Eliminar</ItemMenu>}

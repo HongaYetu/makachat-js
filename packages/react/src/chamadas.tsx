@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
 import { RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { mostrarNotificacao } from './notificacoes';
 import { useMakaChat } from './provider';
 import { AvatarWeb } from './ui';
 
@@ -105,6 +106,13 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         () =>
             subscreverChamadas((evento: EventoChamada) => {
                 if (evento.evento === 'iniciada') {
+                    if (typeof document !== 'undefined' && document.hidden) {
+                        mostrarNotificacao(
+                            `${evento.iniciador?.nome ?? 'Alguém'} está a ligar`,
+                            { corpo: evento.chamada.tipo === 'video' ? 'Chamada de vídeo' : 'Chamada de áudio', icone: evento.iniciador?.foto_url ?? undefined, tag: `chamada_${evento.chamada.id}` },
+                        );
+                    }
+
                     setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
                     void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
                 } else if (evento.evento === 'atendida') {

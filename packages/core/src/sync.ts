@@ -18,6 +18,8 @@ import { uuid } from './uuid';
 export interface SyncEngineOpcoes {
     identidade: IdentidadeConfig;
     aoTyping?: (typing: Typing) => void;
+    /** mensagem RECEBIDA e nova (deduplicada) — usado para notificações */
+    aoMensagem?: (mensagem: Mensagem) => void;
     aoPresenca?: (presenca: Presenca) => void;
     aoChamada?: (evento: EventoChamada) => void;
 }
@@ -357,19 +359,34 @@ export class SyncEngine {
                     ativo: false,
                 });
 
+                // dedupe: se o evento chegar em duplicado, não conta duas vezes
+                const existentes = await this.storage.listarMensagens(payload.mensagem.conversa_id, { limite: 500 });
+                const duplicada = existentes.some((m) => m.id === payload.mensagem.id);
+
                 await this.storage.upsertMensagens([{ ...payload.mensagem, estado_envio: 'enviada' }]);
 
                 const conversa = await this.storage.obterConversa(payload.mensagem.conversa_id);
+                const remetente = conversa?.participantes.find(
+                    (p) => p.identidade_id === payload.mensagem.remetente_identidade_id,
+                );
+                const minha =
+                    remetente?.id_externo === this.opcoes.identidade.id &&
+                    remetente?.tipo === this.opcoes.identidade.tipo;
 
                 if (!conversa) {
                     // conversa nova criada por outra pessoa — vai buscar ao REST
                     await this.atualizarConversas();
-                } else {
-                    await this.atualizarPreviewLocal(payload.mensagem, true);
+                } else if (!duplicada) {
+                    // mensagem minha vinda de outra aba não conta como não lida
+                    await this.atualizarPreviewLocal(payload.mensagem, !minha);
                 }
 
                 await this.socket.marcarEntregues(payload.mensagem.conversa_id, payload.mensagem.id).catch(() => undefined);
                 this.notificar();
+
+                if (!duplicada && !minha) {
+                    this.opcoes.aoMensagem?.(payload.mensagem);
+                }
             })();
         });
 

@@ -1,5 +1,6 @@
 import {
     AlvoParticipante,
+    Mensagem,
     FlagFuncionalidade,
     IdentidadeConfig,
     MakaApi,
@@ -14,6 +15,7 @@ import {
 } from '@hongayetu/makachat-core';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { cssVarsDoTema, MakaTema } from './tema';
+import { mostrarNotificacao } from './notificacoes';
 
 export interface MakaChatContexto {
     engine: SyncEngine;
@@ -25,6 +27,8 @@ export interface MakaChatContexto {
     subscreverTyping(ouvinte: (typing: Typing) => void): () => void;
     subscreverPresenca(ouvinte: (presenca: Presenca) => void): () => void;
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
+    /** mensagens novas recebidas (deduplicadas, sem as próprias) — chega em QUALQUER página, sem UI de chat montada */
+    subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
     /** contactos fornecidos pela app (para criar grupos/conversas) */
     contactos: AlvoParticipante[];
     /** ligação socket ativa? (para barras de estado offline) */
@@ -45,16 +49,26 @@ export interface MakaChatProviderProps {
     tema?: MakaTema;
     /** contactos conhecidos do serviço (opcional) — usados em criar grupo/adicionar membros */
     contactos?: AlvoParticipante[];
+    /** notificações nativas do browser quando a página está em background (default: false, opt-in) */
+    notificacoesNativas?: boolean;
+    /** clique na notificação — a app decide como abrir a conversa (ex.: useDock().abrir) */
+    aoAbrirNotificacao?: (conversaId: string) => void;
     children: React.ReactNode;
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, notificacoesNativas = false, aoAbrirNotificacao, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const [ligado, setLigado] = useState(false);
     const visiveis = useRef(new Map<string, number>());
     const ouvintesTyping = useRef(new Set<(typing: Typing) => void>());
     const ouvintesPresenca = useRef(new Set<(presenca: Presenca) => void>());
     const ouvintesChamadas = useRef(new Set<(evento: EventoChamada) => void>());
+    const ouvintesMensagens = useRef(new Set<(mensagem: Mensagem) => void>());
+    // refs para o engine (criado uma vez) ver sempre as props atuais
+    const notifAtivas = useRef(notificacoesNativas);
+    notifAtivas.current = notificacoesNativas;
+    const aoAbrirNotif = useRef(aoAbrirNotificacao);
+    aoAbrirNotif.current = aoAbrirNotificacao;
 
     const valor = useMemo<MakaChatContexto>(() => {
         const api = new MakaApi(getToken);
@@ -80,6 +94,26 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
             aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
             aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
             aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
+            aoMensagem: (mensagem: Mensagem) => {
+                // evento global: qualquer página subscrita recebe, sem depender da conversa aberta
+                ouvintesMensagens.current.forEach((o) => o(mensagem));
+
+                // extra opcional: notificação nativa quando a página está em background
+                if (!notifAtivas.current || typeof document === 'undefined' || !document.hidden) return;
+
+                void adapter.obterConversa(mensagem.conversa_id).then((conversa) => {
+                    const autor = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
+                    const previews: Record<string, string> = { foto: '📷 Foto', video: '🎬 Vídeo', audio: '🎤 Áudio', ficheiro: '📎 Ficheiro', chamada: '📞 Chamada' };
+                    const corpo = mensagem.tipo === 'texto' ? (mensagem.conteudo ?? '') : (previews[mensagem.tipo] ?? 'Nova mensagem');
+                    const titulo = conversa?.tipo === 'grupo' && conversa.titulo
+                        ? `${autor?.nome ?? 'Alguém'} · ${conversa.titulo}`
+                        : (autor?.nome ?? conversa?.titulo ?? 'Nova mensagem');
+
+                    mostrarNotificacao(titulo, { corpo, icone: autor?.foto_url ?? undefined, tag: mensagem.conversa_id }, () => {
+                        aoAbrirNotif.current?.(mensagem.conversa_id);
+                    });
+                });
+            },
         });
 
         return {
@@ -103,6 +137,11 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
                 ouvintesChamadas.current.add(ouvinte);
 
                 return () => ouvintesChamadas.current.delete(ouvinte);
+            },
+            subscreverMensagens: (ouvinte) => {
+                ouvintesMensagens.current.add(ouvinte);
+
+                return () => ouvintesMensagens.current.delete(ouvinte);
             },
             ligado: false,
             contactos: [],

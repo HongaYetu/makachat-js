@@ -19,6 +19,9 @@ export class MakaSocket {
     private opcoes: MakaSocketOpcoes;
     /** handlers registados antes de ligar() — aplicados quando o socket nasce */
     private handlers: [string, (payload: unknown) => void][] = [];
+    /** evita dois sockets vivos quando ligar() é chamado em concorrência (ex.: StrictMode) */
+    private aLigar: Promise<void> | null = null;
+    private geracao = 0;
 
     constructor(opcoes: MakaSocketOpcoes) {
         this.opcoes = opcoes;
@@ -37,7 +40,25 @@ export class MakaSocket {
             return;
         }
 
+        if (this.aLigar) {
+            return this.aLigar;
+        }
+
+        this.aLigar = this.ligarInterno().finally(() => {
+            this.aLigar = null;
+        });
+
+        return this.aLigar;
+    }
+
+    private async ligarInterno(): Promise<void> {
+        const geracao = this.geracao;
         const credenciais = await this.opcoes.obterToken();
+
+        // desligar() foi chamado durante o await — não deixar nascer um socket órfão
+        if (geracao !== this.geracao) {
+            return;
+        }
 
         this.socket = io(`${credenciais.socket_url}/chat`, {
             auth: { token: credenciais.token },
@@ -62,6 +83,7 @@ export class MakaSocket {
     }
 
     desligar(): void {
+        this.geracao += 1;
         this.socket?.disconnect();
         this.socket = null;
     }

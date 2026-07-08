@@ -10,33 +10,48 @@ import { AvatarWeb, ConversaPainel, MakaChatConversas, useFecharFora } from './u
 export interface BoxProps {
     /** abre esta conversa (ex.: vindo de um botão "Falar com a loja") */
     conversaAbertaId?: string | null;
+    /** nome do parâmetro de query string que abre uma conversa ao carregar (default 'conversa'; false desliga) */
+    queryParam?: string | false;
 }
 
 /** Página inteira: ocupa o viewport todo e ignora o layout do site. */
-export function MakaChatBoxFull({ conversaAbertaId }: BoxProps = {}) {
+export function MakaChatBoxFull({ conversaAbertaId, queryParam = 'conversa' }: BoxProps = {}) {
     return (
         <div className="fixed inset-0 z-[9000] bg-[var(--maka-fundo)]">
-            <DuasColunas conversaAbertaId={conversaAbertaId} />
+            <DuasColunas conversaAbertaId={conversaAbertaId} queryParam={queryParam} />
         </div>
     );
 }
 
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
-export function MakaChatBoxMin({ conversaAbertaId }: BoxProps = {}) {
+export function MakaChatBoxMin({ conversaAbertaId, queryParam = 'conversa' }: BoxProps = {}) {
     return (
         <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/[.05]">
-            <DuasColunas conversaAbertaId={conversaAbertaId} />
+            <DuasColunas conversaAbertaId={conversaAbertaId} queryParam={queryParam} />
         </div>
     );
 }
 
-function DuasColunas({ conversaAbertaId }: BoxProps) {
-    const { ligado } = useMakaChat();
+function DuasColunas({ conversaAbertaId, queryParam }: BoxProps) {
+    const { ligado, engine } = useMakaChat();
     const [ativa, setAtiva] = useState<string | null>(conversaAbertaId ?? null);
 
     useEffect(() => {
         if (conversaAbertaId) setAtiva(conversaAbertaId);
     }, [conversaAbertaId]);
+
+    // ?conversa=<id> seleciona ao carregar — mesmo fora da lista recente,
+    // o entrarConversa vai buscá-la ao servidor e mete-a no storage
+    useEffect(() => {
+        if (!queryParam || typeof window === 'undefined') return;
+
+        const id = new URLSearchParams(window.location.search).get(queryParam);
+
+        if (!id) return;
+
+        void engine.entrarConversa(id).then(() => setAtiva(id));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queryParam]);
     const [estreita, setEstreita] = useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
 
@@ -110,6 +125,8 @@ export function useDock(): DockApi {
 export interface MakaChatDockProps {
     /** abre uma box automaticamente quando chega mensagem nova (default true) */
     autoAbrir?: boolean;
+    /** query string que abre uma box ao carregar (default false — evita duplicar com BoxMin/BoxFull) */
+    queryParam?: string | false;
     /** false = esconde launcher e boxes mantendo o contexto/estado (ex.: página onde já há BoxMin/BoxFull) */
     visivel?: boolean;
     maxBoxes?: number;
@@ -125,8 +142,8 @@ interface BoxAberta {
  * Boxes múltiplas fixas no canto inferior direito: launcher com não lidas e
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
-export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, children }: MakaChatDockProps) {
-    const { estaVisivel } = useMakaChat();
+export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryParam = false, children }: MakaChatDockProps) {
+    const { estaVisivel, engine } = useMakaChat();
     const conversas = useConversas();
     const versao = useVersaoChat();
     const [boxes, setBoxes] = useState<BoxAberta[]>([]);
@@ -151,6 +168,17 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
     const fechar = useCallback((conversaId: string) => {
         setBoxes((atuais) => atuais.filter((b) => b.conversaId !== conversaId));
     }, []);
+
+    useEffect(() => {
+        if (!queryParam || typeof window === 'undefined') return;
+
+        const id = new URLSearchParams(window.location.search).get(queryParam);
+
+        if (!id) return;
+
+        void engine.entrarConversa(id).then(() => abrir(id));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queryParam]);
 
     useEffect(() => {
         if (!autoAbrir || !visivel) return;
@@ -186,6 +214,11 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                             >
                                 <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={26} />
                                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{conversa?.titulo ?? 'Conversa'}</span>
+                                {(conversa?.participante?.mensagens_nao_lidas ?? 0) > 0 && (
+                                    <span className="animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
+                                        {conversa?.participante?.mensagens_nao_lidas}
+                                    </span>
+                                )}
                                 <span
                                     className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/15"
                                     onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}

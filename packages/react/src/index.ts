@@ -9,6 +9,8 @@ export {
     usePresenca,
     useFuncionalidadeAtiva,
     useLigacao,
+    useMensagemRecebida,
+    useTotalNaoLidas,
 } from './hooks';
 export {
     MakaChatConversas,
@@ -19,4 +21,5 @@ export {
 export { ChamadasProvider, useChamadas, useChamadasOpcional } from './chamadas';
 export { MakaChatBoxFull, MakaChatBoxMin, MakaChatDock, useDock, type MakaChatDockProps, type BoxProps } from './boxes';
 export { type MakaTema } from './tema';
+export { pedirPermissaoNotificacoes, notificacoesSuportadas, mostrarNotificacao } from './notificacoes';
 export { ConversaPainel, type ConversaPainelProps } from './ui';
