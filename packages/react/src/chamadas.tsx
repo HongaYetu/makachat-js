@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
-import { LocalTrackPublication, RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import { LocalTrackPublication, RemoteTrack, Room, RoomEvent, Track, VideoPresets } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { mostrarNotificacao } from './notificacoes';
 import { useMakaChat } from './provider';
@@ -50,6 +50,8 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const room = useRef<Room | null>(null);
     const midia = useRef<HTMLDivElement>(null);
+    /** elementos de media vivos (por sid) — sobrevivem a desmontagens do contentor (pill ↔ janela) */
+    const elementos = useRef(new Map<string, HTMLElement>());
     /** true enquanto mostramos o ecrã de falha — os eventos rejeitada/terminada não podem fechá-lo */
     const falhada = useRef(false);
     const [erroSolto, setErroSolto] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         void room.current?.disconnect();
         room.current = null;
         falhada.current = false;
+        elementos.current.clear();
 
         setAtiva(null);
         setConversa(null);
@@ -72,6 +75,18 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const comecarTimer = useCallback(() => {
         setInicioEm((atual) => atual ?? Date.now());
+    }, []);
+
+    /** (Re)anexa todos os elementos de media ao contentor atual — o contentor
+     *  desmonta/remonta ao minimizar para pill e no arranque pode ainda não existir. */
+    const anexarTodos = useCallback(() => {
+        const alvo = midia.current;
+
+        if (!alvo) return;
+
+        for (const el of elementos.current.values()) {
+            if (el.parentElement !== alvo) alvo.appendChild(el);
+        }
     }, []);
 
     /** Pede as permissões ANTES de tocar/atender — sem elas a chamada não avança. */
@@ -93,29 +108,48 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const ligarSala = useCallback(async (token: string, wsUrl: string, video: boolean): Promise<boolean> => {
-        const r = new Room();
+        // padrão EiConnect: qualidade adapta-se ao tamanho em que o vídeo é
+        // visualizado (adaptiveStream) e camadas não usadas pausam (dynacast)
+        const r = new Room({
+            adaptiveStream: true,
+            dynacast: true,
+            videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
+            reconnectPolicy: {
+                nextRetryDelayInMs: (contexto) =>
+                    contexto.elapsedMs > 90_000 ? null : Math.min(500 * 2 ** contexto.retryCount, 10_000),
+            },
+        });
         room.current = r;
+        elementos.current.clear();
 
         // remotos: vídeo e ÁUDIO (o attach do áudio cria o <audio> que toca a voz)
         r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
             const el = track.attach();
 
             if (track.kind === Track.Kind.Video) el.className = 'maka-video-remoto';
-            midia.current?.appendChild(el);
+            elementos.current.set(track.sid ?? String(elementos.current.size), el);
+            anexarTodos();
         });
-        r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => track.detach().forEach((e) => e.remove()));
+        r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+            track.detach().forEach((e) => e.remove());
 
-        // locais: preview da câmara/partilha anexado por evento — cobre o arranque
-        // E o ligar/desligar da câmara a meio da chamada
+            if (track.sid) elementos.current.delete(track.sid);
+        });
+
+        // locais: preview da câmara/partilha por evento — cobre o arranque,
+        // o ligar/desligar a meio e a partilha de ecrã
         r.on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication) => {
             if (pub.track && pub.kind === Track.Kind.Video) {
                 const el = pub.track.attach();
                 el.className = 'maka-video-local';
-                midia.current?.appendChild(el);
+                elementos.current.set(pub.trackSid ?? `local_${elementos.current.size}`, el);
+                anexarTodos();
             }
         });
         r.on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
             pub.track?.detach().forEach((e) => e.remove());
+
+            if (pub.trackSid) elementos.current.delete(pub.trackSid);
         });
 
         try {
@@ -243,6 +277,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
         limpar();
     };
+
+    // ao voltar da pill ou quando a janela monta, volta a pendurar os vídeos
+    useEffect(() => {
+        anexarTodos();
+    }, [anexarTodos, modo, ativa?.fase]);
 
     // arrastar pela barra de título (pointer events)
     const aoPegar = (e: React.PointerEvent) => {
