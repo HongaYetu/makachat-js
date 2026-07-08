@@ -17,6 +17,8 @@ export interface MakaSocketOpcoes {
 export class MakaSocket {
     private socket: Socket | null = null;
     private opcoes: MakaSocketOpcoes;
+    /** handlers registados antes de ligar() — aplicados quando o socket nasce */
+    private handlers: [string, (payload: unknown) => void][] = [];
 
     constructor(opcoes: MakaSocketOpcoes) {
         this.opcoes = opcoes;
@@ -42,6 +44,10 @@ export class MakaSocket {
             transports: ['websocket'],
         });
 
+        for (const [evento, handler] of this.handlers) {
+            this.socket.on(evento, handler);
+        }
+
         this.socket.on('connect', () => this.opcoes.aoLigar?.());
         this.socket.on('disconnect', () => this.opcoes.aoDesligar?.());
 
@@ -61,6 +67,8 @@ export class MakaSocket {
     }
 
     on(evento: string, handler: (payload: never) => void): void {
+        this.handlers.push([evento, handler as (payload: unknown) => void]);
+        // se o socket já existe, aplica imediatamente; senão fica guardado para o ligar()
         this.socket?.on(evento, handler as (payload: unknown) => void);
     }
 
