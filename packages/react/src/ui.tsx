@@ -130,11 +130,9 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                 <BotaoIcone titulo={verArquivadas ? 'Voltar às conversas' : 'Arquivadas'} onClick={() => setVerArquivadas(!verArquivadas)}>
                     <Icon icon={verArquivadas ? 'tabler:arrow-left' : 'tabler:archive'} />
                 </BotaoIcone>
-                {podeGrupos && (
-                    <BotaoIcone titulo="Novo grupo" onClick={() => setCriarGrupo(true)}>
-                        <Icon icon="tabler:users-plus" />
-                    </BotaoIcone>
-                )}
+                <BotaoIcone titulo="Nova conversa" onClick={() => setCriarGrupo(true)}>
+                    <Icon icon="tabler:message-plus" />
+                </BotaoIcone>
             </div>
             <div className="px-3 pb-2 pt-2">
                 <div className="flex items-center gap-2 rounded-full bg-[var(--maka-fundo)] px-3.5 py-2">
@@ -226,9 +224,10 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
             })}
             </div>
             {criarGrupo && (
-                <CriarGrupoModal
+                <NovaConversaModal
                     conversas={conversas}
                     contactos={contactos}
+                    podeGrupos={podeGrupos}
                     aoFechar={() => setCriarGrupo(false)}
                     aoCriada={(c) => { setCriarGrupo(false); onAbrirConversa(c); }}
                 />
@@ -452,19 +451,22 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
     );
 }
 
-function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
-    conversas: Conversa[]; contactos: AlvoParticipante[]; aoFechar(): void; aoCriada(c: Conversa): void;
+function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriada }: {
+    conversas: Conversa[]; contactos: AlvoParticipante[]; podeGrupos: boolean; aoFechar(): void; aoCriada(c: Conversa): void;
 }) {
     const { api, engine, identidade } = useMakaChat();
     const [nome, setNome] = useState('');
     const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
     const pessoas = pessoasConhecidas(conversas, contactos, new Set([`${identidade.tipo}:${identidade.id}`]));
+    const grupo = escolhidos.size > 1;
 
     const criar = async () => {
-        if (!nome.trim() || escolhidos.size === 0) return;
+        if (escolhidos.size === 0 || (grupo && !nome.trim())) return;
 
         const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
-        const { conversa } = await api.criarGrupo(nome.trim(), membros);
+        const { conversa } = grupo
+            ? await api.criarGrupo(nome.trim(), membros)
+            : await api.criarPrivada({ id_externo: membros[0].id_externo, tipo: membros[0].tipo, nome: membros[0].nome });
         await engine.atualizarConversas();
         aoCriada(conversa);
     };
@@ -473,18 +475,25 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
         <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
             <div className="flex max-h-[74vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
-                    <span className="font-bold text-[var(--maka-texto)]">Novo grupo</span>
+                    <span className="font-bold text-[var(--maka-texto)]">Nova conversa</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
-                <div className="px-4 pb-2">
-                    <input
-                        autoFocus
-                        className="w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
-                        placeholder="Nome do grupo"
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                    />
-                </div>
+                {podeGrupos && (
+                    <div className="px-4 pb-1 text-xs text-[var(--maka-texto-suave)]">
+                        Escolhe uma pessoa — ou várias para criar um grupo.
+                    </div>
+                )}
+                {grupo && (
+                    <div className="px-4 pb-2 pt-1">
+                        <input
+                            autoFocus
+                            className="w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                            placeholder="Nome do grupo"
+                            value={nome}
+                            onChange={(e) => setNome(e.target.value)}
+                        />
+                    </div>
+                )}
                 <div className="maka-scroll min-h-0 flex-1 overflow-auto">
                     {pessoas.length === 0 && <div className="px-4 py-6 text-sm text-[var(--maka-texto-suave)]">Sem contactos conhecidos.</div>}
                     {pessoas.map((p) => {
@@ -494,7 +503,12 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
                         return (
                             <button
                                 key={chave}
-                                onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })}
+                                onClick={() => setEscolhidos((a) => {
+                                    if (marcado) { const n = new Set(a); n.delete(chave); return n; }
+
+                                    // sem flag de grupos, só uma pessoa de cada vez
+                                    return podeGrupos ? new Set(a).add(chave) : new Set([chave]);
+                                })}
                                 className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
                             >
                                 <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
@@ -507,11 +521,11 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
                 </div>
                 <div className="p-3">
                     <button
-                        disabled={!nome.trim() || escolhidos.size === 0}
+                        disabled={escolhidos.size === 0 || (grupo && !nome.trim())}
                         onClick={() => void criar()}
                         className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-md disabled:cursor-default disabled:opacity-40"
                     >
-                        Criar grupo{escolhidos.size > 0 ? ` (${escolhidos.size})` : ''}
+                        {grupo ? `Criar grupo (${escolhidos.size})` : 'Iniciar conversa'}
                     </button>
                 </div>
             </div>
