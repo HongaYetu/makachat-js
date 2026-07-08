@@ -65,6 +65,8 @@ export interface ParticipanteConversa {
     tipo: string;
     nome: string;
     foto_url: string | null;
+    /** extras vindos da estratégia de resolução do serviço (ex.: telefone) */
+    metadados?: Record<string, unknown> | null;
     papel: 'dono' | 'admin' | 'membro';
     ultima_leitura_mensagem_id: string | null;
     ultima_entrega_mensagem_id: string | null;
