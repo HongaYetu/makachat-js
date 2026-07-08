@@ -46,6 +46,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const [verArquivadas, setVerArquivadas] = useState(arquivadas);
     const [conversas, setConversas] = useState<Conversa[]>([]);
     const [menuDe, setMenuDe] = useState<string | null>(null);
+    const [busca, setBusca] = useState('');
     const [criarGrupo, setCriarGrupo] = useState(false);
     const [confirmarEliminar, setConfirmarEliminar] = useState<Conversa | null>(null);
 
@@ -65,7 +66,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
 
     return (
         <div className="flex h-full flex-col bg-[var(--maka-superficie)]">
-            <div className="flex items-center gap-1 border-b border-black/[.08] px-4 py-2.5">
+            <div className="flex items-center gap-1 px-4 pt-2.5 pb-0.5">
                 <span className="flex-1 text-[15px] font-bold text-[var(--maka-texto)]">
                     {verArquivadas ? 'Arquivadas' : 'Conversas'}
                 </span>
@@ -78,6 +79,22 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                     </BotaoIcone>
                 )}
             </div>
+            <div className="px-3 pb-2 pt-2">
+                <div className="flex items-center gap-2 rounded-full bg-[var(--maka-fundo)] px-3.5 py-2">
+                    <Icon icon="tabler:search" className="shrink-0 text-[var(--maka-texto-suave)]" />
+                    <input
+                        className="w-full border-0 bg-transparent text-sm text-[var(--maka-texto)] outline-none placeholder:text-[var(--maka-texto-suave)]"
+                        placeholder="Pesquisar conversas"
+                        value={busca}
+                        onChange={(e) => setBusca(e.target.value)}
+                    />
+                    {busca && (
+                        <button onClick={() => setBusca('')} className="grid cursor-pointer place-items-center border-0 bg-transparent p-0 text-[var(--maka-texto-suave)]">
+                            <Icon icon="tabler:x" className="text-sm" />
+                        </button>
+                    )}
+                </div>
+            </div>
             <div className="maka-scroll min-h-0 flex-1 overflow-y-auto">
             {conversas.length === 0 && (
                 <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
@@ -85,16 +102,20 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                     <span className="text-sm">Sem conversas</span>
                 </div>
             )}
-            {conversas.map((c) => {
+            {conversas
+                .filter((c) => !busca.trim() || (c.titulo ?? '').toLowerCase().includes(busca.trim().toLowerCase()))
+                .map((c) => {
                 const ativa = c.id === conversaAtivaId;
                 const naoLidas = c.participante?.mensagens_nao_lidas ?? 0;
 
                 return (
-                    <div key={c.id} className="group relative">
+                    <div key={c.id} className="group relative px-2 py-0.5">
                     <button
                         onClick={() => onAbrirConversa(c)}
-                        className={`flex w-full cursor-pointer items-center gap-3 border-0 px-4 py-3 text-left transition-colors ${
-                            ativa ? 'bg-[var(--maka-fundo)]' : 'bg-transparent hover:bg-[var(--maka-fundo)]'
+                        className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border-0 px-3 py-2.5 text-left transition-colors ${
+                            ativa
+                                ? 'bg-[color-mix(in_srgb,var(--maka-primaria)_10%,transparent)]'
+                                : 'bg-transparent hover:bg-[var(--maka-fundo)]'
                         }`}
                     >
                         <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} grupo={c.tipo === 'grupo'} />

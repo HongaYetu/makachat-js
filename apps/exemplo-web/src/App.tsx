@@ -178,17 +178,24 @@ function Contactos({ perfil, modo, aoAbrirNoBox }: { perfil: Perfil; modo: Modo;
     };
 
     return (
-        <aside style={{ width: 230, borderRight: '1px solid #e2e8f0', padding: 14, background: '#f8fafc' }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Contactos</div>
+        <aside style={{ width: 240, borderRight: '1px solid rgba(0,0,0,.08)', padding: 14, background: '#fff' }}>
+            <div style={{ fontWeight: 700, marginBottom: 2, fontSize: 15 }}>Contactos</div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>Clica para conversar</div>
             {contactos.map((c) => (
                 <button
                     key={c.id}
                     onClick={() => void conversar(c)}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', marginBottom: 6, borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 14 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '9px 10px', marginBottom: 4, borderRadius: 12, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#e9eef5')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                    {aAbrir === c.id ? '⏳ ' : '💬 '}
-                    <b>{c.nome}</b> <small style={{ color: '#64748b' }}>({c.tipo})</small>
+                    <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14 }}>
+                        {aAbrir === c.id ? '…' : c.nome.charAt(0)}
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                        <b style={{ display: 'block', fontSize: 14 }}>{c.nome}</b>
+                        <small style={{ color: '#64748b' }}>{c.tipo}</small>
+                    </span>
                 </button>
             ))}
         </aside>
