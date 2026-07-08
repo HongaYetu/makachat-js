@@ -1,3 +1,5 @@
+/* base = só os defaults das variáveis --tw-* (preflight está OFF no config — sem resets) */
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
