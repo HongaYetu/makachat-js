@@ -24,12 +24,17 @@ module.exports = {
                     '60%': { opacity: '1', transform: 'translateY(-2px) scale(1.03)' },
                     '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
                 },
+                'maka-flash': {
+                    '0%, 40%': { backgroundColor: 'color-mix(in srgb, var(--maka-primaria) 22%, transparent)' },
+                    '100%': { backgroundColor: 'transparent' },
+                },
             },
             animation: {
                 'maka-subir': 'maka-subir .18s ease-out',
                 'maka-pulsar': 'maka-pulsar 1.4s ease-in-out infinite',
                 'maka-salto': 'maka-salto 1.2s ease-in-out infinite',
                 'maka-flutuar': 'maka-flutuar .35s cubic-bezier(.34,1.3,.64,1)',
+                'maka-flash': 'maka-flash 1.6s ease-out',
             },
         },
     },

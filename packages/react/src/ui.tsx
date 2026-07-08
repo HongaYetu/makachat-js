@@ -807,7 +807,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     const mostrarBarra = hover || picker || menu;
 
     const barra = mostrarBarra && !m.eliminada && (
-        <div className="relative flex shrink-0 items-center gap-0.5 self-center rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/5">
+        <div className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/5 ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
             {podeReagir && (
                 <button
                     className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"
@@ -852,7 +852,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     return (
         <div
             ref={registarRef}
-            className={`relative flex items-stretch gap-1.5 pt-1 ${grupos.length ? 'pb-3' : ''} ${minha ? 'justify-end' : 'justify-start'}`}
+            className={`relative flex rounded-xl pt-1 ${destacada ? 'animate-maka-flash' : ''} ${grupos.length ? 'pb-3' : ''} ${minha ? 'justify-end' : 'justify-start'}`}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => {
                 setHover(false);
@@ -860,12 +860,12 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 if (!picker) setMenu(false);
             }}
         >
-            {minha && barra}
             <div
-                className={`flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm transition-shadow ${
+                className={`relative flex max-w-[72%] flex-col gap-1 rounded-[var(--maka-raio)] px-3 py-2 shadow-sm transition-shadow ${
                     destacada ? 'ring-2 ring-[var(--maka-primaria)]' : ''
                 } ${minha ? 'rounded-br-md bg-[var(--maka-bolha-minha)] text-[var(--maka-bolha-minha-texto)]' : 'rounded-bl-md bg-[var(--maka-bolha-outro)] text-[var(--maka-texto)]'}`}
             >
+                {barra}
                 {grupo && !minha && (
                     <span className="text-xs font-bold text-[var(--maka-primaria)]">
                         {participantes.find((p) => p.identidade_id === m.remetente_identidade_id)?.nome ?? '…'}
@@ -907,7 +907,6 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </button>
             )}
 
-            {!minha && barra}
         </div>
     );
 }
