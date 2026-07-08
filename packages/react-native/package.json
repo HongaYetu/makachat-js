@@ -38,11 +38,13 @@
         "react-native": ">=0.73.0",
         "@livekit/react-native": ">=2.0.0",
         "@livekit/react-native-webrtc": ">=104.0.0",
-        "expo-av": ">=14.0.0",
         "expo-image-picker": ">=15.0.0",
         "expo-document-picker": ">=12.0.0",
         "expo-file-system": ">=17.0.0",
-        "@shopify/flash-list": ">=1.6.0"
+        "@shopify/flash-list": ">=1.6.0",
+        "expo-audio": ">=0.3.0",
+        "expo-video": ">=2.0.0",
+        "livekit-client": ">=2.0.0"
     },
     "devDependencies": {
         "@types/react": "^18.3.0",
@@ -56,9 +58,6 @@
         "@livekit/react-native-webrtc": {
             "optional": true
         },
-        "expo-av": {
-            "optional": true
-        },
         "expo-image-picker": {
             "optional": true
         },
@@ -69,6 +68,15 @@
             "optional": true
         },
         "@shopify/flash-list": {
+            "optional": true
+        },
+        "expo-audio": {
+            "optional": true
+        },
+        "expo-video": {
+            "optional": true
+        },
+        "livekit-client": {
             "optional": true
         }
     }

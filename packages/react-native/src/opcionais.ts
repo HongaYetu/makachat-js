@@ -15,9 +15,12 @@ function carregar<T>(modulo: string): T | null {
     }
 }
 
-export const obterImagePicker = () => carregar<typeof import('expo-image-picker')>('expo-image-picker');
-export const obterDocumentPicker = () => carregar<typeof import('expo-document-picker')>('expo-document-picker');
-export const obterAv = () => carregar<typeof import('expo-av')>('expo-av');
-export const obterFileSystem = () => carregar<typeof import('expo-file-system')>('expo-file-system');
-export const obterLiveKit = () => carregar<any>('@livekit/react-native');
-export const obterFlashList = () => carregar<{ FlashList: unknown }>('@shopify/flash-list');
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const obterImagePicker = (): any => carregar('expo-image-picker');
+export const obterDocumentPicker = (): any => carregar('expo-document-picker');
+export const obterAudio = (): any => carregar('expo-audio');
+export const obterVideo = (): any => carregar('expo-video');
+export const obterFileSystem = (): any => carregar('expo-file-system');
+export const obterLiveKit = (): any => carregar('@livekit/react-native');
+export const obterLiveKitClient = (): any => carregar('livekit-client');
+export const obterFlashList = (): { FlashList: unknown } | null => carregar('@shopify/flash-list');

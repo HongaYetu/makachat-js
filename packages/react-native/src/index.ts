@@ -9,6 +9,17 @@ export {
     useTypingConversa,
     usePresenca,
     useFuncionalidadeAtiva,
+    useLigacao,
+    useMensagemRecebida,
+    useTotalNaoLidas,
 } from './hooks';
-export { ConversasScreen, Avatar, horaCurta, type ConversasScreenProps } from './ui/ConversasScreen';
+export { useTema } from './provider';
+export { type MakaTema } from './tema';
+export { Avatar, NomeComBadge, Sheet, ListaPerformante, horaCurta, rotuloDia } from './ui/comum';
+export { ConversasScreen, previewConversa, type ConversasScreenProps } from './ui/ConversasScreen';
 export { ChatScreen, type ChatScreenProps } from './ui/ChatScreen';
+export { InfoConversaScreen, type InfoConversaScreenProps } from './ui/InfoConversaScreen';
+export { ChamadasProvider, useChamadas, useChamadasOpcional, type ChamadasApi } from './chamadas';
+export { ReprodutorAudio, GravadorAudio } from './ui/audio';
+export { Galeria, LobbyFotos, VisualizadorVideo, enviarAnexoLocal, escolherFotosEVideos, escolherFicheiro } from './ui/media';
+export { Bolha, CartaoRegistoChamada } from './ui/Bolha';
