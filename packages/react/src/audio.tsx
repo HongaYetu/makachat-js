@@ -106,7 +106,7 @@ export function ReprodutorAudio({ url }: { url: string }) {
                 onClick={alternar}
                 className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-black/15 text-inherit transition-transform hover:scale-105"
             >
-                <Icon icon={aTocar ? 'mdi:pause' : 'mdi:play'} className="text-lg" />
+                <Icon icon={aTocar ? 'tabler:player-pause-filled' : 'tabler:player-play-filled'} className="text-lg" />
             </button>
             <div className="min-w-0 flex-1">
                 <div className="h-1.5 w-full cursor-pointer rounded-full bg-black/15" onClick={saltar}>

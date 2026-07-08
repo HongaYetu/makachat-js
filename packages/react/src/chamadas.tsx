@@ -200,7 +200,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 >
                     <AvatarWeb nome={titulo} url={foto} tamanho={30} />
                     <span className="text-sm font-semibold">{ativa.fase === 'em_curso' ? duracao : subtitulo}</span>
-                    <Icon icon="mdi:arrow-expand" className="text-white/70" />
+                    <Icon icon="tabler:arrows-maximize" className="text-white/70" />
                 </button>
             )}
 
@@ -224,10 +224,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                             <span className="block text-xs text-white/60">{subtitulo}</span>
                         </span>
                         <button title={modo === 'cheio' ? 'Restaurar' : 'Ecrã inteiro'} onClick={() => setModo(modo === 'cheio' ? 'janela' : 'cheio')} className="grid h-8 w-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 hover:bg-white/10">
-                            <Icon icon={modo === 'cheio' ? 'mdi:arrow-collapse' : 'mdi:arrow-expand'} />
+                            <Icon icon={modo === 'cheio' ? 'tabler:arrows-minimize' : 'tabler:arrows-maximize'} />
                         </button>
                         <button title="Minimizar" onClick={() => setModo('pill')} className="grid h-8 w-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 hover:bg-white/10">
-                            <Icon icon="mdi:minus" />
+                            <Icon icon="tabler:minus" />
                         </button>
                     </div>
 
@@ -247,27 +247,27 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                         {ativa.fase === 'a_receber' ? (
                             <>
                                 <B titulo="Atender" onClick={() => void atender()} classe="animate-maka-pulsar bg-emerald-500 hover:bg-emerald-400">
-                                    <Icon icon="mdi:phone" />
+                                    <Icon icon="tabler:phone" />
                                 </B>
                                 <B titulo="Rejeitar" onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500">
-                                    <Icon icon="mdi:phone-hangup" />
+                                    <Icon icon="tabler:phone-off" />
                                 </B>
                             </>
                         ) : (
                             <>
                                 <B titulo={mudo ? 'Ativar micro' : 'Silenciar'} onClick={() => { const m = !mudo; setMudo(m); void room.current?.localParticipant.setMicrophoneEnabled(!m); }}>
-                                    <Icon icon={mudo ? 'mdi:microphone-off' : 'mdi:microphone'} />
+                                    <Icon icon={mudo ? 'tabler:microphone-off' : 'tabler:microphone'} />
                                 </B>
                                 {ativa.chamada.tipo === 'video' && (
                                     <B titulo="Câmara" onClick={() => { const c = !camara; setCamara(c); void room.current?.localParticipant.setCameraEnabled(c); }}>
-                                        <Icon icon={camara ? 'mdi:video' : 'mdi:video-off'} />
+                                        <Icon icon={camara ? 'tabler:video' : 'tabler:video-off'} />
                                     </B>
                                 )}
                                 <B titulo="Partilhar ecrã" onClick={() => { const e = !ecra; setEcra(e); void room.current?.localParticipant.setScreenShareEnabled(e); }} classe={ecra ? 'bg-[var(--maka-primaria)]' : undefined}>
-                                    <Icon icon="mdi:monitor-share" />
+                                    <Icon icon="tabler:screen-share" />
                                 </B>
                                 <B titulo="Desligar" onClick={() => void desligar()} classe="bg-red-600 hover:bg-red-500">
-                                    <Icon icon="mdi:phone-hangup" />
+                                    <Icon icon="tabler:phone-off" />
                                 </B>
                             </>
                         )}

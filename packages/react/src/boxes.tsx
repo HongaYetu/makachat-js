@@ -24,7 +24,7 @@ export function MakaChatBoxFull({ conversaAbertaId }: BoxProps = {}) {
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
 export function MakaChatBoxMin({ conversaAbertaId }: BoxProps = {}) {
     return (
-        <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/5">
+        <div className="h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/[.05]">
             <DuasColunas conversaAbertaId={conversaAbertaId} />
         </div>
     );
@@ -63,7 +63,7 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
             )}
             <div className="flex min-h-0 flex-1">
             {mostrarLista && (
-                <div className={`h-full border-r border-slate-500/10 ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
+                <div className={`h-full border-r border-black/[.06] ${estreita ? 'w-full' : 'w-[340px] shrink-0'}`}>
                     <MakaChatConversas conversaAtivaId={ativa} onAbrirConversa={(c: Conversa) => setAtiva(c.id)} />
                 </div>
             )}
@@ -78,7 +78,7 @@ function DuasColunas({ conversaAbertaId }: BoxProps) {
                     ) : (
                         <div className="grid h-full place-items-center">
                             <div className="flex flex-col items-center gap-3 text-[var(--maka-texto-suave)]">
-                                <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--maka-superficie)] text-3xl shadow-sm"><Icon icon="mdi:chat-outline" className="text-[var(--maka-primaria)]" /></span>
+                                <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--maka-superficie)] text-3xl shadow-sm"><Icon icon="tabler:message-circle" className="text-[var(--maka-primaria)]" /></span>
                                 <span className="text-sm">Escolhe uma conversa para começar</span>
                             </div>
                         </div>
@@ -178,7 +178,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                     return (
                         <div
                             key={box.conversaId}
-                            className={`flex w-[336px] animate-maka-subir flex-col overflow-hidden rounded-t-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/10 transition-[height] duration-200 ${box.minimizada ? 'h-12' : 'h-[480px]'}`}
+                            className={`flex w-[336px] animate-maka-subir flex-col overflow-hidden rounded-t-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/[.05] transition-[height] duration-200 ${box.minimizada ? 'h-12' : 'h-[480px]'}`}
                         >
                             <button
                                 className="flex w-full cursor-pointer items-center gap-2.5 border-0 bg-[var(--maka-primaria)] px-3 py-2 text-left text-[var(--maka-primaria-contraste)]"
@@ -190,7 +190,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                                     className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/15"
                                     onClick={(e) => { e.stopPropagation(); fechar(box.conversaId); }}
                                 >
-                                    <Icon icon="mdi:close" className="text-sm" />
+                                    <Icon icon="tabler:x" className="text-sm" />
                                 </span>
                             </button>
                             {!box.minimizada && (
@@ -204,7 +204,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
 
                 <div className="relative mb-4" data-maka-pop="dock-popover">
                     {popover && (
-                        <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/10">
+                        <div className="absolute bottom-16 right-0 flex h-[440px] max-h-[70vh] w-[330px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal ring-1 ring-black/[.05]">
                             <MakaChatConversas onAbrirConversa={(c: Conversa) => abrir(c.id)} />
                         </div>
                     )}
@@ -212,7 +212,7 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, c
                         onClick={() => setPopover(!popover)}
                         className="relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-2xl text-[var(--maka-primaria-contraste)] shadow-xl transition-transform hover:scale-105 active:scale-95"
                     >
-                        <Icon icon="mdi:message-text" />
+                        <Icon icon="tabler:message-circle" />
                         {naoLidas > 0 && (
                             <span className="absolute -right-1 -top-1 animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
                                 {naoLidas}

@@ -8,8 +8,8 @@ module.exports = {
         extend: {
             boxShadow: {
                 // elevação suave e visível para menus/popovers (2 camadas: difusa + próxima)
-                'maka-pop': '0 12px 32px -6px rgba(15,23,42,.28), 0 4px 12px -4px rgba(15,23,42,.18)',
-                'maka-modal': '0 24px 64px -12px rgba(15,23,42,.45), 0 8px 24px -8px rgba(15,23,42,.25)',
+                'maka-pop': '0 12px 44px -8px rgba(2,6,23,.14), 0 3px 10px -3px rgba(2,6,23,.08)',
+                'maka-modal': '0 32px 90px -18px rgba(2,6,23,.25), 0 10px 28px -12px rgba(2,6,23,.10)',
             },
             keyframes: {
                 'maka-subir': {

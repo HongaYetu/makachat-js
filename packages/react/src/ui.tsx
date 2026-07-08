@@ -70,18 +70,18 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                     {verArquivadas ? 'Arquivadas' : 'Conversas'}
                 </span>
                 <BotaoIcone titulo={verArquivadas ? 'Voltar às conversas' : 'Arquivadas'} onClick={() => setVerArquivadas(!verArquivadas)}>
-                    <Icon icon={verArquivadas ? 'mdi:arrow-left' : 'mdi:archive-outline'} />
+                    <Icon icon={verArquivadas ? 'tabler:arrow-left' : 'tabler:archive'} />
                 </BotaoIcone>
                 {podeGrupos && (
                     <BotaoIcone titulo="Novo grupo" onClick={() => setCriarGrupo(true)}>
-                        <Icon icon="mdi:account-multiple-plus-outline" />
+                        <Icon icon="tabler:users-plus" />
                     </BotaoIcone>
                 )}
             </div>
             <div className="maka-scroll min-h-0 flex-1 overflow-y-auto">
             {conversas.length === 0 && (
                 <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
-                    <Icon icon="mdi:chat-outline" className="text-4xl opacity-40" />
+                    <Icon icon="tabler:message-circle" className="text-4xl opacity-40" />
                     <span className="text-sm">Sem conversas</span>
                 </div>
             )}
@@ -113,31 +113,31 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                                     {naoLidas}
                                 </span>
                             )}
-                            {c.participante?.fixada && <Icon icon="mdi:pin" className="text-[13px] text-[var(--maka-texto-suave)]" />}
+                            {c.participante?.fixada && <Icon icon="tabler:pin-filled" className="text-[13px] text-[var(--maka-texto-suave)]" />}
                         </span>
                     </button>
                     <button
                         data-maka-pop="menu-lista"
                         onClick={() => setMenuDe(menuDe === c.id ? null : c.id)}
-                        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-superficie)] text-[var(--maka-texto-suave)] opacity-0 shadow ring-1 ring-black/10 transition-opacity group-hover:opacity-100"
+                        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-superficie)] text-[var(--maka-texto-suave)] opacity-0 shadow ring-1 ring-black/[.05] transition-opacity group-hover:opacity-100"
                         title="Opções"
                     >
-                        <Icon icon="mdi:chevron-down" />
+                        <Icon icon="tabler:chevron-down" />
                     </button>
                     {menuDe === c.id && (
-                        <div data-maka-pop="menu-lista" className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
+                        <div data-maka-pop="menu-lista" className="absolute right-3 top-12 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]">
                             <ItemMenu onClick={() => { setMenuDe(null); void engine.marcarNaoLida(c.id).catch(() => undefined); }}>
-                                <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
+                                <Icon icon="tabler:mail-opened" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
                             <ItemMenu onClick={() => void preferencia(c, { fixada: !c.participante?.fixada })}>
-                                <Icon icon={c.participante?.fixada ? 'mdi:pin-off-outline' : 'mdi:pin-outline'} className="inline align-[-2px]" /> {c.participante?.fixada ? 'Desafixar' : 'Fixar'}
+                                <Icon icon={c.participante?.fixada ? 'tabler:pinned-off' : 'tabler:pin'} className="inline align-[-2px]" /> {c.participante?.fixada ? 'Desafixar' : 'Fixar'}
                             </ItemMenu>
                             <ItemMenu onClick={() => void preferencia(c, { arquivada: !verArquivadas })}>
-                                <Icon icon={verArquivadas ? 'mdi:archive-arrow-up-outline' : 'mdi:archive-arrow-down-outline'} className="inline align-[-2px]" /> {verArquivadas ? 'Desarquivar' : 'Arquivar'}
+                                <Icon icon={verArquivadas ? 'tabler:archive-off' : 'tabler:archive'} className="inline align-[-2px]" /> {verArquivadas ? 'Desarquivar' : 'Arquivar'}
                             </ItemMenu>
                             {podeEliminarConversa && (
                                 <ItemMenu onClick={() => { setMenuDe(null); setConfirmarEliminar(c); }}>
-                                    <Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar conversa
+                                    <Icon icon="tabler:trash" className="inline align-[-2px]" /> Eliminar conversa
                                 </ItemMenu>
                             )}
                         </div>
@@ -236,7 +236,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
             <div className="flex max-h-[80vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">{grupo ? 'Info do grupo' : 'Info da conversa'}</span>
-                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
 
                 <div className="flex flex-col items-center gap-2 px-4 pb-3">
@@ -248,7 +248,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                                 title="Mudar foto"
                                 className="absolute -bottom-1 -right-1 grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-sm text-[var(--maka-primaria-contraste)] shadow"
                             >
-                                {aEnviarFoto ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:camera" />}
+                                {aEnviarFoto ? <Icon icon="tabler:loader-2" className="animate-spin" /> : <Icon icon="tabler:camera" />}
                             </button>
                         )}
                         <input ref={fotoInput} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void mudarFoto(f); e.target.value = ''; }} />
@@ -278,10 +278,10 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                                     <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">{souEu ? 'Tu' : p.nome}</span>
                                     <span className="text-xs text-[var(--maka-texto-suave)]">{p.papel !== 'membro' ? p.papel : p.tipo}</span>
                                 </span>
-                                {!souEu && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="mdi:chat-outline" /></BotaoIcone>}
+                                {!souEu && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="tabler:message-circle" /></BotaoIcone>}
                                 {!souEu && souAdmin && (
                                     <BotaoIcone titulo="Remover do grupo" onClick={() => { void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas()); }}>
-                                        <Icon icon="mdi:account-remove-outline" className="text-red-500" />
+                                        <Icon icon="tabler:user-minus" className="text-red-500" />
                                     </BotaoIcone>
                                 )}
                             </div>
@@ -346,7 +346,7 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
             <div className="flex max-h-[70vh] w-[340px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">Adicionar membros</span>
-                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
                 <div className="maka-scroll min-h-0 flex-1 overflow-auto">
                     {pessoas.length === 0 && <div className="px-4 py-6 text-sm text-[var(--maka-texto-suave)]">Toda a gente conhecida já está no grupo.</div>}
@@ -356,7 +356,7 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
 
                         return (
                             <button key={chave} onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })} className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]">
-                                <Icon icon={marcado ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
+                                <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={32} />
                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
                             </button>
@@ -395,7 +395,7 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
             <div className="flex max-h-[74vh] w-[380px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">Novo grupo</span>
-                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
                 <div className="px-4 pb-2">
                     <input
@@ -418,7 +418,7 @@ function CriarGrupoModal({ conversas, contactos, aoFechar, aoCriada }: {
                                 onClick={() => setEscolhidos((a) => { const n = new Set(a); marcado ? n.delete(chave) : n.add(chave); return n; })}
                                 className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]"
                             >
-                                <Icon icon={marcado ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
+                                <Icon icon={marcado ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={34} />
                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
                                 <span className="text-xs text-[var(--maka-texto-suave)]">{p.tipo}</span>
@@ -752,7 +752,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
     return (
         <div className="relative flex h-full min-w-0 flex-col bg-[var(--maka-fundo)] text-[var(--maka-texto)]">
             {/* header */}
-            <div className={`z-[1] flex items-center gap-3 bg-[var(--maka-superficie)] shadow-sm ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
+            <div className={`z-[1] flex items-center gap-3 border-b border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'px-3 py-2' : 'px-4 py-2.5'}`}>
                 <span className="relative cursor-pointer" onClick={() => setInfoAberta(true)}>
                     <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={compacto ? 34 : 42} grupo={conversa?.tipo === 'grupo'} />
                     {presenca?.online && (
@@ -765,24 +765,24 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
                     </span>
                 </span>
-                {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="mdi:phone" /></BotaoIcone>}
-                {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="mdi:video-outline" /></BotaoIcone>}
+                {chamadas && podeAudioChamada && <BotaoIcone titulo="Chamada de áudio" onClick={() => void chamadas.iniciar(conversaId, 'audio')}><Icon icon="tabler:phone" /></BotaoIcone>}
+                {chamadas && podeVideoChamada && <BotaoIcone titulo="Chamada de vídeo" onClick={() => void chamadas.iniciar(conversaId, 'video')}><Icon icon="tabler:video" /></BotaoIcone>}
                 <span className="relative" data-maka-pop="menu-cabecalho">
-                    <BotaoIcone titulo="Opções da conversa" onClick={() => setMenuConversa(!menuConversa)}><Icon icon="mdi:dots-vertical" /></BotaoIcone>
+                    <BotaoIcone titulo="Opções da conversa" onClick={() => setMenuConversa(!menuConversa)}><Icon icon="tabler:dots-vertical" /></BotaoIcone>
                     {menuConversa && (
-                        <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
+                        <div className="absolute right-0 top-10 z-[5] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]">
                             <ItemMenu onClick={() => { setMenuConversa(false); void engine.marcarNaoLida(conversaId).catch(() => undefined); aoFechar?.(); }}>
-                                <Icon icon="mdi:email-mark-as-unread" className="inline align-[-2px]" /> Marcar como não lida
+                                <Icon icon="tabler:mail-opened" className="inline align-[-2px]" /> Marcar como não lida
                             </ItemMenu>
                             {podeEliminarConversa && (
                                 <ItemMenu onClick={() => { setMenuConversa(false); setConfirmarEliminarConversa(true); }}>
-                                    <Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar conversa
+                                    <Icon icon="tabler:trash" className="inline align-[-2px]" /> Eliminar conversa
                                 </ItemMenu>
                             )}
                         </div>
                     )}
                 </span>
-                {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>}
+                {aoFechar && <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>}
             </div>
 
             {contexto && (
@@ -862,11 +862,11 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                         className={`pointer-events-auto flex animate-maka-flutuar cursor-pointer items-center gap-1.5 rounded-full border-0 shadow-lg transition-all duration-200 ease-out hover:scale-105 ${
                             novas > 0
                                 ? 'bg-[var(--maka-primaria)] px-3.5 py-2 text-[13px] font-bold text-[var(--maka-primaria-contraste)]'
-                                : 'grid h-10 w-10 place-items-center bg-[var(--maka-superficie)] text-lg text-[var(--maka-texto)] ring-1 ring-black/10'
+                                : 'grid h-10 w-10 place-items-center bg-[var(--maka-superficie)] text-lg text-[var(--maka-texto)] ring-1 ring-black/[.05]'
                         }`}
                     >
-                        {novas > 0 ? `${novas} ${novas === 1 ? 'mensagem nova' : 'mensagens novas'}` : <Icon icon="mdi:chevron-down" />}
-                        {novas > 0 && <Icon icon="mdi:chevron-down" />}
+                        {novas > 0 ? `${novas} ${novas === 1 ? 'mensagem nova' : 'mensagens novas'}` : <Icon icon="tabler:chevron-down" />}
+                        {novas > 0 && <Icon icon="tabler:chevron-down" />}
                     </button>
                 </div>
             )}
@@ -877,7 +877,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 <div className="flex items-center gap-2 border-t-2 border-[var(--maka-primaria)] bg-[var(--maka-superficie)] px-3 py-1.5 text-[13px]">
                     <span className="font-bold text-[var(--maka-primaria)]">{editar ? 'Editar' : 'Responder'}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--maka-texto-suave)]">{(editar ?? responderA)?.conteudo ?? '📎 anexo'}</span>
-                    <BotaoIcone titulo="Cancelar" onClick={() => { setResponderA(null); setEditar(null); setTexto(''); }}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Cancelar" onClick={() => { setResponderA(null); setEditar(null); setTexto(''); }}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
             )}
 
@@ -905,12 +905,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 aoGravarAudio={(blob) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }))}
             />
             {menuAnexo && (
-                <div data-maka-pop="menu-anexo" className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10">
+                <div data-maka-pop="menu-anexo" className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]">
                     <ItemMenu onClick={() => { setMenuAnexo(false); fotoInput.current?.click(); }}>
-                        <Icon icon="mdi:image-outline" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Fotos e vídeos
+                        <Icon icon="tabler:photo" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Fotos e vídeos
                     </ItemMenu>
                     <ItemMenu onClick={() => { setMenuAnexo(false); ficheiro.current?.click(); }}>
-                        <Icon icon="mdi:file-outline" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Ficheiro
+                        <Icon icon="tabler:file" className="inline align-[-2px] text-[var(--maka-primaria)]" /> Ficheiro
                     </ItemMenu>
                 </div>
             )}
@@ -1123,12 +1123,12 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
                     {String(Math.floor(segundos / 60)).padStart(2, '0')}:{String(segundos % 60).padStart(2, '0')}
                 </span>
                 <span className="flex-1 text-xs text-[var(--maka-texto-suave)]">a gravar…</span>
-                <BotaoIcone titulo="Cancelar" onClick={() => terminar(true)}><Icon icon="mdi:delete-outline" className="text-red-500" /></BotaoIcone>
+                <BotaoIcone titulo="Cancelar" onClick={() => terminar(true)}><Icon icon="tabler:trash" className="text-red-500" /></BotaoIcone>
                 <button
                     onClick={() => terminar(false)}
                     className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105"
                 >
-                    <Icon icon="mdi:send" className="text-lg" />
+                    <Icon icon="tabler:send-2" className="text-lg" />
                 </button>
             </div>
         );
@@ -1138,7 +1138,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
         <div className={`flex items-center gap-2 bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
             {podeMedia && (
                 <BotaoIcone titulo="Anexar" onClick={aoAnexar}>
-                    {aEnviarMedia ? <Icon icon="mdi:loading" className="animate-spin" /> : <Icon icon="mdi:paperclip" />}
+                    {aEnviarMedia ? <Icon icon="tabler:loader-2" className="animate-spin" /> : <Icon icon="tabler:paperclip" />}
                 </BotaoIcone>
             )}
             <textarea
@@ -1166,14 +1166,14 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
                     title="Gravar áudio"
                     className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
                 >
-                    <Icon icon="mdi:microphone" className="text-lg" />
+                    <Icon icon="tabler:microphone" className="text-lg" />
                 </button>
             ) : (
                 <button
                     onClick={aoEnviar}
                     className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
                 >
-                    <Icon icon="mdi:send" className="text-lg" />
+                    <Icon icon="tabler:send-2" className="text-lg" />
                 </button>
             )}
         </div>
@@ -1217,27 +1217,27 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     const mostrarBarra = hover || picker || menu;
 
     const barra = mostrarBarra && !m.eliminada && (
-        <div data-maka-pop={`bolha-${m.id}`} className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/5 ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
+        <div data-maka-pop={`bolha-${m.id}`} className={`absolute top-1/2 z-[2] flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-[var(--maka-superficie)] px-1.5 py-1 shadow-md ring-1 ring-black/[.05] ${minha ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'}`}>
             {podeReagir && (
                 <button
                     className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]"
                     title="Reagir"
                     onClick={() => { setPicker(!picker); setMenu(false); }}
                 >
-                    <Icon icon="mdi:emoticon-happy-outline" />
+                    <Icon icon="tabler:mood-smile" />
                 </button>
             )}
             <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]" title="Responder" onClick={acoes.responder}>
-                <Icon icon="mdi:reply" />
+                <Icon icon="tabler:arrow-back-up" />
             </button>
             {(acoes.editar || acoes.eliminar || acoes.encaminhar) && (
                 <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-base text-[var(--maka-texto-suave)] hover:bg-[var(--maka-fundo)] hover:text-[var(--maka-texto)]" title="Mais opções" onClick={() => { setMenu(!menu); setPicker(false); }}>
-                    <Icon icon="mdi:dots-horizontal" />
+                    <Icon icon="tabler:dots" />
                 </button>
             )}
 
             {picker && (
-                <div className={`absolute -top-11 z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute -top-11 z-[3] flex animate-maka-subir items-center gap-1.5 rounded-full bg-[var(--maka-superficie)] px-3 py-1.5 shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
                     {EMOJIS.map((e) => (
                         <button
                             key={e}
@@ -1250,10 +1250,10 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 </div>
             )}
             {menu && (
-                <div className={`absolute top-9 z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/10 ${minha ? 'right-0' : 'left-0'}`}>
-                    {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="mdi:share" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
-                    {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="mdi:pencil-outline" className="inline align-[-2px]" /> Editar</ItemMenu>}
-                    {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="mdi:delete-outline" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
+                <div className={`absolute top-9 z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
+                    {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="tabler:share-3" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
+                    {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="tabler:pencil" className="inline align-[-2px]" /> Editar</ItemMenu>}
+                    {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="tabler:trash" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
                 </div>
             )}
         </div>
@@ -1291,18 +1291,18 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                         onClick={() => aoClicarCitacao(m.resposta_a_id as string)}
                         className={`cursor-pointer truncate rounded-md border-0 px-2 py-1 text-left text-xs text-inherit opacity-90 transition-opacity hover:opacity-100 ${minha ? 'bg-white/20' : 'bg-black/5'}`}
                     >
-                        <Icon icon="mdi:reply" className="mr-1 inline align-[-2px]" />
+                        <Icon icon="tabler:arrow-back-up" className="mr-1 inline align-[-2px]" />
                         {respondida ? (respondida.conteudo ?? '📎 anexo') : 'Ver mensagem original'}
                     </button>
                 )}
                 {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} aoAbrirFoto={aoAbrirFoto} />)}
                 {m.eliminada ? (
-                    <em className="flex items-center gap-1 opacity-60"><Icon icon="mdi:cancel" /> Mensagem eliminada</em>
+                    <em className="flex items-center gap-1 opacity-60"><Icon icon="tabler:ban" /> Mensagem eliminada</em>
                 ) : (
                     m.conteudo && <span className="whitespace-pre-wrap text-sm leading-relaxed">{m.conteudo}</span>
                 )}
                 <span className="flex items-center gap-1 self-end text-[10px] opacity-60">
-                    {m.encaminhada_de_id && <Icon icon="mdi:share" />}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}
+                    {m.encaminhada_de_id && <Icon icon="tabler:share-3" />}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}
                     {minha && <TicksWeb mensagem={m} outros={outros} />}
                 </span>
             </div>
@@ -1311,7 +1311,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             {grupos.length > 0 && (
                 <button
                     onClick={aoVerReacoes}
-                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/5 transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-3'}`}
+                    className={`absolute -bottom-1 z-[1] flex cursor-pointer items-center gap-1 rounded-full border-0 bg-[var(--maka-superficie)] px-2 py-px text-[12px] shadow-md ring-1 ring-black/[.05] transition-transform hover:scale-105 ${minha ? 'right-3' : 'left-3'}`}
                 >
                     {grupos.map((g) => (
                         <span key={g.emoji}>
@@ -1347,7 +1347,7 @@ function ModalReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMe
             <div className="w-[340px] animate-maka-subir overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">Reações</span>
-                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
                 <div className="maka-scroll max-h-[50vh] overflow-auto pb-2">
                     {mensagem.reacoes.length === 0 && (
@@ -1375,7 +1375,7 @@ function ModalReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMe
                                 </span>
                                 {!souEu && aoMensagem && p && (
                                     <BotaoIcone titulo={`Mensagem a ${p.nome}`} onClick={() => void aoMensagem(p)}>
-                                        <Icon icon="mdi:chat-outline" />
+                                        <Icon icon="tabler:message-circle" />
                                     </BotaoIcone>
                                 )}
                                 <span className="text-xl">{r.emoji}</span>
@@ -1409,7 +1409,7 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
                     <span className="font-bold text-[var(--maka-texto)]">
                         Enviar {ficheiros.length === 1 ? 'foto' : `${ficheiros.length} fotos`}
                     </span>
-                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
 
                 {/* destaque da primeira + grelha de miniaturas */}
@@ -1417,13 +1417,13 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
                 <div className="maka-scroll flex gap-2 overflow-x-auto px-3 py-2.5">
                     {urls.map((u, i) => (
                         <span key={i} className="relative shrink-0">
-                            <img src={u} className="h-16 w-16 rounded-lg object-cover ring-1 ring-black/10" alt="" />
+                            <img src={u} className="h-16 w-16 rounded-lg object-cover ring-1 ring-black/[.05]" alt="" />
                             <button
                                 onClick={() => aoRemover(i)}
                                 className="absolute -right-1.5 -top-1.5 grid h-5 w-5 cursor-pointer place-items-center rounded-full border-0 bg-slate-900 text-[10px] text-white shadow"
                                 title="Remover"
                             >
-                                <Icon icon="mdi:close" />
+                                <Icon icon="tabler:x" />
                             </button>
                         </span>
                     ))}
@@ -1433,7 +1433,7 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
                             className="grid h-16 w-16 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-slate-300 bg-transparent text-xl text-[var(--maka-texto-suave)] hover:border-[var(--maka-primaria)] hover:text-[var(--maka-primaria)]"
                             title="Adicionar mais"
                         >
-                            <Icon icon="mdi:plus" />
+                            <Icon icon="tabler:plus" />
                         </button>
                     )}
                 </div>
@@ -1451,7 +1451,7 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
                         onClick={() => aoEnviar(legenda)}
                         className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105"
                     >
-                        <Icon icon="mdi:send" className="text-lg" />
+                        <Icon icon="tabler:send-2" className="text-lg" />
                     </button>
                 </div>
             </div>
@@ -1472,20 +1472,20 @@ function AnexoView({ anexo: a, aoAbrirFoto }: { anexo: Anexo; aoAbrirFoto(url: s
 }
 
 const ICONE_POR_EXTENSAO: Record<string, string> = {
-    pdf: 'mdi:file-pdf-box',
-    doc: 'mdi:file-word-box', docx: 'mdi:file-word-box',
-    xls: 'mdi:file-excel-box', xlsx: 'mdi:file-excel-box', csv: 'mdi:file-excel-box',
-    ppt: 'mdi:file-powerpoint-box', pptx: 'mdi:file-powerpoint-box',
-    zip: 'mdi:folder-zip', rar: 'mdi:folder-zip', '7z': 'mdi:folder-zip',
-    mp3: 'mdi:file-music', wav: 'mdi:file-music', webm: 'mdi:file-music',
-    jpg: 'mdi:file-image', jpeg: 'mdi:file-image', png: 'mdi:file-image', gif: 'mdi:file-image',
-    txt: 'mdi:file-document-outline',
+    pdf: 'tabler:file-type-pdf',
+    doc: 'tabler:file-type-doc', docx: 'tabler:file-type-doc',
+    xls: 'tabler:file-type-xls', xlsx: 'tabler:file-type-xls', csv: 'tabler:file-type-xls',
+    ppt: 'tabler:file-type-ppt', pptx: 'tabler:file-type-ppt',
+    zip: 'tabler:file-zip', rar: 'tabler:file-zip', '7z': 'tabler:file-zip',
+    mp3: 'tabler:file-music', wav: 'tabler:file-music', webm: 'tabler:file-music',
+    jpg: 'tabler:photo', jpeg: 'tabler:photo', png: 'tabler:photo', gif: 'tabler:photo',
+    txt: 'tabler:file-text',
 };
 
 function CartaoFicheiro({ anexo: a }: { anexo: Anexo }) {
     const nome = a.nome_ficheiro ?? 'Ficheiro';
     const extensao = (nome.includes('.') ? nome.split('.').pop() ?? '' : '').toLowerCase();
-    const icone = ICONE_POR_EXTENSAO[extensao] ?? 'mdi:file-outline';
+    const icone = ICONE_POR_EXTENSAO[extensao] ?? 'tabler:file';
     const tamanho = a.tamanho_bytes
         ? a.tamanho_bytes >= 1024 * 1024
             ? `${(a.tamanho_bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -1507,7 +1507,7 @@ function CartaoFicheiro({ anexo: a }: { anexo: Anexo }) {
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/15 text-inherit transition-transform hover:scale-105"
                 title="Descarregar"
             >
-                <Icon icon="mdi:download" className="text-lg" />
+                <Icon icon="tabler:download" className="text-lg" />
             </a>
         </div>
     );
@@ -1562,8 +1562,8 @@ function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, ao
                 {indice + 1} / {itens.length}
             </div>
             <div className="absolute right-4 top-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <Botao titulo="Responder" onClick={() => aoResponder(atual.mensagem)}><Icon icon="mdi:reply" /></Botao>
-                {aoEncaminhar && <Botao titulo="Reencaminhar" onClick={() => aoEncaminhar(atual.mensagem)}><Icon icon="mdi:share" /></Botao>}
+                <Botao titulo="Responder" onClick={() => aoResponder(atual.mensagem)}><Icon icon="tabler:arrow-back-up" /></Botao>
+                {aoEncaminhar && <Botao titulo="Reencaminhar" onClick={() => aoEncaminhar(atual.mensagem)}><Icon icon="tabler:share-3" /></Botao>}
                 <a
                     href={urlDownload(atual.url)}
                     download={atual.nome}
@@ -1571,10 +1571,10 @@ function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, ao
                     onClick={(e) => e.stopPropagation()}
                     className="grid h-10 w-10 cursor-pointer place-items-center rounded-full bg-white/15 text-lg text-white transition-colors hover:bg-white/30"
                 >
-                    <Icon icon="mdi:download" />
+                    <Icon icon="tabler:download" />
                 </a>
-                <Botao titulo="Eliminar" onClick={() => aoEliminar(atual.mensagem)}><Icon icon="mdi:delete-outline" /></Botao>
-                <Botao titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></Botao>
+                <Botao titulo="Eliminar" onClick={() => aoEliminar(atual.mensagem)}><Icon icon="tabler:trash" /></Botao>
+                <Botao titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></Botao>
             </div>
 
             {indice > 0 && (
@@ -1582,7 +1582,7 @@ function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, ao
                     className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-2xl text-white hover:bg-white/25"
                     onClick={(e) => { e.stopPropagation(); setIndice(indice - 1); }}
                 >
-                    <Icon icon="mdi:chevron-left" />
+                    <Icon icon="tabler:chevron-left" />
                 </button>
             )}
             {indice < itens.length - 1 && (
@@ -1590,7 +1590,7 @@ function Galeria({ itens, indiceInicial, aoFechar, aoResponder, aoEncaminhar, ao
                     className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/15 text-2xl text-white hover:bg-white/25"
                     onClick={(e) => { e.stopPropagation(); setIndice(indice + 1); }}
                 >
-                    <Icon icon="mdi:chevron-right" />
+                    <Icon icon="tabler:chevron-right" />
                 </button>
             )}
         </div>
@@ -1676,7 +1676,7 @@ function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; 
             <div className="flex max-h-[70vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="font-bold text-[var(--maka-texto)]">{titulo}</span>
-                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="mdi:close" /></BotaoIcone>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
                 <div className="maka-scroll flex-1 overflow-auto">
                     {conversas.map((c) => (
@@ -1686,7 +1686,7 @@ function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; 
                             className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-[var(--maka-fundo)]"
                         >
                             <Icon
-                                icon={escolhidas.has(c.id) ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'}
+                                icon={escolhidas.has(c.id) ? 'tabler:checkbox-marked-circle' : 'tabler:checkbox-blank-circle-outline'}
                                 className={`text-xl ${escolhidas.has(c.id) ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`}
                             />
                             <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} tamanho={34} />
@@ -1709,23 +1709,23 @@ function EscolherConversas({ titulo, aoConfirmar, aoFechar }: { titulo: string; 
 }
 
 function TicksWeb({ mensagem, outros }: { mensagem: Mensagem; outros: ParticipanteConversa[] }) {
-    if (mensagem.estado_envio === 'a_enviar') return <Icon icon="mdi:clock-outline" />;
-    if (mensagem.estado_envio === 'falhou') return <Icon icon="mdi:alert-circle-outline" className="text-red-500" />;
+    if (mensagem.estado_envio === 'a_enviar') return <Icon icon="tabler:clock" />;
+    if (mensagem.estado_envio === 'falhou') return <Icon icon="tabler:alert-circle" className="text-red-500" />;
 
     const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
     const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
 
-    return <Icon icon={entregue || lida ? 'mdi:check-all' : 'mdi:check'} className={`text-[13px] ${lida ? 'opacity-100' : 'opacity-60'}`} />;
+    return <Icon icon={entregue || lida ? 'tabler:checks' : 'tabler:check'} className={`text-[13px] ${lida ? 'opacity-100' : 'opacity-60'}`} />;
 }
 
 export function AvatarWeb({ nome, url, tamanho = 44, grupo = false }: { nome: string; url?: string | null; tamanho?: number; grupo?: boolean }) {
     if (!url && grupo) {
         return (
             <span
-                className="grid shrink-0 place-items-center rounded-full bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] ring-2 ring-black/5"
+                className="grid shrink-0 place-items-center rounded-full bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] ring-1 ring-black/[.05]"
                 style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.5 }}
             >
-                <Icon icon="mdi:account-group" />
+                <Icon icon="tabler:users-group" />
             </span>
         );
     }
@@ -1735,7 +1735,7 @@ export function AvatarWeb({ nome, url, tamanho = 44, grupo = false }: { nome: st
             <img
                 src={url}
                 alt={nome}
-                className="shrink-0 rounded-full object-cover ring-2 ring-black/5"
+                className="shrink-0 rounded-full object-cover ring-1 ring-black/[.05]"
                 style={{ width: tamanho, height: tamanho }}
             />
         );
@@ -1743,7 +1743,7 @@ export function AvatarWeb({ nome, url, tamanho = 44, grupo = false }: { nome: st
 
     return (
         <span
-            className="grid shrink-0 place-items-center rounded-full bg-[var(--maka-primaria)] font-bold text-[var(--maka-primaria-contraste)] ring-2 ring-black/5"
+            className="grid shrink-0 place-items-center rounded-full bg-[var(--maka-primaria)] font-bold text-[var(--maka-primaria-contraste)] ring-1 ring-black/[.05]"
             style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.42 }}
         >
             {nome.trim().charAt(0).toUpperCase() || '?'}
