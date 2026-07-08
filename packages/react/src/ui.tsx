@@ -464,7 +464,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoAbrir
                 <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[4] flex justify-center">
                     <button
                         onClick={() => { scrollParaFundo(); setNovas(0); }}
-                        className={`pointer-events-auto flex animate-maka-subir cursor-pointer items-center gap-1.5 rounded-full border-0 shadow-lg transition-transform hover:scale-105 ${
+                        className={`pointer-events-auto flex animate-maka-flutuar cursor-pointer items-center gap-1.5 rounded-full border-0 shadow-lg transition-all duration-200 ease-out hover:scale-105 ${
                             novas > 0
                                 ? 'bg-[var(--maka-primaria)] px-3.5 py-2 text-[13px] font-bold text-[var(--maka-primaria-contraste)]'
                                 : 'grid h-10 w-10 place-items-center bg-[var(--maka-superficie)] text-lg text-[var(--maka-texto)] ring-1 ring-black/10'

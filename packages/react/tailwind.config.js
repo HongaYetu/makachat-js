@@ -19,11 +19,17 @@ module.exports = {
                     '0%, 60%, 100%': { transform: 'translateY(0)', opacity: '.45' },
                     '30%': { transform: 'translateY(-4px)', opacity: '1' },
                 },
+                'maka-flutuar': {
+                    '0%': { opacity: '0', transform: 'translateY(14px) scale(.85)' },
+                    '60%': { opacity: '1', transform: 'translateY(-2px) scale(1.03)' },
+                    '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                },
             },
             animation: {
                 'maka-subir': 'maka-subir .18s ease-out',
                 'maka-pulsar': 'maka-pulsar 1.4s ease-in-out infinite',
                 'maka-salto': 'maka-salto 1.2s ease-in-out infinite',
+                'maka-flutuar': 'maka-flutuar .35s cubic-bezier(.34,1.3,.64,1)',
             },
         },
     },
