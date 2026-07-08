@@ -25,6 +25,7 @@ interface ModuloNativo {
     configurar(appGroup: string | null): void;
     obterChamadaPendente(): Promise<string | null>;
     cancelarNotificacaoChamada(chamadaId: string): void;
+    configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
 }
 
 const nativo = requireNativeModule<ModuloNativo>('ExpoMakachatPush');
@@ -66,4 +67,13 @@ export function aoChamadaPush(ouvinte: (chamada: ChamadaPush) => void): { remove
 /** Cancela a notificação de chamada (depois de atender/rejeitar na app). */
 export function cancelarNotificacaoChamada(chamadaId: string): void {
     nativo.cancelarNotificacaoChamada(chamadaId);
+}
+
+/**
+ * Liga a resposta ao vivo da notificação (Android): guarda no SQLite nativo o
+ * endpoint + credenciais do dispositivo (do registo em POST /v1/dispositivos)
+ * para o serviço nativo enviar respostas com a app fechada.
+ */
+export function configurarResposta(config: { api_url: string; token: string; segredo: string; meu_nome: string }): void {
+    nativo.configurarResposta(config.api_url, config.token, config.segredo, config.meu_nome);
 }

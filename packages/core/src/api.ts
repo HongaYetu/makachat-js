@@ -223,6 +223,9 @@ export class MakaApi {
         token_voip?: string;
         versao_app?: string;
     }) {
-        return this.pedir('/v1/dispositivos', { method: 'POST', body: JSON.stringify(dados) });
+        return this.pedir<{ segredo_resposta?: string }>('/v1/dispositivos', {
+            method: 'POST',
+            body: JSON.stringify(dados),
+        });
     }
 }

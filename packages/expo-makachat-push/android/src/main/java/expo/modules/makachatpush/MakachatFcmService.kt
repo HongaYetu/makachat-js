@@ -10,6 +10,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import java.time.Instant
@@ -33,6 +34,91 @@ class MakachatFcmService : FirebaseMessagingService() {
         fun cancelarChamada(context: Context, chamadaId: String) {
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             gestor.cancel(chamadaId.hashCode())
+        }
+
+        fun cancelarNotificacaoMensagens(context: Context, conversaId: String) {
+            val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            gestor.cancel(conversaId.hashCode())
+        }
+
+        /**
+         * (Re)constrói a notificação MessagingStyle da conversa a partir do
+         * histórico SQLite — usado no push novo e depois de responder ao vivo.
+         */
+        fun mostrarMensagens(context: Context, conversaId: String, titulo: String, silenciosa: Boolean = false) {
+            val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                gestor.createNotificationChannel(
+                    NotificationChannel(CANAL, "Mensagens", NotificationManager.IMPORTANCE_HIGH)
+                )
+            }
+
+            val db = InboxDatabase.get(context)
+            val eu = Person.Builder().setName(db.obterConfig("meu_nome") ?: "Eu").build()
+            val estilo = NotificationCompat.MessagingStyle(eu)
+
+            val historico = db.historicoDe(conversaId)
+
+            if (historico.isEmpty()) {
+                gestor.cancel(conversaId.hashCode())
+
+                return
+            }
+
+            for (linha in historico) {
+                val pessoa = if (linha.minha) eu else Person.Builder().setName(linha.remetente).build()
+                estilo.addMessage(NotificationCompat.MessagingStyle.Message(linha.corpo, linha.em, if (linha.minha) null else pessoa))
+            }
+
+            if (historico.any { !it.minha && it.remetente != titulo }) {
+                estilo.conversationTitle = titulo
+                estilo.isGroupConversation = true
+            }
+
+            // responder ao vivo (RemoteInput) + marcar como lida
+            val extras = { acao: String ->
+                Intent(context, RespostaReceiver::class.java).apply {
+                    action = acao
+                    putExtra("conversa_id", conversaId)
+                    putExtra("titulo", titulo)
+                }
+            }
+            val responderPI = PendingIntent.getBroadcast(
+                context,
+                ("resp_" + conversaId).hashCode(),
+                extras(RespostaReceiver.ACAO_RESPONDER),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            )
+            val lidaPI = PendingIntent.getBroadcast(
+                context,
+                ("lida_" + conversaId).hashCode(),
+                extras(RespostaReceiver.ACAO_LIDA),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val remoteInput = RemoteInput.Builder(RespostaReceiver.CHAVE_TEXTO).setLabel("Responder…").build()
+            val acaoResponder = NotificationCompat.Action.Builder(0, "Responder", responderPI)
+                .addRemoteInput(remoteInput)
+                .setAllowGeneratedReplies(true)
+                .build()
+
+            val abrir = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+                it.putExtra("makachat_conversa_id", conversaId)
+                PendingIntent.getActivity(context, conversaId.hashCode(), it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            }
+
+            val notificacao = NotificationCompat.Builder(context, CANAL)
+                .setSmallIcon(context.applicationInfo.icon)
+                .setStyle(estilo)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(silenciosa)
+                .setContentIntent(abrir)
+                .addAction(acaoResponder)
+                .addAction(0, "Marcar lida", lidaPI)
+                .build()
+
+            gestor.notify(conversaId.hashCode(), notificacao)
         }
     }
 
@@ -65,7 +151,9 @@ class MakachatFcmService : FirebaseMessagingService() {
             )
         )
 
-        mostrarNotificacao(dados["titulo"] ?: "Nova mensagem", dados["corpo"] ?: "", conversaId)
+        val titulo = dados["titulo"] ?: "Nova mensagem"
+        InboxDatabase.get(applicationContext).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
+        mostrarMensagens(applicationContext, conversaId, titulo)
     }
 
     // ------------------------------------------------------------ chamadas
@@ -181,29 +269,4 @@ class MakachatFcmService : FirebaseMessagingService() {
 
     private fun prefs() = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    // ------------------------------------------------------------ mensagens
-
-    private fun mostrarNotificacao(titulo: String, corpo: String, conversaId: String) {
-        val gestor = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            gestor.createNotificationChannel(
-                NotificationChannel(CANAL, "Mensagens", NotificationManager.IMPORTANCE_HIGH)
-            )
-        }
-
-        val abrir = packageManager.getLaunchIntentForPackage(packageName)?.let {
-            PendingIntent.getActivity(this, conversaId.hashCode(), it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        }
-
-        val notificacao = NotificationCompat.Builder(this, CANAL)
-            .setSmallIcon(applicationInfo.icon)
-            .setContentTitle(titulo)
-            .setContentText(corpo)
-            .setAutoCancel(true)
-            .setContentIntent(abrir)
-            .build()
-
-        gestor.notify(conversaId.hashCode(), notificacao)
-    }
 }

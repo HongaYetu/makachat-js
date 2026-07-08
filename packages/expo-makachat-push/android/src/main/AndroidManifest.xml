@@ -7,5 +7,8 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        <receiver
+            android:name="expo.modules.makachatpush.RespostaReceiver"
+            android:exported="false" />
     </application>
 </manifest>

@@ -28,6 +28,19 @@ class ExpoMakachatPushModule : Module() {
             json
         }
 
+        /**
+         * Config da resposta ao vivo: guardada no SQLite nativo para o
+         * RespostaReceiver enviar com a app fechada (token+segredo do registo
+         * do dispositivo em POST /v1/dispositivos).
+         */
+        Function("configurarResposta") { apiUrl: String, token: String, segredo: String, meuNome: String ->
+            val db = InboxDatabase.get(appContext.reactContext!!)
+            db.gravarConfig("api_url", apiUrl)
+            db.gravarConfig("token_dispositivo", token)
+            db.gravarConfig("segredo_resposta", segredo)
+            db.gravarConfig("meu_nome", meuNome)
+        }
+
         /** Cancela a notificação de chamada (ex.: depois de atender via app). */
         Function("cancelarNotificacaoChamada") { chamadaId: String ->
             MakachatFcmService.cancelarChamada(appContext.reactContext!!, chamadaId)

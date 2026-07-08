@@ -27,5 +27,9 @@ public class ExpoMakachatPushModule: Module {
         Function("cancelarNotificacaoChamada") { (_: String) in
             // notificações são geridas pelo sistema; nada a cancelar aqui
         }
+
+        Function("configurarResposta") { (_: String, _: String, _: String, _: String) in
+            // resposta ao vivo iOS chega com as Notification Actions + CallKit (fase própria)
+        }
     }
 }

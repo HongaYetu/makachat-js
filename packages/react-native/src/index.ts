@@ -23,3 +23,4 @@ export { ChamadasProvider, useChamadas, useChamadasOpcional, type ChamadasApi } 
 export { ReprodutorAudio, GravadorAudio } from './ui/audio';
 export { Galeria, LobbyFotos, VisualizadorVideo, enviarAnexoLocal, escolherFotosEVideos, escolherFicheiro } from './ui/media';
 export { Bolha, CartaoRegistoChamada } from './ui/Bolha';
+export { ligarPushNativo } from './push-nativo';
