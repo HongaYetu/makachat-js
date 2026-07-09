@@ -197,26 +197,77 @@ function resolverTema(tema) {
 }
 
 // src/opcionais.ts
-function carregar(modulo) {
+var obterImagePicker = () => {
   try {
-    return __require(modulo);
+    return __require("expo-image-picker");
   } catch {
     return null;
   }
-}
-var obterImagePicker = () => carregar("expo-image-picker");
-var obterDocumentPicker = () => carregar("expo-document-picker");
-var obterAudio = () => carregar("expo-audio");
-var obterVideo = () => carregar("expo-video");
-var obterFileSystem = () => carregar("expo-file-system");
-var obterLiveKit = () => carregar("@livekit/react-native");
-var obterLiveKitClient = () => carregar("livekit-client");
-var obterFlashList = () => carregar("@shopify/flash-list");
-var obterNotifee = () => {
-  const m = carregar("@notifee/react-native");
-  return m?.default ?? m;
 };
-var obterPushMakaChat = () => carregar("@hongayetu/expo-makachat-push");
+var obterDocumentPicker = () => {
+  try {
+    return __require("expo-document-picker");
+  } catch {
+    return null;
+  }
+};
+var obterAudio = () => {
+  try {
+    return __require("expo-audio");
+  } catch {
+    return null;
+  }
+};
+var obterVideo = () => {
+  try {
+    return __require("expo-video");
+  } catch {
+    return null;
+  }
+};
+var obterFileSystem = () => {
+  try {
+    return __require("expo-file-system");
+  } catch {
+    return null;
+  }
+};
+var obterLiveKit = () => {
+  try {
+    return __require("@livekit/react-native");
+  } catch {
+    return null;
+  }
+};
+var obterLiveKitClient = () => {
+  try {
+    return __require("livekit-client");
+  } catch {
+    return null;
+  }
+};
+var obterFlashList = () => {
+  try {
+    return __require("@shopify/flash-list");
+  } catch {
+    return null;
+  }
+};
+var obterNotifee = () => {
+  try {
+    const m = __require("@notifee/react-native");
+    return m?.default ?? m;
+  } catch {
+    return null;
+  }
+};
+var obterPushMakaChat = () => {
+  try {
+    return __require("@hongayetu/expo-makachat-push");
+  } catch {
+    return null;
+  }
+};
 
 // src/sons.ts
 var FONTES = {

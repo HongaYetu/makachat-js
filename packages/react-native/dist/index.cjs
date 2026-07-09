@@ -251,26 +251,77 @@ function resolverTema(tema) {
 }
 
 // src/opcionais.ts
-function carregar(modulo) {
+var obterImagePicker = () => {
   try {
-    return require(modulo);
+    return require("expo-image-picker");
   } catch {
     return null;
   }
-}
-var obterImagePicker = () => carregar("expo-image-picker");
-var obterDocumentPicker = () => carregar("expo-document-picker");
-var obterAudio = () => carregar("expo-audio");
-var obterVideo = () => carregar("expo-video");
-var obterFileSystem = () => carregar("expo-file-system");
-var obterLiveKit = () => carregar("@livekit/react-native");
-var obterLiveKitClient = () => carregar("livekit-client");
-var obterFlashList = () => carregar("@shopify/flash-list");
-var obterNotifee = () => {
-  const m = carregar("@notifee/react-native");
-  return m?.default ?? m;
 };
-var obterPushMakaChat = () => carregar("@hongayetu/expo-makachat-push");
+var obterDocumentPicker = () => {
+  try {
+    return require("expo-document-picker");
+  } catch {
+    return null;
+  }
+};
+var obterAudio = () => {
+  try {
+    return require("expo-audio");
+  } catch {
+    return null;
+  }
+};
+var obterVideo = () => {
+  try {
+    return require("expo-video");
+  } catch {
+    return null;
+  }
+};
+var obterFileSystem = () => {
+  try {
+    return require("expo-file-system");
+  } catch {
+    return null;
+  }
+};
+var obterLiveKit = () => {
+  try {
+    return require("@livekit/react-native");
+  } catch {
+    return null;
+  }
+};
+var obterLiveKitClient = () => {
+  try {
+    return require("livekit-client");
+  } catch {
+    return null;
+  }
+};
+var obterFlashList = () => {
+  try {
+    return require("@shopify/flash-list");
+  } catch {
+    return null;
+  }
+};
+var obterNotifee = () => {
+  try {
+    const m = require("@notifee/react-native");
+    return m?.default ?? m;
+  } catch {
+    return null;
+  }
+};
+var obterPushMakaChat = () => {
+  try {
+    return require("@hongayetu/expo-makachat-push");
+  } catch {
+    return null;
+  }
+};
 
 // src/sons.ts
 var FONTES = {
