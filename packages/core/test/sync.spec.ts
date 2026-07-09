@@ -261,7 +261,7 @@ describe('SyncEngine', () => {
         let notificado = false;
         engine.subscrever(() => (notificado = true));
 
-        const handler = estado.handlers.get('mensagem:nova') as (payload: { mensagem: Mensagem }) => void;
+        const handler = estado.handlers.get('chat:mensagem:nova') as (payload: { mensagem: Mensagem }) => void;
 
         handler({
             mensagem: {
@@ -387,7 +387,7 @@ describe('SyncEngine', () => {
         conversa.participante!.mensagens_nao_lidas = 3;
         await storage.upsertConversas([conversa]);
 
-        const handler = estado.handlers.get('recibo:atualizado') as (r: unknown) => void;
+        const handler = estado.handlers.get('chat:recibo:atualizado') as (r: unknown) => void;
 
         // leitura do OUTRO participante não mexe no meu badge
         handler({ conversa_id: 'c1', identidade_id: 'ident-b', entregue_ate: null, lido_ate: '09' });

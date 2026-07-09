@@ -1,33 +1,37 @@
-/** Nomes de eventos socket — fonte única, alinhada com o PROTOCOL.md. */
+/**
+ * Nomes de eventos socket do módulo CHAT do Honga Hub — fonte única,
+ * alinhada com o PROTOCOL.md. Todos os eventos levam o prefixo do módulo
+ * (`chat:`); o hub multiplexa vários módulos (chat, streaming, ...).
+ */
 
 export const EVENTOS_CLIENTE = {
-    ENVIAR: 'mensagem:enviar',
-    EDITAR: 'mensagem:editar',
-    ELIMINAR: 'mensagem:eliminar',
-    ENTREGUES: 'mensagens:entregues',
-    LIDAS: 'mensagens:lidas',
-    REAGIR: 'reacao:alternar',
-    TYPING: 'typing',
-    ENTRAR_CONVERSA: 'conversa:entrar',
-    SYNC: 'sync:desde',
+    ENVIAR: 'chat:mensagem:enviar',
+    EDITAR: 'chat:mensagem:editar',
+    ELIMINAR: 'chat:mensagem:eliminar',
+    ENTREGUES: 'chat:mensagens:entregues',
+    LIDAS: 'chat:mensagens:lidas',
+    REAGIR: 'chat:reacao:alternar',
+    TYPING: 'chat:typing',
+    ENTRAR_CONVERSA: 'chat:conversa:entrar',
+    SYNC: 'chat:sync:desde',
 } as const;
 
 export const EVENTOS_SERVIDOR = {
-    MENSAGEM_NOVA: 'mensagem:nova',
-    MENSAGEM_ATUALIZADA: 'mensagem:atualizada',
-    MENSAGEM_ELIMINADA: 'mensagem:eliminada',
-    RECIBO: 'recibo:atualizado',
-    REACAO: 'reacao:atualizada',
-    TYPING: 'typing',
-    PRESENCA: 'presenca',
-    CONVERSA_ATUALIZADA: 'conversa:atualizada',
-    PARTICIPANTE_ADICIONADO: 'participante:adicionado',
-    PARTICIPANTE_REMOVIDO: 'participante:removido',
-    CHAMADA_INICIADA: 'chamada:iniciada',
-    CHAMADA_ATENDIDA: 'chamada:atendida',
-    CHAMADA_REJEITADA: 'chamada:rejeitada',
-    CHAMADA_TERMINADA: 'chamada:terminada',
-    CHAMADA_PARTICIPANTE_SAIU: 'chamada:participante_saiu',
+    MENSAGEM_NOVA: 'chat:mensagem:nova',
+    MENSAGEM_ATUALIZADA: 'chat:mensagem:atualizada',
+    MENSAGEM_ELIMINADA: 'chat:mensagem:eliminada',
+    RECIBO: 'chat:recibo:atualizado',
+    REACAO: 'chat:reacao:atualizada',
+    TYPING: 'chat:typing',
+    PRESENCA: 'chat:presenca',
+    CONVERSA_ATUALIZADA: 'chat:conversa:atualizada',
+    PARTICIPANTE_ADICIONADO: 'chat:participante:adicionado',
+    PARTICIPANTE_REMOVIDO: 'chat:participante:removido',
+    CHAMADA_INICIADA: 'chat:chamada:iniciada',
+    CHAMADA_ATENDIDA: 'chat:chamada:atendida',
+    CHAMADA_REJEITADA: 'chat:chamada:rejeitada',
+    CHAMADA_TERMINADA: 'chat:chamada:terminada',
+    CHAMADA_PARTICIPANTE_SAIU: 'chat:chamada:participante_saiu',
 } as const;
 
 export const FUNCIONALIDADES = [
