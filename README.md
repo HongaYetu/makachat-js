@@ -1,5 +1,7 @@
 # MakaChat JS
 
+> Cliente do **módulo MakaChat (chat)** do **Honga Hub** (plataforma central de tempo-real da Honga Yetu). Liga-se ao namespace `/chat`; os eventos usam o prefixo do módulo (`chat:*`). Os pacotes mantêm o nome MakaChat.
+
 Bibliotecas cliente do MakaChat (chat centralizado Honga Yetu). Publicadas em `npm.pkg.github.com` (org HongaYetu).
 
 | Pacote | Descrição |
