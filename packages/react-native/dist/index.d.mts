@@ -124,7 +124,12 @@ declare function useMensagemRecebida(handler: (mensagem: Mensagem) => void): voi
 /** Total de não lidas em todas as conversas — badge global (tab bar, título...). */
 declare function useTotalNaoLidas(): number;
 
-/** FlashList quando a app o instala (recomendado); senão FlatList. Mesmo contrato. */
+/**
+ * Lista da UI em FlatList — ordem e `inverted` fiáveis. O FlashList v2
+ * (@shopify/flash-list) reordenava/scrollava mal esta lista (maintainVisible-
+ * ContentPosition on por omissão), por isso não é usado. Reintroduzir mais
+ * tarde só com config v2 validada em dispositivo.
+ */
 declare function ListaPerformante<T>(props: FlatListProps<T> & {
     estimatedItemSize?: number;
 }): React.JSX.Element;

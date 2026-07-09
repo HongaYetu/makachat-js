@@ -13,21 +13,17 @@ import {
 } from 'react-native';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { obterFlashList } from '../opcionais';
 import { useTema } from '../provider';
 
 // ---------------------------------------------------------------- lista performante
 
-const flash = obterFlashList();
-
-/** FlashList quando a app o instala (recomendado); senão FlatList. Mesmo contrato. */
+/**
+ * Lista da UI em FlatList — ordem e `inverted` fiáveis. O FlashList v2
+ * (@shopify/flash-list) reordenava/scrollava mal esta lista (maintainVisible-
+ * ContentPosition on por omissão), por isso não é usado. Reintroduzir mais
+ * tarde só com config v2 validada em dispositivo.
+ */
 export function ListaPerformante<T>(props: FlatListProps<T> & { estimatedItemSize?: number }) {
-    if (flash?.FlashList) {
-        const FlashList = flash.FlashList as React.ComponentType<Record<string, unknown>>;
-
-        return <FlashList estimatedItemSize={72} {...(props as Record<string, unknown>)} />;
-    }
-
     const { estimatedItemSize: _ignorado, ...resto } = props;
 
     return <FlatList {...resto} />;

@@ -261,13 +261,6 @@ var obterLiveKitClient = () => {
     return null;
   }
 };
-var obterFlashList = () => {
-  try {
-    return __require("@shopify/flash-list");
-  } catch {
-    return null;
-  }
-};
 var obterNotifee = () => {
   try {
     const m = __require("@notifee/react-native");
@@ -570,12 +563,7 @@ import {
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { jsx as jsx2, jsxs } from "react/jsx-runtime";
-var flash = obterFlashList();
 function ListaPerformante(props) {
-  if (flash?.FlashList) {
-    const FlashList = flash.FlashList;
-    return /* @__PURE__ */ jsx2(FlashList, { estimatedItemSize: 72, ...props });
-  }
   const { estimatedItemSize: _ignorado, ...resto } = props;
   return /* @__PURE__ */ jsx2(FlatList, { ...resto });
 }
