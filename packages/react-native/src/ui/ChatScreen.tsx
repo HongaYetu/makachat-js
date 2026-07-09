@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Anexo, Conversa, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -58,6 +59,7 @@ interface ItemLista {
 export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }: ChatScreenProps) {
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
+    const insets = useSafeAreaInsets();
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 500);
     const typing = useTypingConversa(conversaId);
@@ -498,7 +500,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
             {/* input / fechada / gravador */}
             {fechada ? (
-                <View style={[estilos.fechada, { backgroundColor: tema.superficie }]}>
+                <View style={[estilos.fechada, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 12) }]}>
                     <Ionicons name="lock-closed-outline" size={16} color={tema.textoSuave} />
                     <Text style={{ flex: 1, fontSize: 13, color: tema.textoSuave }}>
                         {conversa?.fecho_motivo ?? 'Esta conversa está fechada.'}
@@ -514,7 +516,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 />
             ) : (
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <View style={[estilos.inputLinha, { backgroundColor: tema.superficie }]}>
+                    <View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }]}>
                         {(podeFoto || podeFicheiro) && (
                             <Pressable onPress={() => setAnexoMenu(true)} style={{ padding: 7 }}>
                                 <Ionicons name="attach" size={24} color={tema.textoSuave} />
@@ -632,6 +634,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     aoEnviar={(legenda) => void enviarFotos(legenda)}
                     aoFechar={() => setFotosPendentes([])}
                     aEnviar={aEnviarMedia}
+                    insets={insets}
                 />
             )}
             {galeriaDe && (
@@ -641,9 +644,10 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     aoFechar={() => setGaleriaDe(null)}
                     aoResponder={(m) => setResponderA(m)}
                     aoEncaminhar={podeEncaminhar ? (m) => setEncaminhar(m) : undefined}
+                    insets={insets}
                 />
             )}
-            {videoAberto && <VisualizadorVideo url={videoAberto} aoFechar={() => setVideoAberto(null)} />}
+            {videoAberto && <VisualizadorVideo url={videoAberto} aoFechar={() => setVideoAberto(null)} insets={insets} />}
         </View>
     );
 
@@ -904,8 +908,8 @@ const estilos = StyleSheet.create({
         elevation: 4,
     },
     previa: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8 },
-    fechada: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 30 },
-    inputLinha: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 8, paddingVertical: 7, paddingBottom: 26 },
+    fechada: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
+    inputLinha: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 8, paddingVertical: 7 },
     input: { flex: 1, borderRadius: 21, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, fontSize: 15.5, maxHeight: 120 },
     enviar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
     emojis: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 16, paddingVertical: 6 },

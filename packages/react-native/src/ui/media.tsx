@@ -105,13 +105,14 @@ export async function enviarAnexoLocal(api: MakaApi, ficheiro: FicheiroLocal, op
 
 // ---------------------------------------------------------------- lobby de fotos (preview + legenda)
 
-export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar }: {
+export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }: {
     ficheiros: FicheiroLocal[];
     aoMudar(novos: FicheiroLocal[]): void;
     aoAdicionarMais(): void;
     aoEnviar(legenda: string): void;
     aoFechar(): void;
     aEnviar: boolean;
+    insets: { top: number; bottom: number };
 }) {
     const tema = useTema();
     const [legenda, setLegenda] = useState('');
@@ -121,7 +122,7 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
     return (
         <Modal visible animationType="slide" onRequestClose={aoFechar}>
             <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-                <View style={estilos.lobbyTopo}>
+                <View style={[estilos.lobbyTopo, { paddingTop: insets.top + 8 }]}>
                     <Pressable onPress={aoFechar} style={{ padding: 8 }}>
                         <Ionicons name="close" size={26} color="#fff" />
                     </Pressable>
@@ -150,7 +151,7 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
                         </View>
                     ))}
                 </View>
-                <View style={estilos.lobbyFundo}>
+                <View style={[estilos.lobbyFundo, { paddingBottom: insets.bottom + 12 }]}>
                     <TextInput
                         value={legenda}
                         onChangeText={setLegenda}
@@ -174,12 +175,13 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
 // ---------------------------------------------------------------- galeria fullscreen
 
 /** Galeria com TODAS as fotos da conversa, paging horizontal + contador. */
-export function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar }: {
+export function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar, insets }: {
     mensagens: Mensagem[];
     inicialAnexoId: string;
     aoFechar(): void;
     aoResponder?(mensagem: Mensagem): void;
     aoEncaminhar?(mensagem: Mensagem): void;
+    insets: { top: number; bottom: number };
 }) {
     const { width, height } = useWindowDimensions();
     const fotos = mensagens
@@ -208,7 +210,7 @@ export function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEn
                         </View>
                     )}
                 />
-                <View style={estilos.galeriaTopo}>
+                <View style={[estilos.galeriaTopo, { paddingTop: insets.top + 8 }]}>
                     <Pressable onPress={aoFechar} style={{ padding: 8 }}>
                         <Ionicons name="close" size={26} color="#fff" />
                     </Pressable>
@@ -217,7 +219,7 @@ export function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEn
                     </Text>
                     <View style={{ width: 42 }} />
                 </View>
-                <View style={estilos.galeriaAcoes}>
+                <View style={[estilos.galeriaAcoes, { bottom: insets.bottom + 12 }]}>
                     {aoResponder && atual && (
                         <Pressable onPress={() => { aoFechar(); aoResponder(atual.mensagem); }} style={estilos.galeriaBotao}>
                             <Ionicons name="arrow-undo-outline" size={22} color="#fff" />
@@ -237,15 +239,15 @@ export function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEn
 }
 
 /** Player de vídeo fullscreen (expo-video, opcional); sem o módulo abre no browser/OS. */
-export function VisualizadorVideo({ url, aoFechar }: { url: string; aoFechar(): void }) {
+export function VisualizadorVideo({ url, aoFechar, insets }: { url: string; aoFechar(): void; insets: { top: number; bottom: number } }) {
     const video = obterVideo();
 
     if (!video?.useVideoPlayer) return null;
 
-    return <VideoInterno video={video} url={url} aoFechar={aoFechar} />;
+    return <VideoInterno video={video} url={url} aoFechar={aoFechar} insets={insets} />;
 }
 
-function VideoInterno({ video, url, aoFechar }: { video: any; url: string; aoFechar(): void }) {
+function VideoInterno({ video, url, aoFechar, insets }: { video: any; url: string; aoFechar(): void; insets: { top: number; bottom: number } }) {
     const VideoView = video.VideoView;
     const player = video.useVideoPlayer(url, (p: { play(): void }) => {
         p.play();
@@ -255,7 +257,7 @@ function VideoInterno({ video, url, aoFechar }: { video: any; url: string; aoFec
         <Modal visible animationType="fade" onRequestClose={aoFechar}>
             <View style={{ flex: 1, backgroundColor: '#000' }}>
                 <VideoView player={player} style={{ flex: 1 }} contentFit="contain" nativeControls allowsFullscreen />
-                <Pressable onPress={aoFechar} style={estilos.videoFechar}>
+                <Pressable onPress={aoFechar} style={[estilos.videoFechar, { top: insets.top + 8 }]}>
                     <Ionicons name="close" size={26} color="#fff" />
                 </Pressable>
             </View>
@@ -271,16 +273,16 @@ export function tamanhoLegivel(bytes: number | null): string {
 }
 
 const estilos = StyleSheet.create({
-    lobbyTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: 12, paddingBottom: 8 },
+    lobbyTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 8 },
     lobbyGrelha: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12, alignContent: 'flex-start' },
     lobbyPlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
     lobbyRemover: { position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(15,23,42,0.8)', alignItems: 'center', justifyContent: 'center' },
-    lobbyFundo: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, paddingBottom: 34 },
+    lobbyFundo: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
     lobbyLegenda: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, color: '#fff', fontSize: 15 },
     lobbyEnviar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-    galeriaTopo: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: 12 },
-    galeriaAcoes: { position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 36 },
+    galeriaTopo: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
+    galeriaAcoes: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 36 },
     galeriaBotao: { alignItems: 'center', gap: 3 },
-    videoFechar: { position: 'absolute', top: 52, left: 12, padding: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 22 },
+    videoFechar: { position: 'absolute', left: 12, padding: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 22 },
     galeriaRotulo: { color: '#fff', fontSize: 11 },
 });

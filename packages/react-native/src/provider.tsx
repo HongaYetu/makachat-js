@@ -14,6 +14,7 @@ import {
     Typing,
 } from '@hongayetu/makachat-core';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SqliteStorage } from './sqlite-storage';
 import { MakaTema, resolverTema, TemaResolvido } from './tema';
 import { tocarSom } from './sons';
@@ -178,7 +179,7 @@ export function MakaChatProvider({
         <Contexto.Provider
             value={{ ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha }}
         >
-            {children}
+            <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
         </Contexto.Provider>
     );
 }

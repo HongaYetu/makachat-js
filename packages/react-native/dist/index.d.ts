@@ -147,7 +147,8 @@ interface ItemSheet {
     destrutivo?: boolean;
     acao(): void;
 }
-/** Bottom sheet estilo WhatsApp: fundo escurecido, cartão a subir, itens com ícone. */
+/** Bottom sheet estilo WhatsApp via @gorhom/bottom-sheet: safe-area correto,
+ * gesto de fechar, backdrop escurecido. API prop-driven (visivel/aoFechar). */
 declare function Sheet({ visivel, aoFechar, titulo, itens, children, }: {
     visivel: boolean;
     aoFechar(): void;
@@ -258,26 +259,38 @@ declare function escolherFicheiro(): Promise<FicheiroLocal | null>;
 declare function enviarAnexoLocal(api: MakaApi, ficheiro: FicheiroLocal, opcoes?: {
     duravel?: boolean;
 }): Promise<Anexo>;
-declare function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar }: {
+declare function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }: {
     ficheiros: FicheiroLocal[];
     aoMudar(novos: FicheiroLocal[]): void;
     aoAdicionarMais(): void;
     aoEnviar(legenda: string): void;
     aoFechar(): void;
     aEnviar: boolean;
+    insets: {
+        top: number;
+        bottom: number;
+    };
 }): React.JSX.Element;
 /** Galeria com TODAS as fotos da conversa, paging horizontal + contador. */
-declare function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar }: {
+declare function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar, insets }: {
     mensagens: Mensagem[];
     inicialAnexoId: string;
     aoFechar(): void;
     aoResponder?(mensagem: Mensagem): void;
     aoEncaminhar?(mensagem: Mensagem): void;
+    insets: {
+        top: number;
+        bottom: number;
+    };
 }): React.JSX.Element;
 /** Player de vídeo fullscreen (expo-video, opcional); sem o módulo abre no browser/OS. */
-declare function VisualizadorVideo({ url, aoFechar }: {
+declare function VisualizadorVideo({ url, aoFechar, insets }: {
     url: string;
     aoFechar(): void;
+    insets: {
+        top: number;
+        bottom: number;
+    };
 }): React.JSX.Element | null;
 
 declare function CartaoRegistoChamada({ mensagem, aoLigar }: {

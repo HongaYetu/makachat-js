@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Conversa, IdentidadeConfig, ParticipanteConversa } from '@hongayetu/makachat-core';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
     Animated,
     FlatList,
     FlatListProps,
     Image,
-    Modal,
     Pressable,
     StyleSheet,
     Text,
     View,
 } from 'react-native';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { obterFlashList } from '../opcionais';
 import { useTema } from '../provider';
 
@@ -130,7 +131,8 @@ export interface ItemSheet {
     acao(): void;
 }
 
-/** Bottom sheet estilo WhatsApp: fundo escurecido, cartão a subir, itens com ícone. */
+/** Bottom sheet estilo WhatsApp via @gorhom/bottom-sheet: safe-area correto,
+ * gesto de fechar, backdrop escurecido. API prop-driven (visivel/aoFechar). */
 export function Sheet({
     visivel,
     aoFechar,
@@ -145,56 +147,54 @@ export function Sheet({
     children?: React.ReactNode;
 }) {
     const tema = useTema();
-    const subida = useRef(new Animated.Value(0)).current;
+    const insets = useSafeAreaInsets();
+    const ref = useRef<BottomSheetModal>(null);
 
     useEffect(() => {
-        if (visivel) {
-            subida.setValue(0);
-            Animated.spring(subida, { toValue: 1, useNativeDriver: true, damping: 22, stiffness: 260 }).start();
-        }
-    }, [visivel, subida]);
+        if (visivel) ref.current?.present();
+        else ref.current?.dismiss();
+    }, [visivel]);
+
+    const backdrop = useCallback(
+        (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
+            <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />
+        ),
+        [],
+    );
 
     return (
-        <Modal transparent visible={visivel} animationType="fade" onRequestClose={aoFechar}>
-            <Pressable style={estilos.sheetFundo} onPress={aoFechar}>
-                <Animated.View
-                    style={[
-                        estilos.sheetCartao,
-                        { backgroundColor: tema.superficie },
-                        { transform: [{ translateY: subida.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) }] },
-                    ]}
-                >
-                    <Pressable onPress={() => undefined}>
-                        <View style={estilos.sheetPega} />
-                        {titulo ? (
-                            <Text style={[estilos.sheetTitulo, { color: tema.textoSuave }]} numberOfLines={1}>
-                                {titulo}
-                            </Text>
-                        ) : null}
-                        {itens?.map((item) => (
-                            <Pressable
-                                key={item.rotulo}
-                                onPress={() => {
-                                    aoFechar();
-                                    item.acao();
-                                }}
-                                style={({ pressed }: { pressed: boolean }) => [estilos.sheetItem, pressed && { backgroundColor: 'rgba(0,0,0,0.05)' }]}
-                            >
-                                <Ionicons
-                                    name={item.icone}
-                                    size={21}
-                                    color={item.destrutivo ? '#ef4444' : tema.textoSuave}
-                                />
-                                <Text style={{ fontSize: 15, color: item.destrutivo ? '#ef4444' : tema.texto }}>
-                                    {item.rotulo}
-                                </Text>
-                            </Pressable>
-                        ))}
-                        {children}
+        <BottomSheetModal
+            ref={ref}
+            enableDynamicSizing
+            onDismiss={aoFechar}
+            backdropComponent={backdrop}
+            handleIndicatorStyle={{ backgroundColor: 'rgba(100,116,139,0.35)' }}
+            backgroundStyle={{ backgroundColor: tema.superficie, borderTopLeftRadius: 22, borderTopRightRadius: 22 }}
+        >
+            <BottomSheetView style={{ paddingTop: 4, paddingBottom: insets.bottom + 12 }}>
+                {titulo ? (
+                    <Text style={[estilos.sheetTitulo, { color: tema.textoSuave }]} numberOfLines={1}>
+                        {titulo}
+                    </Text>
+                ) : null}
+                {itens?.map((item) => (
+                    <Pressable
+                        key={item.rotulo}
+                        onPress={() => {
+                            ref.current?.dismiss();
+                            item.acao();
+                        }}
+                        style={({ pressed }: { pressed: boolean }) => [estilos.sheetItem, pressed && { backgroundColor: 'rgba(0,0,0,0.05)' }]}
+                    >
+                        <Ionicons name={item.icone} size={21} color={item.destrutivo ? '#ef4444' : tema.textoSuave} />
+                        <Text style={{ fontSize: 15, color: item.destrutivo ? '#ef4444' : tema.texto }}>
+                            {item.rotulo}
+                        </Text>
                     </Pressable>
-                </Animated.View>
-            </Pressable>
-        </Modal>
+                ))}
+                {children}
+            </BottomSheetView>
+        </BottomSheetModal>
     );
 }
 
@@ -234,21 +234,6 @@ export function Pulso({ children }: { children: React.ReactNode }) {
 }
 
 const estilos = StyleSheet.create({
-    sheetFundo: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
-    sheetCartao: {
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
-        paddingBottom: 28,
-        paddingTop: 8,
-    },
-    sheetPega: {
-        alignSelf: 'center',
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: 'rgba(100,116,139,0.35)',
-        marginBottom: 6,
-    },
     sheetTitulo: { paddingHorizontal: 20, paddingVertical: 6, fontSize: 13, fontWeight: '600' },
     sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 13 },
     badge: {

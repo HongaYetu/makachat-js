@@ -52,3 +52,16 @@ declare module '@expo/vector-icons' {
         glyphMap: Record<string, number>;
     };
 }
+
+declare module 'react-native-safe-area-context' {
+    export function useSafeAreaInsets(): { top: number; bottom: number; left: number; right: number };
+}
+
+declare module '@gorhom/bottom-sheet' {
+    // tipo (para useRef) + valor (componente) com o mesmo nome
+    export type BottomSheetModal = { present(): void; dismiss(): void };
+    export const BottomSheetModal: any;
+    export const BottomSheetModalProvider: any;
+    export const BottomSheetView: any;
+    export const BottomSheetBackdrop: any;
+}

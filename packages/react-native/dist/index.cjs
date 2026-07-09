@@ -232,6 +232,7 @@ function maiorId(atual, novo) {
 // src/provider.tsx
 var import_makachat_core = require("@hongayetu/makachat-core");
 var import_react = require("react");
+var import_bottom_sheet = require("@gorhom/bottom-sheet");
 
 // src/tema.ts
 var PADRAO = {
@@ -459,7 +460,7 @@ function MakaChatProvider({
     Contexto.Provider,
     {
       value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha },
-      children
+      children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_bottom_sheet.BottomSheetModalProvider, { children })
     }
   );
 }
@@ -595,6 +596,8 @@ function useTotalNaoLidas() {
 var import_vector_icons = require("@expo/vector-icons");
 var import_react4 = require("react");
 var import_react_native = require("react-native");
+var import_bottom_sheet2 = require("@gorhom/bottom-sheet");
+var import_react_native_safe_area_context = require("react-native-safe-area-context");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 var flash = obterFlashList();
 function ListaPerformante(props) {
@@ -669,41 +672,37 @@ function Sheet({
   children
 }) {
   const tema = useTema();
-  const subida = (0, import_react4.useRef)(new import_react_native.Animated.Value(0)).current;
+  const insets = (0, import_react_native_safe_area_context.useSafeAreaInsets)();
+  const ref = (0, import_react4.useRef)(null);
   (0, import_react4.useEffect)(() => {
-    if (visivel) {
-      subida.setValue(0);
-      import_react_native.Animated.spring(subida, { toValue: 1, useNativeDriver: true, damping: 22, stiffness: 260 }).start();
-    }
-  }, [visivel, subida]);
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Modal, { transparent: true, visible: visivel, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Pressable, { style: estilos.sheetFundo, onPress: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-    import_react_native.Animated.View,
+    if (visivel) ref.current?.present();
+    else ref.current?.dismiss();
+  }, [visivel]);
+  const backdrop = (0, import_react4.useCallback)(
+    (props) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_bottom_sheet2.BottomSheetBackdrop, { ...props, appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" }),
+    []
+  );
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+    import_bottom_sheet2.BottomSheetModal,
     {
-      style: [
-        estilos.sheetCartao,
-        { backgroundColor: tema.superficie },
-        { transform: [{ translateY: subida.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) }] }
-      ],
-      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react_native.Pressable, { onPress: () => void 0, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.View, { style: estilos.sheetPega }),
+      ref,
+      enableDynamicSizing: true,
+      onDismiss: aoFechar,
+      backdropComponent: backdrop,
+      handleIndicatorStyle: { backgroundColor: "rgba(100,116,139,0.35)" },
+      backgroundStyle: { backgroundColor: tema.superficie, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
+      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_bottom_sheet2.BottomSheetView, { style: { paddingTop: 4, paddingBottom: insets.bottom + 12 }, children: [
         titulo ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { style: [estilos.sheetTitulo, { color: tema.textoSuave }], numberOfLines: 1, children: titulo }) : null,
         itens?.map((item) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
           import_react_native.Pressable,
           {
             onPress: () => {
-              aoFechar();
+              ref.current?.dismiss();
               item.acao();
             },
             style: ({ pressed }) => [estilos.sheetItem, pressed && { backgroundColor: "rgba(0,0,0,0.05)" }],
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                import_vector_icons.Ionicons,
-                {
-                  name: item.icone,
-                  size: 21,
-                  color: item.destrutivo ? "#ef4444" : tema.textoSuave
-                }
-              ),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_vector_icons.Ionicons, { name: item.icone, size: 21, color: item.destrutivo ? "#ef4444" : tema.textoSuave }),
               /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { style: { fontSize: 15, color: item.destrutivo ? "#ef4444" : tema.texto }, children: item.rotulo })
             ]
           },
@@ -712,7 +711,7 @@ function Sheet({
         children
       ] })
     }
-  ) }) });
+  );
 }
 function BadgeNaoLidas({ contagem }) {
   const tema = useTema();
@@ -734,21 +733,6 @@ function Pulso({ children }) {
   return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Animated.View, { style: { transform: [{ scale: escala }] }, children });
 }
 var estilos = import_react_native.StyleSheet.create({
-  sheetFundo: { flex: 1, backgroundColor: "rgba(15,23,42,0.5)", justifyContent: "flex-end" },
-  sheetCartao: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingBottom: 28,
-    paddingTop: 8
-  },
-  sheetPega: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(100,116,139,0.35)",
-    marginBottom: 6
-  },
   sheetTitulo: { paddingHorizontal: 20, paddingVertical: 6, fontSize: 13, fontWeight: "600" },
   sheetItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 13 },
   badge: {
@@ -1137,6 +1121,7 @@ var estilos2 = import_react_native2.StyleSheet.create({
 
 // src/ui/ChatScreen.tsx
 var import_vector_icons6 = require("@expo/vector-icons");
+var import_react_native_safe_area_context2 = require("react-native-safe-area-context");
 var import_react9 = require("react");
 var import_react_native6 = require("react-native");
 
@@ -1383,13 +1368,13 @@ async function enviarAnexoLocal(api, ficheiro, opcoes) {
   });
   return anexo;
 }
-function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar }) {
+function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = (0, import_react7.useState)("");
   const { width } = (0, import_react_native4.useWindowDimensions)();
   const lado = (width - 48) / 3;
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: estilos4.lobbyTopo, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 16 }, children: [
         ficheiros.length,
@@ -1410,7 +1395,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: estilos4.lobbyFundo, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
         import_react_native4.TextInput,
         {
@@ -1433,7 +1418,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
     ] })
   ] }) });
 }
-function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar }) {
+function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar, insets }) {
   const { width, height } = (0, import_react_native4.useWindowDimensions)();
   const fotos = mensagens.flatMap((m) => m.anexos.filter((a) => a.tipo === "foto" && a.url).map((a) => ({ anexo: a, mensagem: m }))).sort((a, b) => a.mensagem.id < b.mensagem.id ? -1 : 1);
   const inicial = Math.max(0, fotos.findIndex((f) => f.anexo.id === inicialAnexoId));
@@ -1453,7 +1438,7 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
         renderItem: ({ item: f }) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.View, { style: { width, height, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Image, { source: { uri: f.anexo.url ?? void 0 }, style: { width, height: height * 0.8 }, resizeMode: "contain" }) })
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: estilos4.galeriaTopo, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.galeriaTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Text, { style: { color: "#fff", fontWeight: "700" }, children: [
         fotos.length ? indice + 1 : 0,
@@ -1462,7 +1447,7 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.View, { style: { width: 42 } })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: estilos4.galeriaAcoes, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.galeriaAcoes, { bottom: insets.bottom + 12 }], children: [
       aoResponder && atual && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Pressable, { onPress: () => {
         aoFechar();
         aoResponder(atual.mensagem);
@@ -1480,19 +1465,19 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
     ] })
   ] }) });
 }
-function VisualizadorVideo({ url, aoFechar }) {
+function VisualizadorVideo({ url, aoFechar, insets }) {
   const video = obterVideo();
   if (!video?.useVideoPlayer) return null;
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(VideoInterno, { video, url, aoFechar });
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(VideoInterno, { video, url, aoFechar, insets });
 }
-function VideoInterno({ video, url, aoFechar }) {
+function VideoInterno({ video, url, aoFechar, insets }) {
   const VideoView = video.VideoView;
   const player = video.useVideoPlayer(url, (p) => {
     p.play();
   });
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: { flex: 1, backgroundColor: "#000" }, children: [
     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(VideoView, { player, style: { flex: 1 }, contentFit: "contain", nativeControls: true, allowsFullscreen: true }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: estilos4.videoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) })
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: [estilos4.videoFechar, { top: insets.top + 8 }], children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) })
   ] }) });
 }
 function tamanhoLegivel(bytes) {
@@ -1501,17 +1486,17 @@ function tamanhoLegivel(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 var estilos4 = import_react_native4.StyleSheet.create({
-  lobbyTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 12, paddingBottom: 8 },
+  lobbyTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 8 },
   lobbyGrelha: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 12, alignContent: "flex-start" },
   lobbyPlay: { ...import_react_native4.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.3)" },
   lobbyRemover: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(15,23,42,0.8)", alignItems: "center", justifyContent: "center" },
-  lobbyFundo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, paddingBottom: 34 },
+  lobbyFundo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
   lobbyLegenda: { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, color: "#fff", fontSize: 15 },
   lobbyEnviar: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  galeriaTopo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 12 },
-  galeriaAcoes: { position: "absolute", bottom: 34, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 36 },
+  galeriaTopo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12 },
+  galeriaAcoes: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 36 },
   galeriaBotao: { alignItems: "center", gap: 3 },
-  videoFechar: { position: "absolute", top: 52, left: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 22 },
+  videoFechar: { position: "absolute", left: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 22 },
   galeriaRotulo: { color: "#fff", fontSize: 11 }
 });
 
@@ -1756,6 +1741,7 @@ var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}"
 function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
+  const insets = (0, import_react_native_safe_area_context2.useSafeAreaInsets)();
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);
@@ -2103,7 +2089,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         if (editar) setTexto("");
       }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "close-circle", size: 20, color: tema.textoSuave }) })
     ] }),
-    fechada ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.fechada, { backgroundColor: tema.superficie }], children: [
+    fechada ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.fechada, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 12) }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "lock-closed-outline", size: 16, color: tema.textoSuave }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { flex: 1, fontSize: 13, color: tema.textoSuave }, children: conversa?.fecho_motivo ?? "Esta conversa est\xE1 fechada." })
     ] }) : aGravar ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
@@ -2115,7 +2101,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.KeyboardAvoidingView, { behavior: import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie }], children: [
+    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.KeyboardAvoidingView, { behavior: import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
       (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         import_react_native6.TextInput,
@@ -2205,7 +2191,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         aoAdicionarMais: () => void escolherFotosEVideos().then((f) => setFotosPendentes((a) => [...a, ...f].slice(0, 10))),
         aoEnviar: (legenda) => void enviarFotos(legenda),
         aoFechar: () => setFotosPendentes([]),
-        aEnviar: aEnviarMedia
+        aEnviar: aEnviarMedia,
+        insets
       }
     ),
     galeriaDe && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
@@ -2215,10 +2202,11 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         inicialAnexoId: galeriaDe,
         aoFechar: () => setGaleriaDe(null),
         aoResponder: (m) => setResponderA(m),
-        aoEncaminhar: podeEncaminhar ? (m) => setEncaminhar(m) : void 0
+        aoEncaminhar: podeEncaminhar ? (m) => setEncaminhar(m) : void 0,
+        insets
       }
     ),
-    videoAberto && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null) })
+    videoAberto && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null), insets })
   ] });
   function itensMenuConversa() {
     const itens2 = [];
@@ -2412,8 +2400,8 @@ var estilos6 = import_react_native6.StyleSheet.create({
     elevation: 4
   },
   previa: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  fechada: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 30 },
-  inputLinha: { flexDirection: "row", alignItems: "flex-end", gap: 6, paddingHorizontal: 8, paddingVertical: 7, paddingBottom: 26 },
+  fechada: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
+  inputLinha: { flexDirection: "row", alignItems: "flex-end", gap: 6, paddingHorizontal: 8, paddingVertical: 7 },
   input: { flex: 1, borderRadius: 21, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, fontSize: 15.5, maxHeight: 120 },
   enviar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   emojis: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 16, paddingVertical: 6 }

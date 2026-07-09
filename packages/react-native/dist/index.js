@@ -178,6 +178,7 @@ import {
   SyncEngine
 } from "@hongayetu/makachat-core";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 // src/tema.ts
 var PADRAO = {
@@ -405,7 +406,7 @@ function MakaChatProvider({
     Contexto.Provider,
     {
       value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha },
-      children
+      children: /* @__PURE__ */ jsx(BottomSheetModalProvider, { children })
     }
   );
 }
@@ -539,17 +540,18 @@ function useTotalNaoLidas() {
 
 // src/ui/comum.tsx
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect as useEffect3, useRef as useRef3 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect3, useRef as useRef3 } from "react";
 import {
   Animated,
   FlatList,
   Image,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
   View
 } from "react-native";
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { jsx as jsx2, jsxs } from "react/jsx-runtime";
 var flash = obterFlashList();
 function ListaPerformante(props) {
@@ -624,41 +626,37 @@ function Sheet({
   children
 }) {
   const tema = useTema();
-  const subida = useRef3(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const ref = useRef3(null);
   useEffect3(() => {
-    if (visivel) {
-      subida.setValue(0);
-      Animated.spring(subida, { toValue: 1, useNativeDriver: true, damping: 22, stiffness: 260 }).start();
-    }
-  }, [visivel, subida]);
-  return /* @__PURE__ */ jsx2(Modal, { transparent: true, visible: visivel, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ jsx2(Pressable, { style: estilos.sheetFundo, onPress: aoFechar, children: /* @__PURE__ */ jsx2(
-    Animated.View,
+    if (visivel) ref.current?.present();
+    else ref.current?.dismiss();
+  }, [visivel]);
+  const backdrop = useCallback2(
+    (props) => /* @__PURE__ */ jsx2(BottomSheetBackdrop, { ...props, appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" }),
+    []
+  );
+  return /* @__PURE__ */ jsx2(
+    BottomSheetModal,
     {
-      style: [
-        estilos.sheetCartao,
-        { backgroundColor: tema.superficie },
-        { transform: [{ translateY: subida.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) }] }
-      ],
-      children: /* @__PURE__ */ jsxs(Pressable, { onPress: () => void 0, children: [
-        /* @__PURE__ */ jsx2(View, { style: estilos.sheetPega }),
+      ref,
+      enableDynamicSizing: true,
+      onDismiss: aoFechar,
+      backdropComponent: backdrop,
+      handleIndicatorStyle: { backgroundColor: "rgba(100,116,139,0.35)" },
+      backgroundStyle: { backgroundColor: tema.superficie, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
+      children: /* @__PURE__ */ jsxs(BottomSheetView, { style: { paddingTop: 4, paddingBottom: insets.bottom + 12 }, children: [
         titulo ? /* @__PURE__ */ jsx2(Text, { style: [estilos.sheetTitulo, { color: tema.textoSuave }], numberOfLines: 1, children: titulo }) : null,
         itens?.map((item) => /* @__PURE__ */ jsxs(
           Pressable,
           {
             onPress: () => {
-              aoFechar();
+              ref.current?.dismiss();
               item.acao();
             },
             style: ({ pressed }) => [estilos.sheetItem, pressed && { backgroundColor: "rgba(0,0,0,0.05)" }],
             children: [
-              /* @__PURE__ */ jsx2(
-                Ionicons,
-                {
-                  name: item.icone,
-                  size: 21,
-                  color: item.destrutivo ? "#ef4444" : tema.textoSuave
-                }
-              ),
+              /* @__PURE__ */ jsx2(Ionicons, { name: item.icone, size: 21, color: item.destrutivo ? "#ef4444" : tema.textoSuave }),
               /* @__PURE__ */ jsx2(Text, { style: { fontSize: 15, color: item.destrutivo ? "#ef4444" : tema.texto }, children: item.rotulo })
             ]
           },
@@ -667,7 +665,7 @@ function Sheet({
         children
       ] })
     }
-  ) }) });
+  );
 }
 function BadgeNaoLidas({ contagem }) {
   const tema = useTema();
@@ -689,21 +687,6 @@ function Pulso({ children }) {
   return /* @__PURE__ */ jsx2(Animated.View, { style: { transform: [{ scale: escala }] }, children });
 }
 var estilos = StyleSheet.create({
-  sheetFundo: { flex: 1, backgroundColor: "rgba(15,23,42,0.5)", justifyContent: "flex-end" },
-  sheetCartao: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingBottom: 28,
-    paddingTop: 8
-  },
-  sheetPega: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(100,116,139,0.35)",
-    marginBottom: 6
-  },
   sheetTitulo: { paddingHorizontal: 20, paddingVertical: 6, fontSize: 13, fontWeight: "600" },
   sheetItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 13 },
   badge: {
@@ -1099,7 +1082,8 @@ var estilos2 = StyleSheet2.create({
 
 // src/ui/ChatScreen.tsx
 import { Ionicons as Ionicons6 } from "@expo/vector-icons";
-import { useCallback as useCallback2, useEffect as useEffect6, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
+import { useSafeAreaInsets as useSafeAreaInsets2 } from "react-native-safe-area-context";
+import { useCallback as useCallback3, useEffect as useEffect6, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
 import {
   Alert as Alert2,
   AppState,
@@ -1311,7 +1295,7 @@ import { Ionicons as Ionicons4 } from "@expo/vector-icons";
 import { useState as useState5 } from "react";
 import {
   Image as Image2,
-  Modal as Modal2,
+  Modal,
   Pressable as Pressable4,
   StyleSheet as StyleSheet4,
   Text as Text4,
@@ -1375,13 +1359,13 @@ async function enviarAnexoLocal(api, ficheiro, opcoes) {
   });
   return anexo;
 }
-function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar }) {
+function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = useState5("");
   const { width } = useWindowDimensions();
   const lado = (width - 48) / 3;
-  return /* @__PURE__ */ jsx5(Modal2, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-    /* @__PURE__ */ jsxs4(View4, { style: estilos4.lobbyTopo, children: [
+  return /* @__PURE__ */ jsx5(Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ jsx5(Pressable4, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ jsx5(Ionicons4, { name: "close", size: 26, color: "#fff" }) }),
       /* @__PURE__ */ jsxs4(Text4, { style: { color: "#fff", fontWeight: "700", fontSize: 16 }, children: [
         ficheiros.length,
@@ -1402,7 +1386,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ jsxs4(View4, { style: estilos4.lobbyFundo, children: [
+    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
       /* @__PURE__ */ jsx5(
         TextInput2,
         {
@@ -1425,13 +1409,13 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
     ] })
   ] }) });
 }
-function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar }) {
+function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar, insets }) {
   const { width, height } = useWindowDimensions();
   const fotos = mensagens.flatMap((m) => m.anexos.filter((a) => a.tipo === "foto" && a.url).map((a) => ({ anexo: a, mensagem: m }))).sort((a, b) => a.mensagem.id < b.mensagem.id ? -1 : 1);
   const inicial = Math.max(0, fotos.findIndex((f) => f.anexo.id === inicialAnexoId));
   const [indice, setIndice] = useState5(inicial);
   const atual = fotos[indice];
-  return /* @__PURE__ */ jsx5(Modal2, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#000" }, children: [
+  return /* @__PURE__ */ jsx5(Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#000" }, children: [
     /* @__PURE__ */ jsx5(
       ListaPerformante,
       {
@@ -1445,7 +1429,7 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
         renderItem: ({ item: f }) => /* @__PURE__ */ jsx5(View4, { style: { width, height, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsx5(Image2, { source: { uri: f.anexo.url ?? void 0 }, style: { width, height: height * 0.8 }, resizeMode: "contain" }) })
       }
     ),
-    /* @__PURE__ */ jsxs4(View4, { style: estilos4.galeriaTopo, children: [
+    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.galeriaTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ jsx5(Pressable4, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ jsx5(Ionicons4, { name: "close", size: 26, color: "#fff" }) }),
       /* @__PURE__ */ jsxs4(Text4, { style: { color: "#fff", fontWeight: "700" }, children: [
         fotos.length ? indice + 1 : 0,
@@ -1454,7 +1438,7 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
       ] }),
       /* @__PURE__ */ jsx5(View4, { style: { width: 42 } })
     ] }),
-    /* @__PURE__ */ jsxs4(View4, { style: estilos4.galeriaAcoes, children: [
+    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.galeriaAcoes, { bottom: insets.bottom + 12 }], children: [
       aoResponder && atual && /* @__PURE__ */ jsxs4(Pressable4, { onPress: () => {
         aoFechar();
         aoResponder(atual.mensagem);
@@ -1472,19 +1456,19 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
     ] })
   ] }) });
 }
-function VisualizadorVideo({ url, aoFechar }) {
+function VisualizadorVideo({ url, aoFechar, insets }) {
   const video = obterVideo();
   if (!video?.useVideoPlayer) return null;
-  return /* @__PURE__ */ jsx5(VideoInterno, { video, url, aoFechar });
+  return /* @__PURE__ */ jsx5(VideoInterno, { video, url, aoFechar, insets });
 }
-function VideoInterno({ video, url, aoFechar }) {
+function VideoInterno({ video, url, aoFechar, insets }) {
   const VideoView = video.VideoView;
   const player = video.useVideoPlayer(url, (p) => {
     p.play();
   });
-  return /* @__PURE__ */ jsx5(Modal2, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#000" }, children: [
+  return /* @__PURE__ */ jsx5(Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#000" }, children: [
     /* @__PURE__ */ jsx5(VideoView, { player, style: { flex: 1 }, contentFit: "contain", nativeControls: true, allowsFullscreen: true }),
-    /* @__PURE__ */ jsx5(Pressable4, { onPress: aoFechar, style: estilos4.videoFechar, children: /* @__PURE__ */ jsx5(Ionicons4, { name: "close", size: 26, color: "#fff" }) })
+    /* @__PURE__ */ jsx5(Pressable4, { onPress: aoFechar, style: [estilos4.videoFechar, { top: insets.top + 8 }], children: /* @__PURE__ */ jsx5(Ionicons4, { name: "close", size: 26, color: "#fff" }) })
   ] }) });
 }
 function tamanhoLegivel(bytes) {
@@ -1493,17 +1477,17 @@ function tamanhoLegivel(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 var estilos4 = StyleSheet4.create({
-  lobbyTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 12, paddingBottom: 8 },
+  lobbyTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 8 },
   lobbyGrelha: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 12, alignContent: "flex-start" },
   lobbyPlay: { ...StyleSheet4.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.3)" },
   lobbyRemover: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(15,23,42,0.8)", alignItems: "center", justifyContent: "center" },
-  lobbyFundo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, paddingBottom: 34 },
+  lobbyFundo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
   lobbyLegenda: { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, color: "#fff", fontSize: 15 },
   lobbyEnviar: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  galeriaTopo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 12 },
-  galeriaAcoes: { position: "absolute", bottom: 34, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 36 },
+  galeriaTopo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12 },
+  galeriaAcoes: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 36 },
   galeriaBotao: { alignItems: "center", gap: 3 },
-  videoFechar: { position: "absolute", top: 52, left: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 22 },
+  videoFechar: { position: "absolute", left: 12, padding: 8, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 22 },
   galeriaRotulo: { color: "#fff", fontSize: 11 }
 });
 
@@ -1748,6 +1732,7 @@ var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}"
 function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
+  const insets = useSafeAreaInsets2();
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);
@@ -1882,7 +1867,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     });
     return mapa;
   }, [mensagens, typing, eu?.identidade_id]);
-  const irParaMensagem = useCallback2(
+  const irParaMensagem = useCallback3(
     async (id) => {
       for (let tentativa = 0; tentativa < 10; tentativa++) {
         const idx = indicePorId.get(id);
@@ -2095,7 +2080,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         if (editar) setTexto("");
       }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "close-circle", size: 20, color: tema.textoSuave }) })
     ] }),
-    fechada ? /* @__PURE__ */ jsxs6(View6, { style: [estilos6.fechada, { backgroundColor: tema.superficie }], children: [
+    fechada ? /* @__PURE__ */ jsxs6(View6, { style: [estilos6.fechada, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 12) }], children: [
       /* @__PURE__ */ jsx7(Ionicons6, { name: "lock-closed-outline", size: 16, color: tema.textoSuave }),
       /* @__PURE__ */ jsx7(Text6, { style: { flex: 1, fontSize: 13, color: tema.textoSuave }, children: conversa?.fecho_motivo ?? "Esta conversa est\xE1 fechada." })
     ] }) : aGravar ? /* @__PURE__ */ jsx7(
@@ -2107,7 +2092,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ jsx7(KeyboardAvoidingView, { behavior: Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie }], children: [
+    ) : /* @__PURE__ */ jsx7(KeyboardAvoidingView, { behavior: Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
       (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),
       /* @__PURE__ */ jsx7(
         TextInput3,
@@ -2197,7 +2182,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         aoAdicionarMais: () => void escolherFotosEVideos().then((f) => setFotosPendentes((a) => [...a, ...f].slice(0, 10))),
         aoEnviar: (legenda) => void enviarFotos(legenda),
         aoFechar: () => setFotosPendentes([]),
-        aEnviar: aEnviarMedia
+        aEnviar: aEnviarMedia,
+        insets
       }
     ),
     galeriaDe && /* @__PURE__ */ jsx7(
@@ -2207,10 +2193,11 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         inicialAnexoId: galeriaDe,
         aoFechar: () => setGaleriaDe(null),
         aoResponder: (m) => setResponderA(m),
-        aoEncaminhar: podeEncaminhar ? (m) => setEncaminhar(m) : void 0
+        aoEncaminhar: podeEncaminhar ? (m) => setEncaminhar(m) : void 0,
+        insets
       }
     ),
-    videoAberto && /* @__PURE__ */ jsx7(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null) })
+    videoAberto && /* @__PURE__ */ jsx7(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null), insets })
   ] });
   function itensMenuConversa() {
     const itens2 = [];
@@ -2404,8 +2391,8 @@ var estilos6 = StyleSheet6.create({
     elevation: 4
   },
   previa: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  fechada: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 30 },
-  inputLinha: { flexDirection: "row", alignItems: "flex-end", gap: 6, paddingHorizontal: 8, paddingVertical: 7, paddingBottom: 26 },
+  fechada: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
+  inputLinha: { flexDirection: "row", alignItems: "flex-end", gap: 6, paddingHorizontal: 8, paddingVertical: 7 },
   input: { flex: 1, borderRadius: 21, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, fontSize: 15.5, maxHeight: 120 },
   enviar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   emojis: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 16, paddingVertical: 6 }
@@ -2659,8 +2646,8 @@ var estilos7 = StyleSheet7.create({
 
 // src/chamadas.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
-import { createContext as createContext2, useCallback as useCallback3, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { AppState as AppState2, Modal as Modal3, Platform as Platform2, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
+import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
+import { AppState as AppState2, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
 import { Fragment, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
@@ -2726,7 +2713,7 @@ function ChamadasProvider({ children }) {
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
-  const limpar = useCallback3(() => {
+  const limpar = useCallback4(() => {
     void room.current?.disconnect?.();
     room.current = null;
     falhada.current = false;
@@ -2742,11 +2729,11 @@ function ChamadasProvider({ children }) {
     setMinimizada(false);
     void pararServicoChamada();
   }, [livekit]);
-  const comecarTimer = useCallback3(() => {
+  const comecarTimer = useCallback4(() => {
     setInicioEm((atual) => atual ?? Date.now());
     void iniciarServicoChamada(conversa?.titulo ?? "MakaChat");
   }, [conversa?.titulo]);
-  const sincronizarTiles = useCallback3(() => {
+  const sincronizarTiles = useCallback4(() => {
     const r = room.current;
     if (!r || !lkClient) return;
     const Track = lkClient.Track;
@@ -2771,7 +2758,7 @@ function ChamadasProvider({ children }) {
     }
     setTiles(novos);
   }, [lkClient]);
-  const ligarSala = useCallback3(
+  const ligarSala = useCallback4(
     async (token, wsUrl, video) => {
       if (!suportado) {
         setErro("Chamadas indispon\xEDveis \u2014 a app n\xE3o inclui o m\xF3dulo LiveKit.");
@@ -2852,7 +2839,7 @@ function ChamadasProvider({ children }) {
     }),
     [subscreverChamadas, engine, limpar, comecarTimer]
   );
-  const falhar = useCallback3(
+  const falhar = useCallback4(
     async (chamadaId) => {
       falhada.current = true;
       await api.terminarChamada(chamadaId).catch(() => void 0);
@@ -2860,7 +2847,7 @@ function ChamadasProvider({ children }) {
     },
     [api]
   );
-  const iniciar = useCallback3(
+  const iniciar = useCallback4(
     async (conversaId, tipo) => {
       if (!suportado) return;
       const r = await api.iniciarChamada(conversaId, tipo);
@@ -2873,7 +2860,7 @@ function ChamadasProvider({ children }) {
     },
     [suportado, api, engine, ligarSala, falhar]
   );
-  const entrar = useCallback3(
+  const entrar = useCallback4(
     async (chamadaId, tipo) => {
       if (!suportado) return;
       const r = await api.atenderChamada(chamadaId);
@@ -2890,7 +2877,7 @@ function ChamadasProvider({ children }) {
     },
     [suportado, api, engine, ligarSala, falhar, comecarTimer]
   );
-  const retomarPendente = useCallback3(async () => {
+  const retomarPendente = useCallback4(async () => {
     const push = obterPushMakaChat();
     if (!push?.obterChamadaPendente) return;
     const pendente = await push.obterChamadaPendente().catch(() => null);
@@ -3023,7 +3010,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const local = tiles.find((t) => t.local && t.trackRef);
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
-  return /* @__PURE__ */ jsx9(Modal3, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+  return /* @__PURE__ */ jsx9(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
     emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx9(View8, { style: { ...StyleSheet8.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs8(View8, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
       /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover" }),
       /* @__PURE__ */ jsx9(Text8, { style: estilos8.nomeTile, children: t.nome })
