@@ -1,5 +1,7 @@
 node_modules/
-dist/
+# dist/ dos pacotes é versionado (distribuição por git: `npm install` no servidor
+# resolve os file:../../makachat-js/packages/* sem passo de build). Só os exemplos ficam ignorados.
+apps/*/dist/
 .env
 *.log
 .DS_Store

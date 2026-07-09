@@ -75,22 +75,22 @@ export class MakaApi {
         if (opcoes?.limite) query.set('limite', String(opcoes.limite));
         if (opcoes?.q) query.set('q', opcoes.q);
 
-        return this.pedir<{ conversas: Conversa[]; proximo_cursor: string | null }>(`/v1/conversas?${query}`);
+        return this.pedir<{ conversas: Conversa[]; proximo_cursor: string | null }>(`/v1/chat/conversas?${query}`);
     }
 
     obterConversa(conversaId: string) {
-        return this.pedir<{ conversa: Conversa }>(`/v1/conversas/${conversaId}`);
+        return this.pedir<{ conversa: Conversa }>(`/v1/chat/conversas/${conversaId}`);
     }
 
     criarPrivada(participante: AlvoParticipante) {
-        return this.pedir<{ conversa: Conversa }>('/v1/conversas', {
+        return this.pedir<{ conversa: Conversa }>('/v1/chat/conversas', {
             method: 'POST',
             body: JSON.stringify({ tipo: 'privada', participante }),
         });
     }
 
     criarGrupo(titulo: string, participantes: AlvoParticipante[]) {
-        return this.pedir<{ conversa: Conversa }>('/v1/conversas', {
+        return this.pedir<{ conversa: Conversa }>('/v1/chat/conversas', {
             method: 'POST',
             body: JSON.stringify({ tipo: 'grupo', titulo, participantes }),
         });
@@ -103,18 +103,18 @@ export class MakaApi {
         if (opcoes?.limite) query.set('limite', String(opcoes.limite));
 
         return this.pedir<{ mensagens: Mensagem[]; proximo_cursor: string | null }>(
-            `/v1/conversas/${conversaId}/mensagens?${query}`,
+            `/v1/chat/conversas/${conversaId}/mensagens?${query}`,
         );
     }
 
     pesquisarMensagens(conversaId: string, q: string) {
         return this.pedir<{ mensagens: Mensagem[] }>(
-            `/v1/conversas/${conversaId}/mensagens/pesquisa?q=${encodeURIComponent(q)}`,
+            `/v1/chat/conversas/${conversaId}/mensagens/pesquisa?q=${encodeURIComponent(q)}`,
         );
     }
 
     atualizarGrupo(conversaId: string, dados: { titulo?: string; foto_url?: string | null }) {
-        return this.pedir<{ conversa: Conversa }>(`/v1/conversas/${conversaId}`, {
+        return this.pedir<{ conversa: Conversa }>(`/v1/chat/conversas/${conversaId}`, {
             method: 'PATCH',
             body: JSON.stringify(dados),
         });
@@ -124,33 +124,33 @@ export class MakaApi {
         conversaId: string,
         dados: { arquivada?: boolean; fixada?: boolean; silenciada_ate?: string | null },
     ) {
-        return this.pedir<{ conversa: Conversa }>(`/v1/conversas/${conversaId}/preferencias`, {
+        return this.pedir<{ conversa: Conversa }>(`/v1/chat/conversas/${conversaId}/preferencias`, {
             method: 'PATCH',
             body: JSON.stringify(dados),
         });
     }
 
     adicionarParticipantes(conversaId: string, participantes: AlvoParticipante[]) {
-        return this.pedir<{ conversa: Conversa }>(`/v1/conversas/${conversaId}/participantes`, {
+        return this.pedir<{ conversa: Conversa }>(`/v1/chat/conversas/${conversaId}/participantes`, {
             method: 'POST',
             body: JSON.stringify({ participantes }),
         });
     }
 
     removerParticipante(conversaId: string, identidadeId: string) {
-        return this.pedir(`/v1/conversas/${conversaId}/participantes/${identidadeId}`, { method: 'DELETE' });
+        return this.pedir(`/v1/chat/conversas/${conversaId}/participantes/${identidadeId}`, { method: 'DELETE' });
     }
 
     sairDaConversa(conversaId: string) {
-        return this.pedir(`/v1/conversas/${conversaId}/sair`, { method: 'POST' });
+        return this.pedir(`/v1/chat/conversas/${conversaId}/sair`, { method: 'POST' });
     }
 
     eliminarConversa(conversaId: string) {
-        return this.pedir(`/v1/conversas/${conversaId}`, { method: 'DELETE' });
+        return this.pedir(`/v1/chat/conversas/${conversaId}`, { method: 'DELETE' });
     }
 
     marcarNaoLida(conversaId: string) {
-        return this.pedir<{ mensagens_nao_lidas: number }>(`/v1/conversas/${conversaId}/nao-lida`, { method: 'POST' });
+        return this.pedir<{ mensagens_nao_lidas: number }>(`/v1/chat/conversas/${conversaId}/nao-lida`, { method: 'POST' });
     }
 
     listarFeatures() {
@@ -159,7 +159,7 @@ export class MakaApi {
 
     criarMedia(dados: { tipo: string; mime?: string; nome_ficheiro?: string }) {
         return this.pedir<{ anexo_id: string; limite_bytes: number; upload: { metodo: string; url: string } }>(
-            '/v1/media',
+            '/v1/chat/media',
             { method: 'POST', body: JSON.stringify(dados) },
         );
     }
@@ -185,34 +185,34 @@ export class MakaApi {
         anexoId: string,
         meta?: { largura?: number; altura?: number; duracao_segundos?: number; blurhash?: string; duravel?: boolean },
     ) {
-        return this.pedir<{ anexo: Anexo }>(`/v1/media/${anexoId}/confirmar`, {
+        return this.pedir<{ anexo: Anexo }>(`/v1/chat/media/${anexoId}/confirmar`, {
             method: 'POST',
             body: JSON.stringify(meta ?? {}),
         });
     }
 
     iniciarChamada(conversaId: string, tipo: 'audio' | 'video') {
-        return this.pedir<RespostaChamada>('/v1/chamadas', {
+        return this.pedir<RespostaChamada>('/v1/chat/chamadas', {
             method: 'POST',
             body: JSON.stringify({ conversa_id: conversaId, tipo }),
         });
     }
 
     atenderChamada(chamadaId: string) {
-        return this.pedir<RespostaChamada>(`/v1/chamadas/${chamadaId}/atender`, { method: 'PATCH' });
+        return this.pedir<RespostaChamada>(`/v1/chat/chamadas/${chamadaId}/atender`, { method: 'PATCH' });
     }
 
     rejeitarChamada(chamadaId: string) {
-        return this.pedir<RespostaChamada>(`/v1/chamadas/${chamadaId}/rejeitar`, { method: 'PATCH' });
+        return this.pedir<RespostaChamada>(`/v1/chat/chamadas/${chamadaId}/rejeitar`, { method: 'PATCH' });
     }
 
     terminarChamada(chamadaId: string) {
-        return this.pedir<RespostaChamada>(`/v1/chamadas/${chamadaId}/terminar`, { method: 'PATCH' });
+        return this.pedir<RespostaChamada>(`/v1/chat/chamadas/${chamadaId}/terminar`, { method: 'PATCH' });
     }
 
     obterContexto(conversaId: string) {
         return this.pedir<{ contexto: { titulo: string; subtitulo?: string; foto_url?: string | null; linhas?: string[] } | null }>(
-            `/v1/conversas/${conversaId}/contexto`,
+            `/v1/chat/conversas/${conversaId}/contexto`,
         );
     }
 
