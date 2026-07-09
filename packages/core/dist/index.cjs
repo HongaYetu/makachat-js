@@ -556,6 +556,7 @@ var SyncEngine = class {
         this.notificar();
       }).catch(() => void 0);
     }
+    await this.carregarMensagens(conversaId).catch(() => 0);
   }
   async atualizarConversas() {
     const { conversas } = await this.api.listarConversas({ limite: 100 });

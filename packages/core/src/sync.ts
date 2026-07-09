@@ -100,6 +100,12 @@ export class SyncEngine {
                 })
                 .catch(() => undefined);
         }
+
+        // Carrega a última página do histórico via REST (idempotente, deduplicado
+        // por id). Sem isto, uma conversa com o DB local vazio — ex.: primeira
+        // abertura ou após reset da cache — abre sem mensagens (o delta sync só
+        // recupera a partir de um cursor, que não existe quando não há locais).
+        await this.carregarMensagens(conversaId).catch(() => 0);
     }
 
     async atualizarConversas(): Promise<void> {
