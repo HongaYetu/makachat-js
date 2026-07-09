@@ -505,7 +505,10 @@ function useConversas(arquivadas = false) {
   (0, import_react2.useEffect)(() => {
     let ativo = true;
     void engine.storage.listarConversas(arquivadas).then((lista) => {
-      if (ativo) setConversas(lista);
+      const ordenada = [...lista].sort(
+        (a, b) => (Date.parse(b.ultima_atividade_em ?? "") || 0) - (Date.parse(a.ultima_atividade_em ?? "") || 0)
+      );
+      if (ativo) setConversas(ordenada);
     });
     return () => {
       ativo = false;

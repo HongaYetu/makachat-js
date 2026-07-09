@@ -22,7 +22,13 @@ export function useConversas(arquivadas = false): Conversa[] {
         let ativo = true;
 
         void engine.storage.listarConversas(arquivadas).then((lista) => {
-            if (ativo) setConversas(lista);
+            // ordena por tempo PARSEADO (robusto a formatos ISO mistos — com/sem
+            // milissegundos — que baralhariam o ORDER BY TEXT do SQLite): mais recente primeiro
+            const ordenada = [...lista].sort(
+                (a, b) => (Date.parse(b.ultima_atividade_em ?? '') || 0) - (Date.parse(a.ultima_atividade_em ?? '') || 0),
+            );
+
+            if (ativo) setConversas(ordenada);
         });
 
         return () => {
