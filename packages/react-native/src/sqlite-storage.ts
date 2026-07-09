@@ -45,6 +45,25 @@ export class SqliteStorage implements StorageAdapter {
     constructor(private readonly db: SQLiteDatabaseLike) {}
 
     async init(): Promise<void> {
+        await this.criarEsquema();
+
+        // O SQLite local é só cache (a fonte de verdade é o hub). Um ficheiro .db
+        // de um build antigo pode ter um esquema diferente (não há migração aqui);
+        // se um probe às colunas críticas falhar, recriamos — a UI reidrata do hub.
+        try {
+            await this.db.getAllAsync(`SELECT arquivada, ultima_atividade_em FROM conversas LIMIT 0`);
+            await this.db.getAllAsync(`SELECT conversa_id, remetente_identidade_id, ref_cliente FROM mensagens LIMIT 0`);
+            await this.db.getAllAsync(`SELECT criado_em FROM outbox LIMIT 0`);
+            await this.db.getAllAsync(`SELECT chave, valor FROM meta LIMIT 0`);
+        } catch {
+            await this.db.execAsync(
+                `DROP TABLE IF EXISTS conversas; DROP TABLE IF EXISTS mensagens; DROP TABLE IF EXISTS outbox; DROP TABLE IF EXISTS meta;`,
+            );
+            await this.criarEsquema();
+        }
+    }
+
+    private async criarEsquema(): Promise<void> {
         await this.db.execAsync(`
             CREATE TABLE IF NOT EXISTS conversas (
                 id TEXT PRIMARY KEY,

@@ -73,6 +73,20 @@ var SqliteStorage = class {
   }
   db;
   async init() {
+    await this.criarEsquema();
+    try {
+      await this.db.getAllAsync(`SELECT arquivada, ultima_atividade_em FROM conversas LIMIT 0`);
+      await this.db.getAllAsync(`SELECT conversa_id, remetente_identidade_id, ref_cliente FROM mensagens LIMIT 0`);
+      await this.db.getAllAsync(`SELECT criado_em FROM outbox LIMIT 0`);
+      await this.db.getAllAsync(`SELECT chave, valor FROM meta LIMIT 0`);
+    } catch {
+      await this.db.execAsync(
+        `DROP TABLE IF EXISTS conversas; DROP TABLE IF EXISTS mensagens; DROP TABLE IF EXISTS outbox; DROP TABLE IF EXISTS meta;`
+      );
+      await this.criarEsquema();
+    }
+  }
+  async criarEsquema() {
     await this.db.execAsync(`
             CREATE TABLE IF NOT EXISTS conversas (
                 id TEXT PRIMARY KEY,
