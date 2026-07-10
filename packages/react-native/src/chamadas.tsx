@@ -308,6 +308,9 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             }
 
             sincronizarTiles();
+            // cobre entrar JÁ sozinho (o outro saiu antes de ligarmos): sem isto o
+            // timer só armava em ParticipantConnected/Disconnected e ficava pendurado
+            verificarSozinho();
 
             return true;
         },

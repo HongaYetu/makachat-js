@@ -675,6 +675,7 @@ function ChamadasProvider({ children }) {
       console.error("[makachat] media falhou:", e);
       return false;
     }
+    verificarSozinho();
     return true;
   }, []);
   (0, import_react6.useEffect)(

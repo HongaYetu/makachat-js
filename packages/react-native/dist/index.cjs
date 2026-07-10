@@ -2961,6 +2961,7 @@ function ChamadasProvider({ children }) {
         return false;
       }
       sincronizarTiles();
+      verificarSozinho();
       return true;
     },
     [suportado, livekit, lkClient, sincronizarTiles]

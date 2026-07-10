@@ -226,6 +226,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             return false;
         }
 
+        // cobre entrar JÁ sozinho (o outro saiu antes de ligarmos): sem isto o
+        // timer só armava em ParticipantConnected/Disconnected e ficava pendurado
+        verificarSozinho();
+
         return true;
     }, []);
 
