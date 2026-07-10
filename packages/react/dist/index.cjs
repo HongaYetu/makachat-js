@@ -589,6 +589,16 @@ function ChamadasProvider({ children }) {
   const comecarTimer = (0, import_react6.useCallback)(() => {
     setInicioEm((atual) => atual ?? Date.now());
   }, []);
+  const carregarConversa = (0, import_react6.useCallback)(
+    async (conversaId) => {
+      const local = await engine.storage.obterConversa(conversaId);
+      setConversa(local);
+      if (local) return;
+      const remota = await api.obterConversa(conversaId).catch(() => null);
+      if (remota?.conversa) setConversa(remota.conversa);
+    },
+    [engine, api]
+  );
   const anexarTodos = (0, import_react6.useCallback)(() => {
     const alvo = midia.current;
     if (!alvo) return;
@@ -692,7 +702,7 @@ function ChamadasProvider({ children }) {
             );
           }
           setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
-          void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+          void carregarConversa(evento.chamada.conversa_id);
         });
       } else if (evento.evento === "atendida") {
         if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
@@ -708,7 +718,7 @@ function ChamadasProvider({ children }) {
         limpar();
       }
     }),
-    [subscreverChamadas, engine, limpar, comecarTimer]
+    [subscreverChamadas, engine, limpar, comecarTimer, carregarConversa]
   );
   const iniciar = (0, import_react6.useCallback)(
     async (conversaId, tipo) => {
@@ -720,7 +730,7 @@ function ChamadasProvider({ children }) {
       }
       const r = await api.iniciarChamada(conversaId, tipo);
       setAtiva({ chamada: r.chamada, fase: "a_ligar" });
-      void engine.storage.obterConversa(conversaId).then(setConversa);
+      void carregarConversa(conversaId);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
         if (!ok) {
@@ -730,7 +740,7 @@ function ChamadasProvider({ children }) {
         }
       }
     },
-    [api, engine, ligarSala, verificarMedia]
+    [api, ligarSala, verificarMedia, carregarConversa]
   );
   const entrar = (0, import_react6.useCallback)(
     async (chamadaId, tipo) => {
@@ -743,7 +753,7 @@ function ChamadasProvider({ children }) {
       atendendoRef.current = chamadaId;
       const r = await api.atenderChamada(chamadaId);
       setAtiva({ chamada: r.chamada, fase: "em_curso" });
-      void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
+      void carregarConversa(r.chamada.conversa_id);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
         if (atendendoRef.current !== chamadaId) {
@@ -760,7 +770,7 @@ function ChamadasProvider({ children }) {
       }
       comecarTimer();
     },
-    [api, engine, ligarSala, verificarMedia, comecarTimer]
+    [api, ligarSala, verificarMedia, comecarTimer, carregarConversa]
   );
   const atender = async () => {
     if (!ativa) return;

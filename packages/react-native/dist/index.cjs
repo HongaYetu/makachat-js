@@ -2874,6 +2874,16 @@ function ChamadasProvider({ children }) {
     setInicioEm((atual) => atual ?? Date.now());
     void iniciarServicoChamada(conversa?.titulo ?? "MakaChat");
   }, [conversa?.titulo]);
+  const carregarConversa = (0, import_react11.useCallback)(
+    async (conversaId) => {
+      const local = await engine.storage.obterConversa(conversaId);
+      setConversa(local);
+      if (local) return;
+      const remota = await api.obterConversa(conversaId).catch(() => null);
+      if (remota?.conversa) setConversa(remota.conversa);
+    },
+    [engine, api]
+  );
   const sincronizarTiles = (0, import_react11.useCallback)(() => {
     const r = room.current;
     if (!r || !lkClient) return;
@@ -2991,7 +3001,7 @@ function ChamadasProvider({ children }) {
         void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
           if (minha && evento.chamada.iniciador_identidade_id === minha) return;
           setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
-          void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+          void carregarConversa(evento.chamada.conversa_id);
         });
       } else if (evento.evento === "atendida") {
         if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
@@ -3003,7 +3013,7 @@ function ChamadasProvider({ children }) {
         limpar();
       }
     }),
-    [subscreverChamadas, engine, limpar, comecarTimer]
+    [subscreverChamadas, engine, limpar, comecarTimer, carregarConversa]
   );
   const falhar = (0, import_react11.useCallback)(
     async (chamadaId) => {
@@ -3018,13 +3028,13 @@ function ChamadasProvider({ children }) {
       if (!suportado) return;
       const r = await api.iniciarChamada(conversaId, tipo);
       setAtiva({ chamada: r.chamada, fase: "a_ligar" });
-      void engine.storage.obterConversa(conversaId).then(setConversa);
+      void carregarConversa(conversaId);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
         if (!ok) await falhar(r.chamada.id);
       }
     },
-    [suportado, api, engine, ligarSala, falhar]
+    [suportado, api, ligarSala, falhar, carregarConversa]
   );
   const entrar = (0, import_react11.useCallback)(
     async (chamadaId, tipo) => {
@@ -3032,7 +3042,7 @@ function ChamadasProvider({ children }) {
       atendendoRef.current = chamadaId;
       const r = await api.atenderChamada(chamadaId);
       setAtiva({ chamada: r.chamada, fase: "em_curso" });
-      void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
+      void carregarConversa(r.chamada.conversa_id);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
         if (atendendoRef.current !== chamadaId) {
@@ -3047,13 +3057,12 @@ function ChamadasProvider({ children }) {
       }
       comecarTimer();
     },
-    [suportado, api, engine, ligarSala, falhar, comecarTimer]
+    [suportado, api, ligarSala, falhar, comecarTimer, carregarConversa]
   );
   const tocarEmApp = (0, import_react11.useCallback)(
     async (chamadaId, chamadaTipo, conversaId) => {
       if (chamadaIdRef.current === chamadaId) return;
-      const conversaLocal = await engine.storage.obterConversa(conversaId);
-      setConversa(conversaLocal);
+      void carregarConversa(conversaId);
       setAtiva({
         chamada: {
           id: chamadaId,
@@ -3069,7 +3078,7 @@ function ChamadasProvider({ children }) {
         fase: "a_receber"
       });
     },
-    [engine]
+    [carregarConversa]
   );
   const retomarPendente = (0, import_react11.useCallback)(async () => {
     const push = obterPushMakaChat();

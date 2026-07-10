@@ -195,6 +195,22 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conversa?.titulo]);
 
+    // título/avatar do ecrã de chamada mesmo sem a conversa no storage local
+    // (ligar a partir de fora do chat, ex.: detalhe da encomenda)
+    const carregarConversa = useCallback(
+        async (conversaId: string) => {
+            const local = await engine.storage.obterConversa(conversaId);
+            setConversa(local); // null limpa a anterior enquanto o servidor responde
+
+            if (local) return;
+
+            const remota = await api.obterConversa(conversaId).catch(() => null);
+
+            if (remota?.conversa) setConversa(remota.conversa);
+        },
+        [engine, api],
+    );
+
     const sincronizarTiles = useCallback(() => {
         const r = room.current;
 
@@ -358,7 +374,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                         if (minha && evento.chamada.iniciador_identidade_id === minha) return;
 
                         setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
-                        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                        void carregarConversa(evento.chamada.conversa_id);
                     });
                 } else if (evento.evento === 'atendida') {
                     if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
@@ -371,7 +387,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     limpar();
                 }
             }),
-        [subscreverChamadas, engine, limpar, comecarTimer],
+        [subscreverChamadas, engine, limpar, comecarTimer, carregarConversa],
     );
 
     const falhar = useCallback(
@@ -389,7 +405,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             const r = await api.iniciarChamada(conversaId, tipo);
             setAtiva({ chamada: r.chamada, fase: 'a_ligar' });
-            void engine.storage.obterConversa(conversaId).then(setConversa);
+            void carregarConversa(conversaId);
 
             if (r.livekit_token && r.ws_url) {
                 const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
@@ -397,7 +413,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 if (!ok) await falhar(r.chamada.id);
             }
         },
-        [suportado, api, engine, ligarSala, falhar],
+        [suportado, api, ligarSala, falhar, carregarConversa],
     );
 
     const entrar = useCallback(
@@ -407,7 +423,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             atendendoRef.current = chamadaId;
             const r = await api.atenderChamada(chamadaId);
             setAtiva({ chamada: r.chamada, fase: 'em_curso' });
-            void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
+            void carregarConversa(r.chamada.conversa_id);
 
             if (r.livekit_token && r.ws_url) {
                 const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
@@ -429,7 +445,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             comecarTimer();
         },
-        [suportado, api, engine, ligarSala, falhar, comecarTimer],
+        [suportado, api, ligarSala, falhar, comecarTimer, carregarConversa],
     );
 
     // ringing em-app com esqueleto local (arranque frio ou push em foreground);
@@ -439,8 +455,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             // já está a tocar/em curso (o socket chegou primeiro) — não sobrepor
             if (chamadaIdRef.current === chamadaId) return;
 
-            const conversaLocal = await engine.storage.obterConversa(conversaId);
-            setConversa(conversaLocal);
+            void carregarConversa(conversaId);
             setAtiva({
                 chamada: {
                     id: chamadaId,
@@ -456,7 +471,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 fase: 'a_receber',
             });
         },
-        [engine],
+        [carregarConversa],
     );
 
     const retomarPendente = useCallback(async () => {

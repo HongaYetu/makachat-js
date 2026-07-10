@@ -106,6 +106,22 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         setInicioEm((atual) => atual ?? Date.now());
     }, []);
 
+    // título/avatar da janela de chamada mesmo sem a conversa no storage local
+    // (ligar a partir de fora do chat, ex.: detalhe da encomenda)
+    const carregarConversa = useCallback(
+        async (conversaId: string) => {
+            const local = await engine.storage.obterConversa(conversaId);
+            setConversa(local); // null limpa a anterior enquanto o servidor responde
+
+            if (local) return;
+
+            const remota = await api.obterConversa(conversaId).catch(() => null);
+
+            if (remota?.conversa) setConversa(remota.conversa);
+        },
+        [engine, api],
+    );
+
     /** (Re)anexa todos os elementos de media ao contentor atual — o contentor
      *  desmonta/remonta ao minimizar para pill e no arranque pode ainda não existir. */
     const anexarTodos = useCallback(() => {
@@ -254,7 +270,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                         }
 
                         setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
-                        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                        void carregarConversa(evento.chamada.conversa_id);
                     });
                 } else if (evento.evento === 'atendida') {
                     // num grupo, outro atender não me arrasta: se ainda estou a_receber, continuo a tocar (posso "entrar")
@@ -274,7 +290,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     limpar();
                 }
             }),
-        [subscreverChamadas, engine, limpar, comecarTimer],
+        [subscreverChamadas, engine, limpar, comecarTimer, carregarConversa],
     );
 
     const iniciar = useCallback(
@@ -292,7 +308,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             const r = await api.iniciarChamada(conversaId, tipo);
 
             setAtiva({ chamada: r.chamada, fase: 'a_ligar' });
-            void engine.storage.obterConversa(conversaId).then(setConversa);
+            void carregarConversa(conversaId);
 
             if (r.livekit_token && r.ws_url) {
                 const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
@@ -304,7 +320,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 }
             }
         },
-        [api, engine, ligarSala, verificarMedia],
+        [api, ligarSala, verificarMedia, carregarConversa],
     );
 
     const entrar = useCallback(
@@ -322,7 +338,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             const r = await api.atenderChamada(chamadaId);
 
             setAtiva({ chamada: r.chamada, fase: 'em_curso' });
-            void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
+            void carregarConversa(r.chamada.conversa_id);
 
             if (r.livekit_token && r.ws_url) {
                 const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
@@ -346,7 +362,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             comecarTimer();
         },
-        [api, engine, ligarSala, verificarMedia, comecarTimer],
+        [api, ligarSala, verificarMedia, comecarTimer, carregarConversa],
     );
 
     const atender = async () => {
