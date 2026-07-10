@@ -2025,12 +2025,16 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           keyExtractor: (item) => item.chave,
           estimatedItemSize: 64,
           extraData: `${versao}_${destacada}`,
+          contentContainerStyle: { paddingVertical: 8 },
           onScroll: (e) => {
             const fundo = e.nativeEvent.contentOffset.y < 60;
             setNoFundo(fundo);
             if (fundo) setNovas(0);
           },
-          scrollEventThrottle: 80,
+          onMomentumScrollEnd: (e) => {
+            setNoFundo(e.nativeEvent.contentOffset.y < 60);
+          },
+          scrollEventThrottle: 16,
           onEndReachedThreshold: 0.6,
           onEndReached: () => {
             if (aCarregarAntigas.current || semMaisAntigas.current || mensagens.length < 50) return;
@@ -2086,6 +2090,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       !noFundo && /* @__PURE__ */ jsxs6(Pressable6, { onPress: () => {
         lista.current?.scrollToOffset({ offset: 0, animated: true });
         setNovas(0);
+        setNoFundo(true);
       }, style: [estilos6.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }], children: [
         novas > 0 && /* @__PURE__ */ jsxs6(Text6, { style: { color: tema.primariaContraste, fontWeight: "800", fontSize: 12 }, children: [
           novas,

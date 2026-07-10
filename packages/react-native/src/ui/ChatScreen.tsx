@@ -411,13 +411,19 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     keyExtractor={(item: ItemLista) => item.chave}
                     estimatedItemSize={64}
                     extraData={`${versao}_${destacada}`}
+                    contentContainerStyle={{ paddingVertical: 8 }}
                     onScroll={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
                         const fundo = e.nativeEvent.contentOffset.y < 60;
                         setNoFundo(fundo);
 
                         if (fundo) setNovas(0);
                     }}
-                    scrollEventThrottle={80}
+                    onMomentumScrollEnd={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
+                        // apanha a posição final ao assentar (o onScroll grosseiro podia
+                        // deixar o noFundo preso em false → botão "descer" sempre visível)
+                        setNoFundo(e.nativeEvent.contentOffset.y < 60);
+                    }}
+                    scrollEventThrottle={16}
                     onEndReachedThreshold={0.6}
                     onEndReached={() => {
                         if (aCarregarAntigas.current || semMaisAntigas.current || mensagens.length < 50) return;
@@ -480,7 +486,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
                 {/* botão para o fundo + novas */}
                 {!noFundo && (
-                    <Pressable onPress={() => { lista.current?.scrollToOffset({ offset: 0, animated: true }); setNovas(0); }} style={[estilos.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }]}>
+                    <Pressable onPress={() => { lista.current?.scrollToOffset({ offset: 0, animated: true }); setNovas(0); setNoFundo(true); }} style={[estilos.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }]}>
                         {novas > 0 && (
                             <Text style={{ color: tema.primariaContraste, fontWeight: '800', fontSize: 12 }}>
                                 {novas} {novas === 1 ? 'nova' : 'novas'}
