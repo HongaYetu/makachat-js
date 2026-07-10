@@ -2097,7 +2097,13 @@ function TicksWeb({ mensagem, outros }: { mensagem: Mensagem; outros: Participan
     const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
     const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
 
-    return <Icon icon={entregue || lida ? 'tabler:checks' : 'tabler:check'} className={`text-[13px] ${lida ? 'opacity-100' : 'opacity-60'}`} />;
+    // ✓ enviada · ✓✓ entregue (cinzento) · ✓✓ lida (AZUL) — igual ao mobile
+    return (
+        <Icon
+            icon={entregue || lida ? 'tabler:checks' : 'tabler:check'}
+            className={`text-[13px] ${lida ? 'text-sky-400' : 'opacity-60'}`}
+        />
+    );
 }
 
 export function AvatarWeb({ nome, url, tamanho = 44, grupo = false }: { nome: string; url?: string | null; tamanho?: number; grupo?: boolean }) {

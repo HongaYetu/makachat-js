@@ -2534,7 +2534,13 @@ function TicksWeb({ mensagem, outros }) {
   if (mensagem.estado_envio === "falhou") return /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:alert-circle", className: "text-red-500" });
   const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
   const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
-  return /* @__PURE__ */ jsx4(Icon3, { icon: entregue || lida ? "tabler:checks" : "tabler:check", className: `text-[13px] ${lida ? "opacity-100" : "opacity-60"}` });
+  return /* @__PURE__ */ jsx4(
+    Icon3,
+    {
+      icon: entregue || lida ? "tabler:checks" : "tabler:check",
+      className: `text-[13px] ${lida ? "text-sky-400" : "opacity-60"}`
+    }
+  );
 }
 function AvatarWeb({ nome, url, tamanho = 44, grupo = false }) {
   if (!url && grupo) {

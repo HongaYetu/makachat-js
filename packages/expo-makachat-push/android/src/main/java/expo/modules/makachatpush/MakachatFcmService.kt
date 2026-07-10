@@ -154,6 +154,47 @@ class MakachatFcmService : FirebaseMessagingService() {
         val titulo = dados["titulo"] ?: "Nova mensagem"
         InboxDatabase.get(applicationContext).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
         mostrarMensagens(applicationContext, conversaId, titulo)
+
+        // recibo de ENTREGA (✓✓ cinzento) assim que o push chega ao dispositivo —
+        // best-effort, autenticado pelo token+segredo do registo do dispositivo
+        dados["mensagem_id"]?.let { reportarEntrega(conversaId, it) }
+    }
+
+    private fun reportarEntrega(conversaId: String, mensagemId: String) {
+        val db = InboxDatabase.get(applicationContext)
+        val apiUrl = db.obterConfig("api_url") ?: return
+        val token = db.obterConfig("token_dispositivo") ?: return
+        val segredo = db.obterConfig("segredo_resposta") ?: return
+
+        Thread {
+            try {
+                val ligacao = java.net.URL(apiUrl.trimEnd('/') + "/v1/push/entregue")
+                    .openConnection() as java.net.HttpURLConnection
+
+                try {
+                    ligacao.requestMethod = "POST"
+                    ligacao.connectTimeout = 8000
+                    ligacao.readTimeout = 8000
+                    ligacao.doOutput = true
+                    ligacao.setRequestProperty("Content-Type", "application/json")
+                    java.io.OutputStreamWriter(ligacao.outputStream).use {
+                        it.write(
+                            org.json.JSONObject().apply {
+                                put("token", token)
+                                put("segredo", segredo)
+                                put("conversa_id", conversaId)
+                                put("mensagem_id", mensagemId)
+                            }.toString()
+                        )
+                    }
+                    ligacao.responseCode
+                } finally {
+                    ligacao.disconnect()
+                }
+            } catch (_: Exception) {
+                // sem rede — o recibo chega pelo socket quando a app abrir
+            }
+        }.start()
     }
 
     // ------------------------------------------------------------ chamadas

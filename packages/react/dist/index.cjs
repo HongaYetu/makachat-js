@@ -2593,7 +2593,13 @@ function TicksWeb({ mensagem, outros }) {
   if (mensagem.estado_envio === "falhou") return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:alert-circle", className: "text-red-500" });
   const entregue = outros.length > 0 && outros.every((p) => (0, import_makachat_core2.idMaiorOuIgual)(p.ultima_entrega_mensagem_id, mensagem.id));
   const lida = outros.length > 0 && outros.every((p) => (0, import_makachat_core2.idMaiorOuIgual)(p.ultima_leitura_mensagem_id, mensagem.id));
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: entregue || lida ? "tabler:checks" : "tabler:check", className: `text-[13px] ${lida ? "opacity-100" : "opacity-60"}` });
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+    import_react7.Icon,
+    {
+      icon: entregue || lida ? "tabler:checks" : "tabler:check",
+      className: `text-[13px] ${lida ? "text-sky-400" : "opacity-60"}`
+    }
+  );
 }
 function AvatarWeb({ nome, url, tamanho = 44, grupo = false }) {
   if (!url && grupo) {

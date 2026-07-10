@@ -354,6 +354,10 @@ declare class MakaApi {
     }): Promise<{
         segredo_resposta?: string;
     }>;
+    /** Remove o token push desta identidade (logout). 1 identidade pode ter N tokens. */
+    removerDispositivo(token: string): Promise<{
+        removido: boolean;
+    }>;
 }
 
 interface MakaSocketOpcoes {
