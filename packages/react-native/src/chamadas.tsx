@@ -704,8 +704,8 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                         ) : (
                             <Avatar nome={titulo} url={foto} tamanho={132} />
                         )}
-                        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 20 }}>{titulo}</Text>
-                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginTop: 8 }}>
+                        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 20, textAlign: 'center', paddingHorizontal: 32 }}>{titulo}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginTop: 8, textAlign: 'center' }}>
                             {subtitulo ?? (inicioEm ? <Duracao desde={inicioEm} /> : null)}
                         </Text>
                     </View>

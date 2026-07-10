@@ -3199,8 +3199,8 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     emCurso && video && VideoTrack && local && /* @__PURE__ */ jsx9(View8, { style: estilos8.pip, children: /* @__PURE__ */ jsx9(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
     (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs8(View8, { style: estilos8.centro, children: [
       ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
-      /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20 }, children: titulo }),
-      /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8 }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) })
+      /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
+      /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) })
     ] }),
     /* @__PURE__ */ jsxs8(View8, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ jsx9(Pressable8, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "chevron-down", size: 26, color: "#fff" }) }),
