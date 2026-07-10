@@ -476,8 +476,9 @@ export class SyncEngine {
                     // conversa nova criada por outra pessoa — vai buscar ao REST
                     await this.atualizarConversas();
                 } else if (!duplicada) {
-                    // mensagem minha vinda de outra aba não conta como não lida
-                    await this.atualizarPreviewLocal(payload.mensagem, !minha);
+                    // mensagem minha vinda de outra aba não conta como não lida;
+                    // registos de chamada (efetuada/perdida) também não — o hub não os conta
+                    await this.atualizarPreviewLocal(payload.mensagem, !minha && payload.mensagem.tipo !== 'chamada');
                 }
 
                 await this.socket.marcarEntregues(payload.mensagem.conversa_id, payload.mensagem.id).catch(() => undefined);
