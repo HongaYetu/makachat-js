@@ -31,6 +31,27 @@ class MakachatFcmService : FirebaseMessagingService() {
         var emissor: ((Map<String, String?>) -> Unit)? = null
         var emissorChamada: ((Map<String, String?>) -> Unit)? = null
 
+        /** cache em memória dos avatares descarregados (url → bitmap) */
+        private val avatares = mutableMapOf<String, android.graphics.Bitmap?>()
+
+        /** Descarrega (com cache) o avatar do remetente; null em falha/sem rede. */
+        private fun avatarDe(url: String?): android.graphics.Bitmap? {
+            if (url.isNullOrEmpty()) return null
+            avatares[url]?.let { return it }
+
+            return try {
+                val ligacao = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                ligacao.connectTimeout = 4000
+                ligacao.readTimeout = 4000
+                val bitmap = ligacao.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
+                ligacao.disconnect()
+                avatares[url] = bitmap
+                bitmap
+            } catch (_: Exception) {
+                null
+            }
+        }
+
         fun cancelarChamada(context: Context, chamadaId: String) {
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             gestor.cancel(chamadaId.hashCode())
@@ -66,8 +87,17 @@ class MakachatFcmService : FirebaseMessagingService() {
                 return
             }
 
+            // avatar do remetente (guardado por conversa quando o push chega)
+            val fotoUrl = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("foto_$conversaId", null)
+            val avatar = avatarDe(fotoUrl)
+            val iconeAvatar = avatar?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
+
             for (linha in historico) {
-                val pessoa = if (linha.minha) eu else Person.Builder().setName(linha.remetente).build()
+                val pessoa = if (linha.minha) eu else Person.Builder()
+                    .setName(linha.remetente)
+                    .apply { iconeAvatar?.let { setIcon(it) } }
+                    .build()
                 estilo.addMessage(NotificationCompat.MessagingStyle.Message(linha.corpo, linha.em, if (linha.minha) null else pessoa))
             }
 
@@ -102,13 +132,18 @@ class MakachatFcmService : FirebaseMessagingService() {
                 .setAllowGeneratedReplies(true)
                 .build()
 
-            val abrir = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
-                it.putExtra("makachat_conversa_id", conversaId)
-                PendingIntent.getActivity(context, conversaId.hashCode(), it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            }
+            // tap → broadcast que persiste a conversa pendente e abre a app
+            // (extras diretos no launch intent perdem-se no arranque frio)
+            val abrir = PendingIntent.getBroadcast(
+                context,
+                ("abrir_" + conversaId).hashCode(),
+                extras(RespostaReceiver.ACAO_ABRIR),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
             val notificacao = NotificationCompat.Builder(context, CANAL)
                 .setSmallIcon(context.applicationInfo.icon)
+                .apply { avatar?.let { setLargeIcon(it) } }
                 .setStyle(estilo)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setAutoCancel(true)
@@ -152,6 +187,12 @@ class MakachatFcmService : FirebaseMessagingService() {
         )
 
         val titulo = dados["titulo"] ?: "Nova mensagem"
+
+        // avatar do remetente para a notificação (guardado por conversa)
+        dados["foto"]?.takeIf { it.isNotEmpty() }?.let {
+            prefs().edit().putString("foto_$conversaId", it).apply()
+        }
+
         InboxDatabase.get(applicationContext).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
         mostrarMensagens(applicationContext, conversaId, titulo)
 

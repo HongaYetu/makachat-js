@@ -204,23 +204,6 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { AppState } from "react-native";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
-// src/tema.ts
-var PADRAO = {
-  primaria: "#4f46e5",
-  primariaContraste: "#ffffff",
-  fundo: "#f4f5f7",
-  superficie: "#ffffff",
-  bolhaMinha: "#4f46e5",
-  bolhaMinhaTexto: "#ffffff",
-  bolhaOutro: "#ffffff",
-  texto: "#0f172a",
-  textoSuave: "#64748b",
-  raio: 16
-};
-function resolverTema(tema) {
-  return { ...PADRAO, ...tema };
-}
-
 // src/opcionais.ts
 var obterImagePicker = () => {
   try {
@@ -293,6 +276,23 @@ var obterKeyboardController = () => {
     return null;
   }
 };
+
+// src/tema.ts
+var PADRAO = {
+  primaria: "#4f46e5",
+  primariaContraste: "#ffffff",
+  fundo: "#f4f5f7",
+  superficie: "#ffffff",
+  bolhaMinha: "#4f46e5",
+  bolhaMinhaTexto: "#ffffff",
+  bolhaOutro: "#ffffff",
+  texto: "#0f172a",
+  textoSuave: "#64748b",
+  raio: 16
+};
+function resolverTema(tema) {
+  return { ...PADRAO, ...tema };
+}
 
 // src/sons.ts
 var FONTES = {
@@ -425,6 +425,23 @@ function MakaChatProvider({
     void valor.engine.iniciar();
     void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
     return () => valor.socket.desligar();
+  }, [valor]);
+  useEffect(() => {
+    const push = obterPushMakaChat();
+    if (!push?.drenarInbox) return;
+    const ingerir = (itens) => {
+      const mensagens = itens.map((item) => {
+        try {
+          return JSON.parse(item.mensagem_json);
+        } catch {
+          return null;
+        }
+      }).filter((m) => !!m && typeof m.id === "string" && typeof m.conversa_id === "string");
+      if (mensagens.length) void valor.engine.ingerirMensagensPush(mensagens);
+    };
+    void push.drenarInbox().then(ingerir).catch(() => void 0);
+    const sub = push.aoReceberPush ? push.aoReceberPush((item) => ingerir([item])) : null;
+    return () => sub?.remove?.();
   }, [valor]);
   useEffect(() => {
     const sub = AppState.addEventListener("change", (estado) => {
@@ -3153,6 +3170,77 @@ async function ligarPushNativo(api, identidade, tokenFcm, plataforma = "android"
   });
   return true;
 }
+
+// src/notificacoes-locais.tsx
+import { useEffect as useEffect9 } from "react";
+import { AppState as AppState4 } from "react-native";
+function NotificacoesLocais({ avatarPadrao } = {}) {
+  const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
+  useEffect9(() => {
+    const notifee = obterNotifee();
+    if (!notifee?.displayNotification) return;
+    return subscreverMensagens((mensagem) => {
+      if (estaVisivel(mensagem.conversa_id) && AppState4.currentState === "active") return;
+      void (async () => {
+        try {
+          const conversa = await engine.storage.obterConversa(mensagem.conversa_id);
+          const remetente = conversa?.participantes.find(
+            (p) => p.identidade_id === mensagem.remetente_identidade_id
+          );
+          const nome = remetente?.nome ?? conversa?.titulo ?? "Nova mensagem";
+          const avatar = remetente?.foto_url ?? avatarPadrao;
+          await notifee.createChannel({ id: "makachat_mensagens", name: "Mensagens", importance: 4 });
+          await notifee.displayNotification({
+            id: `mkm_${mensagem.conversa_id}`,
+            title: nome,
+            body: previewDe(mensagem),
+            data: { makachat: "1", conversa_id: mensagem.conversa_id },
+            android: {
+              channelId: "makachat_mensagens",
+              smallIcon: "ic_launcher",
+              ...avatar ? { largeIcon: avatar, circularLargeIcon: true } : {},
+              // estilo MESSAGING: avatar redondo por pessoa (URL remoto suportado)
+              style: {
+                type: 4,
+                // AndroidStyle.MESSAGING
+                person: { name: nome, ...avatar ? { icon: avatar } : {} },
+                messages: [
+                  {
+                    text: previewDe(mensagem),
+                    timestamp: Date.parse(mensagem.criada_em) || void 0,
+                    person: { name: nome, ...avatar ? { icon: avatar } : {} }
+                  }
+                ]
+              },
+              pressAction: { id: "default" }
+            },
+            ios: {
+              // iOS: attachments exigem ficheiro local — avatar rico fica
+              // para a fase NSE; aqui vai título/corpo padrão
+            }
+          });
+        } catch {
+        }
+      })();
+    });
+  }, [engine, subscreverMensagens, estaVisivel, avatarPadrao]);
+  return null;
+}
+function previewDe(mensagem) {
+  if (mensagem.eliminada) return "Mensagem eliminada";
+  switch (mensagem.tipo) {
+    case "foto":
+      return mensagem.conteudo ?? "\u{1F4F7} Foto";
+    case "video":
+      return mensagem.conteudo ?? "\u{1F3A5} V\xEDdeo";
+    case "audio":
+      return "\u{1F3A4} Mensagem de voz";
+    case "ficheiro":
+      return "\u{1F4CE} Ficheiro";
+    default:
+      return mensagem.conteudo ?? "Nova mensagem";
+  }
+}
 export {
   Avatar,
   Bolha,
@@ -3167,6 +3255,7 @@ export {
   LobbyFotos,
   MakaChatProvider,
   NomeComBadge,
+  NotificacoesLocais,
   ReprodutorAudio,
   Sheet,
   SqliteStorage,

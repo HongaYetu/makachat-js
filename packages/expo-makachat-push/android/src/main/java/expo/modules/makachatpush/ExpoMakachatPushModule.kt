@@ -46,6 +46,19 @@ class ExpoMakachatPushModule : Module() {
             MakachatFcmService.cancelarChamada(appContext.reactContext!!, chamadaId)
         }
 
+        /** Conversa do tap numa notificação nativa de mensagem (lê e limpa). */
+        AsyncFunction("obterConversaPendente") {
+            val prefs = appContext.reactContext!!.getSharedPreferences(MakachatFcmService.PREFS, Context.MODE_PRIVATE)
+            val conversaId = prefs.getString("conversa_pendente", null)
+            prefs.edit().remove("conversa_pendente").apply()
+            conversaId
+        }
+
+        /** Cancela a notificação de mensagens da conversa (ex.: ao abrir o chat na app). */
+        Function("cancelarNotificacaoMensagens") { conversaId: String ->
+            MakachatFcmService.cancelarNotificacaoMensagens(appContext.reactContext!!, conversaId)
+        }
+
         OnCreate {
             // permite ao FCM service emitir para o JS quando a app está viva
             MakachatFcmService.emissor = { payload -> sendEvent("onMensagemPush", payload) }

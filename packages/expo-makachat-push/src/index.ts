@@ -24,7 +24,9 @@ interface ModuloNativo {
     /** iOS: App Group para a NSE partilhar o inbox (ex: group.com.hongayetu.humbi) */
     configurar(appGroup: string | null): void;
     obterChamadaPendente(): Promise<string | null>;
+    obterConversaPendente(): Promise<string | null>;
     cancelarNotificacaoChamada(chamadaId: string): void;
+    cancelarNotificacaoMensagens(conversaId: string): void;
     configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
 }
 
@@ -67,6 +69,19 @@ export function aoChamadaPush(ouvinte: (chamada: ChamadaPush) => void): { remove
 /** Cancela a notificação de chamada (depois de atender/rejeitar na app). */
 export function cancelarNotificacaoChamada(chamadaId: string): void {
     nativo.cancelarNotificacaoChamada(chamadaId);
+}
+
+/**
+ * Conversa do tap numa notificação NATIVA de mensagem (app fechada/background) —
+ * lê e limpa; chamar no arranque e no AppState 'active' para navegar à conversa.
+ */
+export async function obterConversaPendente(): Promise<string | null> {
+    return nativo.obterConversaPendente();
+}
+
+/** Cancela a notificação nativa de mensagens da conversa (ao abrir o chat na app). */
+export function cancelarNotificacaoMensagens(conversaId: string): void {
+    nativo.cancelarNotificacaoMensagens(conversaId);
 }
 
 /**

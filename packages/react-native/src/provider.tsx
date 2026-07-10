@@ -16,6 +16,7 @@ import {
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { obterPushMakaChat } from './opcionais';
 import { SqliteStorage } from './sqlite-storage';
 import { MakaTema, resolverTema, TemaResolvido } from './tema';
 import { tocarSom } from './sons';
@@ -172,6 +173,37 @@ export function MakaChatProvider({
             .catch(() => undefined);
 
         return () => valor.socket.desligar();
+    }, [valor]);
+
+    // Inbox do push nativo: mensagens recebidas por FCM com a app morta ficam
+    // no SQLite nativo — drena no arranque e ouve pushes com a app viva em
+    // background. Upsert idempotente por id (o delta não duplica).
+    useEffect(() => {
+        const push = obterPushMakaChat();
+
+        if (!push?.drenarInbox) return;
+
+        const ingerir = (itens: { mensagem_json: string }[]) => {
+            const mensagens = itens
+                .map((item) => {
+                    try {
+                        return JSON.parse(item.mensagem_json) as Mensagem;
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter((m): m is Mensagem => !!m && typeof m.id === 'string' && typeof m.conversa_id === 'string');
+
+            if (mensagens.length) void valor.engine.ingerirMensagensPush(mensagens);
+        };
+
+        void push.drenarInbox().then(ingerir).catch(() => undefined);
+
+        const sub = push.aoReceberPush
+            ? (push.aoReceberPush((item: { mensagem_json: string }) => ingerir([item])) as { remove(): void })
+            : null;
+
+        return () => sub?.remove?.();
     }, [valor]);
 
     // App volta do background: o Android mata websockets com o ecrã desligado.

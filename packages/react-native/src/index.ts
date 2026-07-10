@@ -24,4 +24,5 @@ export { ReprodutorAudio, GravadorAudio } from './ui/audio';
 export { Galeria, LobbyFotos, VisualizadorVideo, enviarAnexoLocal, escolherFotosEVideos, escolherFicheiro } from './ui/media';
 export { Bolha, CartaoRegistoChamada } from './ui/Bolha';
 export { ligarPushNativo } from './push-nativo';
+export { NotificacoesLocais } from './notificacoes-locais';
 export { tocarSom, comecarToque, pararToque, type NomeSom } from './sons';

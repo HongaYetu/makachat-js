@@ -21,12 +21,29 @@ class RespostaReceiver : BroadcastReceiver() {
     companion object {
         const val ACAO_RESPONDER = "expo.modules.makachatpush.RESPONDER"
         const val ACAO_LIDA = "expo.modules.makachatpush.MARCAR_LIDA"
+        const val ACAO_ABRIR = "expo.modules.makachatpush.ABRIR_CONVERSA"
         const val CHAVE_TEXTO = "makachat_texto_resposta"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         val conversaId = intent.getStringExtra("conversa_id") ?: return
         val titulo = intent.getStringExtra("titulo") ?: "Conversa"
+
+        // Tap no corpo da notificação: persiste a conversa pendente (o JS lê no
+        // arranque/foreground — extras de launch intents perdem-se) e abre a app.
+        // Espelha o padrão comprovado das chamadas (chamada_pendente).
+        if (intent.action == ACAO_ABRIR) {
+            context.getSharedPreferences(MakachatFcmService.PREFS, Context.MODE_PRIVATE)
+                .edit().putString("conversa_pendente", conversaId).apply()
+            MakachatFcmService.cancelarNotificacaoMensagens(context, conversaId)
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+                it.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                context.startActivity(it)
+            }
+
+            return
+        }
+
         val db = InboxDatabase.get(context)
 
         val apiUrl = db.obterConfig("api_url") ?: return

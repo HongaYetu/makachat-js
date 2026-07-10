@@ -539,6 +539,8 @@ declare class SyncEngine {
     private atualizarChamadaAtiva;
     /** Mantém a lista viva: preview, ordem (topo) e contador sem esperar pelo REST. */
     private atualizarPreviewLocal;
+    /** Mensagens vindas do push nativo (inbox offline) — upsert idempotente por id + refresh da UI. */
+    ingerirMensagensPush(mensagens: Mensagem[]): Promise<void>;
     /** Carrega histórico da conversa via REST para o storage (chamado ao abrir). */
     carregarMensagens(conversaId: string, antesDe?: string): Promise<number>;
     enviarMensagem(dados: DadosEnvioMensagem, anexosPreview?: Anexo[]): Promise<Mensagem>;

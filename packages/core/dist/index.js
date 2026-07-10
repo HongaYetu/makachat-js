@@ -627,6 +627,14 @@ var SyncEngine = class {
       }
     ]);
   }
+  /** Mensagens vindas do push nativo (inbox offline) — upsert idempotente por id + refresh da UI. */
+  async ingerirMensagensPush(mensagens) {
+    if (!mensagens.length) {
+      return;
+    }
+    await this.storage.upsertMensagens(mensagens.map((m) => ({ ...m, estado_envio: "enviada" })));
+    this.notificar();
+  }
   /** Carrega histórico da conversa via REST para o storage (chamado ao abrir). */
   async carregarMensagens(conversaId, antesDe) {
     const { mensagens } = await this.api.listarMensagens(conversaId, { antes_de: antesDe, limite: 50 });

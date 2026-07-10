@@ -341,6 +341,23 @@ declare function Bolha({ mensagem: m, minha, grupo, autor, outros, primeiraDoBlo
 declare function ligarPushNativo(api: MakaApi, identidade: IdentidadeConfig, tokenFcm: string, plataforma?: 'android' | 'ios'): Promise<boolean>;
 
 /**
+ * Notificações LOCAIS de mensagens recebidas pelo SOCKET (o hub só envia FCM
+ * quando o destinatário está offline): dispara quando a conversa NÃO está
+ * visível — utilizador noutra página — ou a app está em background com o
+ * socket ainda vivo. Montar dentro do <MakaChatProvider>; sem @notifee
+ * instalado é um no-op. O tap traz `data: { makachat: '1', conversa_id }` —
+ * o router de push da app (notifee onForegroundEvent/getInitialNotification)
+ * trata a navegação.
+ *
+ * Avatar: usa a foto do remetente (largeIcon + person.icon no estilo
+ * MESSAGING do Android); sem foto usa `avatarPadrao` (URL) se fornecido,
+ * senão o placeholder do sistema.
+ */
+declare function NotificacoesLocais({ avatarPadrao }?: {
+    avatarPadrao?: string;
+}): null;
+
+/**
  * Sons do chat (herdados do Kanda) via expo-audio (peer opcional — sem ele,
  * silêncio). Os mp3 são copiados para dist pelo build (loader copy) e o
  * Metro empacota-os como assets.
@@ -354,4 +371,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };
