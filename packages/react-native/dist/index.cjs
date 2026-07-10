@@ -1803,14 +1803,22 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const ultimaVista = (0, import_react9.useRef)(null);
   const aCarregarAntigas = (0, import_react9.useRef)(false);
   const aDescer = (0, import_react9.useRef)(false);
+  const viewabilityConfig = (0, import_react9.useRef)({ itemVisiblePercentThreshold: 10 }).current;
+  const aoMudarVisiveis = (0, import_react9.useRef)(({ viewableItems }) => {
+    const fundo = viewableItems.some((v) => v.index === 0);
+    if (fundo) {
+      aDescer.current = false;
+      setNovas(0);
+      setNoFundo(true);
+    } else if (!aDescer.current) {
+      setNoFundo(false);
+    }
+  }).current;
   const descerParaFundo = () => {
     aDescer.current = true;
     lista.current?.scrollToOffset({ offset: 0, animated: true });
     setNovas(0);
     setNoFundo(true);
-    setTimeout(() => {
-      aDescer.current = false;
-    }, 450);
   };
   const semMaisAntigas = (0, import_react9.useRef)(false);
   const eu = conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null;
@@ -2044,18 +2052,13 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           keyExtractor: (item) => item.chave,
           estimatedItemSize: 64,
           extraData: `${versao}_${destacada}`,
-          contentContainerStyle: { paddingVertical: 8 },
-          onScroll: (e) => {
-            if (aDescer.current) return;
-            const fundo = e.nativeEvent.contentOffset.y < 60;
-            setNoFundo(fundo);
-            if (fundo) setNovas(0);
+          ListHeaderComponent: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { height: 10 } }),
+          ListFooterComponent: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { height: 8 } }),
+          viewabilityConfig,
+          onViewableItemsChanged: aoMudarVisiveis,
+          onScrollBeginDrag: () => {
+            aDescer.current = false;
           },
-          onMomentumScrollEnd: (e) => {
-            if (aDescer.current) return;
-            setNoFundo(e.nativeEvent.contentOffset.y < 60);
-          },
-          scrollEventThrottle: 16,
           onEndReachedThreshold: 0.6,
           onEndReached: () => {
             if (aCarregarAntigas.current || semMaisAntigas.current || mensagens.length < 50) return;

@@ -105,18 +105,32 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const lista = useRef<{ scrollToOffset(o: { offset: number; animated?: boolean }): void; scrollToIndex(o: { index: number; animated?: boolean; viewPosition?: number }): void } | null>(null);
     const ultimaVista = useRef<string | null>(null);
     const aCarregarAntigas = useRef(false);
-    // enquanto descemos programaticamente para o fundo, o onScroll da animação
-    // reportaria offsets altos e reativava o botão — esta flag ignora-o.
+    // Visibilidade do botão "descer" por VIEWABILITY (não por eventos de scroll):
+    // está-se no fundo quando o item de índice 0 (mensagem mais recente, fundo
+    // visual da lista invertida) está visível — vale para scroll do dedo,
+    // programático ou novas mensagens, sem timers nem corridas. Durante a
+    // descida programática a flag aDescer segura o botão escondido; limpa-se
+    // deterministicamente quando o índice 0 fica visível (ou se o utilizador
+    // agarrar a lista — onScrollBeginDrag).
     const aDescer = useRef(false);
+    const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
+    const aoMudarVisiveis = useRef(({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+        const fundo = viewableItems.some((v) => v.index === 0);
+
+        if (fundo) {
+            aDescer.current = false;
+            setNovas(0);
+            setNoFundo(true);
+        } else if (!aDescer.current) {
+            setNoFundo(false);
+        }
+    }).current;
 
     const descerParaFundo = () => {
         aDescer.current = true;
         lista.current?.scrollToOffset({ offset: 0, animated: true });
         setNovas(0);
         setNoFundo(true);
-        setTimeout(() => {
-            aDescer.current = false;
-        }, 450);
     };
     const semMaisAntigas = useRef(false);
 
@@ -424,19 +438,16 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     keyExtractor={(item: ItemLista) => item.chave}
                     estimatedItemSize={64}
                     extraData={`${versao}_${destacada}`}
-                    contentContainerStyle={{ paddingVertical: 8 }}
-                    onScroll={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
-                        if (aDescer.current) return; // a descer programaticamente — ignora
-                        const fundo = e.nativeEvent.contentOffset.y < 60;
-                        setNoFundo(fundo);
-
-                        if (fundo) setNovas(0);
+                    // spacers como CONTEÚDO (não padding): numa lista inverted o header
+                    // renderiza no fundo visual (folga acima do input). paddingVertical no
+                    // contentContainer é buggy em inverted/Android — re-clampa sem o padding.
+                    ListHeaderComponent={<View style={{ height: 10 }} />}
+                    ListFooterComponent={<View style={{ height: 8 }} />}
+                    viewabilityConfig={viewabilityConfig}
+                    onViewableItemsChanged={aoMudarVisiveis}
+                    onScrollBeginDrag={() => {
+                        aDescer.current = false; // o utilizador agarrou — viewability governa
                     }}
-                    onMomentumScrollEnd={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
-                        if (aDescer.current) return;
-                        setNoFundo(e.nativeEvent.contentOffset.y < 60);
-                    }}
-                    scrollEventThrottle={16}
                     onEndReachedThreshold={0.6}
                     onEndReached={() => {
                         if (aCarregarAntigas.current || semMaisAntigas.current || mensagens.length < 50) return;
