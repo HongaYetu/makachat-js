@@ -223,14 +223,23 @@ class MakachatFcmService : FirebaseMessagingService() {
         /**
          * (Re)constrói a notificação MessagingStyle da conversa a partir do
          * histórico SQLite — usado no push novo e depois de responder ao vivo.
+         * `semSom`: mensagem silenciosa (flag do hub — não conta no badge) vai
+         * para o canal LOW, sem som nem heads-up (mesmo id do canal do notifee).
          */
-        fun mostrarMensagens(context: Context, conversaId: String, titulo: String, silenciosa: Boolean = false) {
+        fun mostrarMensagens(context: Context, conversaId: String, titulo: String, silenciosa: Boolean = false, semSom: Boolean = false) {
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val canalId = if (semSom) "makachat_silenciosas" else CANAL
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                gestor.createNotificationChannel(
-                    NotificationChannel(CANAL, "Mensagens", NotificationManager.IMPORTANCE_HIGH)
-                )
+                if (semSom) {
+                    gestor.createNotificationChannel(
+                        NotificationChannel(canalId, "Eventos silenciosos", NotificationManager.IMPORTANCE_LOW)
+                    )
+                } else {
+                    gestor.createNotificationChannel(
+                        NotificationChannel(CANAL, "Mensagens", NotificationManager.IMPORTANCE_HIGH)
+                    )
+                }
             }
 
             val db = InboxDatabase.get(context)
@@ -302,7 +311,7 @@ class MakachatFcmService : FirebaseMessagingService() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
-            val notificacao = NotificationCompat.Builder(context, CANAL)
+            val notificacao = NotificationCompat.Builder(context, canalId)
                 .setSmallIcon(context.applicationInfo.icon)
                 .setLargeIcon(avatar)
                 .setStyle(estilo)
@@ -358,7 +367,15 @@ class MakachatFcmService : FirebaseMessagingService() {
         }.apply()
 
         InboxDatabase.get(applicationContext).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
-        mostrarMensagens(applicationContext, conversaId, titulo)
+
+        // flag do hub na própria mensagem: silenciosa (não conta no badge) → canal sem som
+        val semSom = try {
+            org.json.JSONObject(mensagemJson).optBoolean("silenciosa", false)
+        } catch (_: Exception) {
+            false
+        }
+
+        mostrarMensagens(applicationContext, conversaId, titulo, semSom = semSom)
 
         // recibo de ENTREGA (✓✓ cinzento) assim que o push chega ao dispositivo —
         // best-effort, autenticado pelo token+segredo do registo do dispositivo
