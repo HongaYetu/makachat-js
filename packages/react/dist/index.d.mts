@@ -62,6 +62,12 @@ declare function useMakaChat(): MakaChatContexto;
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
 /** Estado da ligação socket (true = online). */
 declare function useLigacao(): boolean;
+/**
+ * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
+ * positivos do banner "sem ligação" em reconexões normais (arranque, voltar
+ * do background); desliga no instante em que a ligação volta.
+ */
+declare function useSemLigacao(atrasoMs?: number): boolean;
 declare function useVersaoChat(): number;
 declare function useConversas(arquivadas?: boolean): Conversa[];
 declare function useMensagens(conversaId: string | null, limite?: number): Mensagem[];
@@ -192,4 +198,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useChamadas, useChamadasOpcional, useConversas, useDock, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTotalNaoLidas, useTypingConversa, useVersaoChat };
+export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useChamadas, useChamadasOpcional, useConversas, useDock, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTotalNaoLidas, useTypingConversa, useVersaoChat };

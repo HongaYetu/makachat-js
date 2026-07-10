@@ -118,6 +118,12 @@ declare function useFuncionalidadeAtiva(funcionalidade: Funcionalidade, tipoConv
 /** Estado da ligação socket (true = online). */
 declare function useLigacao(): boolean;
 /**
+ * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
+ * positivos do banner "sem ligação" em reconexões normais (arranque, voltar
+ * do background); desliga no instante em que a ligação volta.
+ */
+declare function useSemLigacao(atrasoMs?: number): boolean;
+/**
  * Reage a QUALQUER mensagem nova recebida, em qualquer ecrã da app — o
  * servidor emite para a sala da identidade, sem depender da conversa aberta.
  */
@@ -164,6 +170,14 @@ declare function Sheet({ visivel, aoFechar, titulo, itens, children, }: {
     children?: React.ReactNode;
 }): React.JSX.Element;
 
+/** Tudo o que o topo (pesquisa + arquivadas) precisa — passado ao renderTopo. */
+interface TopoConversasContexto {
+    busca: string;
+    setBusca(q: string): void;
+    /** undefined quando não aplicável (já nas arquivadas ou sem onAbrirArquivadas) */
+    abrirArquivadas?(): void;
+    arquivadas: boolean;
+}
 interface ConversasScreenProps {
     arquivadas?: boolean;
     onAbrirConversa(conversa: Conversa): void;
@@ -172,9 +186,14 @@ interface ConversasScreenProps {
     /** navegar para o modo arquivadas (a app decide: outro ecrã ou estado local) */
     onAbrirArquivadas?(): void;
     textoVazio?: string;
+    /**
+     * Topo CUSTOM da app (pesquisa/arquivadas ao estilo dela): recebe a busca
+     * controlada e a ação de arquivadas. Sem isto, o topo interno padrão é usado.
+     */
+    renderTopo?(ctx: TopoConversasContexto): React.ReactNode;
 }
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio }: ConversasScreenProps): React.JSX.Element;
+declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }: ConversasScreenProps): React.JSX.Element;
 declare function previewConversa(c: Conversa): string;
 
 /** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
@@ -403,4 +422,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };

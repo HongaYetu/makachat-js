@@ -1,7 +1,7 @@
 import { Icon } from '@iconify/react';
 import { Conversa } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useConversas, useVersaoChat } from './hooks';
+import { useConversas, useSemLigacao, useVersaoChat } from './hooks';
 import { useMakaChat } from './provider';
 import { AvatarWeb, ConversaPainel, MakaChatConversas, useFecharFora } from './ui';
 
@@ -33,7 +33,8 @@ export function MakaChatBoxMin({ conversaAbertaId, queryParam = 'conversa' }: Bo
 }
 
 function DuasColunas({ conversaAbertaId, queryParam }: BoxProps) {
-    const { ligado, engine } = useMakaChat();
+    const { engine } = useMakaChat();
+    const semLigacao = useSemLigacao();
     const [ativa, setAtiva] = useState<string | null>(conversaAbertaId ?? null);
 
     useEffect(() => {
@@ -71,7 +72,7 @@ function DuasColunas({ conversaAbertaId, queryParam }: BoxProps) {
 
     return (
         <div ref={ref} className="flex h-full flex-col">
-            {!ligado && (
+            {semLigacao && (
                 <div className="bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-800">
                     ⚠️ Sem ligação ao chat — a tentar reconectar…
                 </div>

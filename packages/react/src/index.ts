@@ -9,6 +9,7 @@ export {
     usePresenca,
     useFuncionalidadeAtiva,
     useLigacao,
+    useSemLigacao,
     useMensagemRecebida,
     useTotalNaoLidas,
 } from './hooks';

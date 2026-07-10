@@ -57,6 +57,7 @@ __export(index_exports, {
   useMensagemRecebida: () => useMensagemRecebida,
   useMensagens: () => useMensagens,
   usePresenca: () => usePresenca,
+  useSemLigacao: () => useSemLigacao,
   useTotalNaoLidas: () => useTotalNaoLidas,
   useTypingConversa: () => useTypingConversa,
   useVersaoChat: () => useVersaoChat
@@ -300,6 +301,19 @@ function useMakaChat() {
 var import_react2 = require("react");
 function useLigacao() {
   return useMakaChat().ligado;
+}
+function useSemLigacao(atrasoMs = 4e3) {
+  const ligado = useLigacao();
+  const [mostrar, setMostrar] = (0, import_react2.useState)(false);
+  (0, import_react2.useEffect)(() => {
+    if (ligado) {
+      setMostrar(false);
+      return;
+    }
+    const t = setTimeout(() => setMostrar(true), atrasoMs);
+    return () => clearTimeout(t);
+  }, [ligado, atrasoMs]);
+  return mostrar;
 }
 function useVersaoChat() {
   const { engine } = useMakaChat();
@@ -2738,7 +2752,8 @@ function MakaChatBoxMin({ conversaAbertaId, queryParam = "conversa" } = {}) {
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "h-full min-h-[420px] w-full overflow-hidden rounded-2xl bg-[var(--maka-fundo)] shadow-sm ring-1 ring-black/[.05]", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(DuasColunas, { conversaAbertaId, queryParam }) });
 }
 function DuasColunas({ conversaAbertaId, queryParam }) {
-  const { ligado, engine } = useMakaChat();
+  const { engine } = useMakaChat();
+  const semLigacao = useSemLigacao();
   const [ativa, setAtiva] = (0, import_react10.useState)(conversaAbertaId ?? null);
   (0, import_react10.useEffect)(() => {
     if (conversaAbertaId) setAtiva(conversaAbertaId);
@@ -2761,7 +2776,7 @@ function DuasColunas({ conversaAbertaId, queryParam }) {
   const mostrarLista = !estreita || !ativa;
   const mostrarPainel = !estreita || !!ativa;
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { ref, className: "flex h-full flex-col", children: [
-    !ligado && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-800", children: "\u26A0\uFE0F Sem liga\xE7\xE3o ao chat \u2014 a tentar reconectar\u2026" }),
+    semLigacao && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-800", children: "\u26A0\uFE0F Sem liga\xE7\xE3o ao chat \u2014 a tentar reconectar\u2026" }),
     /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex min-h-0 flex-1", children: [
       mostrarLista && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: `h-full border-0 border-r border-solid border-black/[.06] ${estreita ? "w-full" : "w-[340px] shrink-0"}`, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(MakaChatConversas, { conversaAtivaId: ativa, onAbrirConversa: (c) => setAtiva(c.id) }) }),
       mostrarPainel && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "h-full min-w-0 flex-1", children: ativa ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
@@ -2931,6 +2946,7 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
   useMensagemRecebida,
   useMensagens,
   usePresenca,
+  useSemLigacao,
   useTotalNaoLidas,
   useTypingConversa,
   useVersaoChat,

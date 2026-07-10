@@ -59,6 +59,7 @@ __export(index_exports, {
   useMensagemRecebida: () => useMensagemRecebida,
   useMensagens: () => useMensagens,
   usePresenca: () => usePresenca,
+  useSemLigacao: () => useSemLigacao,
   useTema: () => useTema,
   useTotalNaoLidas: () => useTotalNaoLidas,
   useTypingConversa: () => useTypingConversa,
@@ -647,6 +648,19 @@ function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
 function useLigacao() {
   return useMakaChat().ligado;
 }
+function useSemLigacao(atrasoMs = 4e3) {
+  const ligado = useLigacao();
+  const [mostrar, setMostrar] = (0, import_react2.useState)(false);
+  (0, import_react2.useEffect)(() => {
+    if (ligado) {
+      setMostrar(false);
+      return;
+    }
+    const t = setTimeout(() => setMostrar(true), atrasoMs);
+    return () => clearTimeout(t);
+  }, [ligado, atrasoMs]);
+  return mostrar;
+}
 function useMensagemRecebida(handler) {
   const { subscreverMensagens } = useMakaChat();
   const ref = (0, import_react3.useRef)(handler);
@@ -817,10 +831,10 @@ var import_react5 = require("react");
 var import_react_native3 = require("react-native");
 var import_jsx_runtime3 = require("react/jsx-runtime");
 var SEMPRE = "9999-12-31T00:00:00.000Z";
-function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio }) {
+function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
-  const ligado = useLigacao();
+  const semLigacao = useSemLigacao();
   const conversas = useConversas(arquivadas);
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
@@ -958,24 +972,31 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
     );
   };
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: { flex: 1, backgroundColor: tema.superficie }, children: [
-    !ligado && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.View, { style: estilos2.offline, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: estilos2.offlineTexto, children: "Sem liga\xE7\xE3o \u2014 a reconectar\u2026" }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: [estilos2.pesquisa, { backgroundColor: tema.fundo }], children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "search", size: 17, color: tema.textoSuave }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-        import_react_native3.TextInput,
-        {
-          value: busca,
-          onChangeText: setBusca,
-          placeholder: "Pesquisar conversas",
-          placeholderTextColor: tema.textoSuave,
-          style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 8 }
-        }
-      ),
-      busca.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Pressable, { onPress: () => setBusca(""), children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "close-circle", size: 18, color: tema.textoSuave }) })
-    ] }),
-    !arquivadas && onAbrirArquivadas && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.Pressable, { onPress: onAbrirArquivadas, style: ({ pressed }) => [estilos2.arquivadas, pressed && { opacity: 0.6 }], children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "archive-outline", size: 19, color: tema.textoSuave }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
+    semLigacao && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.View, { style: estilos2.offline, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: estilos2.offlineTexto, children: "Sem liga\xE7\xE3o \u2014 a reconectar\u2026" }) }),
+    renderTopo ? renderTopo({
+      busca,
+      setBusca,
+      abrirArquivadas: !arquivadas && onAbrirArquivadas ? onAbrirArquivadas : void 0,
+      arquivadas
+    }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: [estilos2.pesquisa, { backgroundColor: tema.fundo }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "search", size: 17, color: tema.textoSuave }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          import_react_native3.TextInput,
+          {
+            value: busca,
+            onChangeText: setBusca,
+            placeholder: "Pesquisar conversas",
+            placeholderTextColor: tema.textoSuave,
+            style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 8 }
+          }
+        ),
+        busca.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Pressable, { onPress: () => setBusca(""), children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "close-circle", size: 18, color: tema.textoSuave }) })
+      ] }),
+      !arquivadas && onAbrirArquivadas && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.Pressable, { onPress: onAbrirArquivadas, style: ({ pressed }) => [estilos2.arquivadas, pressed && { opacity: 0.6 }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "archive-outline", size: 19, color: tema.textoSuave }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
+      ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       ListaPerformante,
@@ -3498,6 +3519,7 @@ function previewDe(mensagem) {
   useMensagemRecebida,
   useMensagens,
   usePresenca,
+  useSemLigacao,
   useTema,
   useTotalNaoLidas,
   useTypingConversa,

@@ -10,13 +10,14 @@ export {
     usePresenca,
     useFuncionalidadeAtiva,
     useLigacao,
+    useSemLigacao,
     useMensagemRecebida,
     useTotalNaoLidas,
 } from './hooks';
 export { useTema } from './provider';
 export { type MakaTema } from './tema';
 export { Avatar, NomeComBadge, Sheet, ListaPerformante, horaCurta, rotuloDia } from './ui/comum';
-export { ConversasScreen, previewConversa, type ConversasScreenProps } from './ui/ConversasScreen';
+export { ConversasScreen, previewConversa, type ConversasScreenProps, type TopoConversasContexto } from './ui/ConversasScreen';
 export { ChatScreen, type ChatScreenProps, type HeaderChatContexto } from './ui/ChatScreen';
 export { InfoConversaScreen, type InfoConversaScreenProps } from './ui/InfoConversaScreen';
 export { ChamadasProvider, useChamadas, useChamadasOpcional, type ChamadasApi } from './chamadas';

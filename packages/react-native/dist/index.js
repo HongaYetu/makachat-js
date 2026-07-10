@@ -592,6 +592,19 @@ function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
 function useLigacao() {
   return useMakaChat().ligado;
 }
+function useSemLigacao(atrasoMs = 4e3) {
+  const ligado = useLigacao();
+  const [mostrar, setMostrar] = useState2(false);
+  useEffect2(() => {
+    if (ligado) {
+      setMostrar(false);
+      return;
+    }
+    const t = setTimeout(() => setMostrar(true), atrasoMs);
+    return () => clearTimeout(t);
+  }, [ligado, atrasoMs]);
+  return mostrar;
+}
 function useMensagemRecebida(handler) {
   const { subscreverMensagens } = useMakaChat();
   const ref = useRef2(handler);
@@ -775,12 +788,12 @@ import {
   TextInput,
   View as View2
 } from "react-native";
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var SEMPRE = "9999-12-31T00:00:00.000Z";
-function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio }) {
+function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
-  const ligado = useLigacao();
+  const semLigacao = useSemLigacao();
   const conversas = useConversas(arquivadas);
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
@@ -918,24 +931,31 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
     );
   };
   return /* @__PURE__ */ jsxs2(View2, { style: { flex: 1, backgroundColor: tema.superficie }, children: [
-    !ligado && /* @__PURE__ */ jsx3(View2, { style: estilos2.offline, children: /* @__PURE__ */ jsx3(Text2, { style: estilos2.offlineTexto, children: "Sem liga\xE7\xE3o \u2014 a reconectar\u2026" }) }),
-    /* @__PURE__ */ jsxs2(View2, { style: [estilos2.pesquisa, { backgroundColor: tema.fundo }], children: [
-      /* @__PURE__ */ jsx3(Ionicons2, { name: "search", size: 17, color: tema.textoSuave }),
-      /* @__PURE__ */ jsx3(
-        TextInput,
-        {
-          value: busca,
-          onChangeText: setBusca,
-          placeholder: "Pesquisar conversas",
-          placeholderTextColor: tema.textoSuave,
-          style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 8 }
-        }
-      ),
-      busca.length > 0 && /* @__PURE__ */ jsx3(Pressable2, { onPress: () => setBusca(""), children: /* @__PURE__ */ jsx3(Ionicons2, { name: "close-circle", size: 18, color: tema.textoSuave }) })
-    ] }),
-    !arquivadas && onAbrirArquivadas && /* @__PURE__ */ jsxs2(Pressable2, { onPress: onAbrirArquivadas, style: ({ pressed }) => [estilos2.arquivadas, pressed && { opacity: 0.6 }], children: [
-      /* @__PURE__ */ jsx3(Ionicons2, { name: "archive-outline", size: 19, color: tema.textoSuave }),
-      /* @__PURE__ */ jsx3(Text2, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
+    semLigacao && /* @__PURE__ */ jsx3(View2, { style: estilos2.offline, children: /* @__PURE__ */ jsx3(Text2, { style: estilos2.offlineTexto, children: "Sem liga\xE7\xE3o \u2014 a reconectar\u2026" }) }),
+    renderTopo ? renderTopo({
+      busca,
+      setBusca,
+      abrirArquivadas: !arquivadas && onAbrirArquivadas ? onAbrirArquivadas : void 0,
+      arquivadas
+    }) : /* @__PURE__ */ jsxs2(Fragment, { children: [
+      /* @__PURE__ */ jsxs2(View2, { style: [estilos2.pesquisa, { backgroundColor: tema.fundo }], children: [
+        /* @__PURE__ */ jsx3(Ionicons2, { name: "search", size: 17, color: tema.textoSuave }),
+        /* @__PURE__ */ jsx3(
+          TextInput,
+          {
+            value: busca,
+            onChangeText: setBusca,
+            placeholder: "Pesquisar conversas",
+            placeholderTextColor: tema.textoSuave,
+            style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 8 }
+          }
+        ),
+        busca.length > 0 && /* @__PURE__ */ jsx3(Pressable2, { onPress: () => setBusca(""), children: /* @__PURE__ */ jsx3(Ionicons2, { name: "close-circle", size: 18, color: tema.textoSuave }) })
+      ] }),
+      !arquivadas && onAbrirArquivadas && /* @__PURE__ */ jsxs2(Pressable2, { onPress: onAbrirArquivadas, style: ({ pressed }) => [estilos2.arquivadas, pressed && { opacity: 0.6 }], children: [
+        /* @__PURE__ */ jsx3(Ionicons2, { name: "archive-outline", size: 19, color: tema.textoSuave }),
+        /* @__PURE__ */ jsx3(Text2, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
+      ] })
     ] }),
     /* @__PURE__ */ jsx3(
       ListaPerformante,
@@ -2772,7 +2792,7 @@ import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
 import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StatusBar as StatusBar3, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
-import { Fragment, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
   const ctx = useContext2(Ctx);
@@ -3322,7 +3342,7 @@ function Duracao({ desde }) {
     const timer = setInterval(() => forcar((n) => n + 1), 1e3);
     return () => clearInterval(timer);
   }, []);
-  return /* @__PURE__ */ jsx9(Fragment, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
+  return /* @__PURE__ */ jsx9(Fragment2, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
 }
 var estilos8 = StyleSheet8.create({
   centro: { ...StyleSheet8.absoluteFillObject, alignItems: "center", justifyContent: "center" },
@@ -3488,6 +3508,7 @@ export {
   useMensagemRecebida,
   useMensagens,
   usePresenca,
+  useSemLigacao,
   useTema,
   useTotalNaoLidas,
   useTypingConversa,

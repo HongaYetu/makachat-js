@@ -147,6 +147,30 @@ export function useLigacao(): boolean {
 }
 
 /**
+ * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
+ * positivos do banner "sem ligação" em reconexões normais (arranque, voltar
+ * do background); desliga no instante em que a ligação volta.
+ */
+export function useSemLigacao(atrasoMs = 4000): boolean {
+    const ligado = useLigacao();
+    const [mostrar, setMostrar] = useState(false);
+
+    useEffect(() => {
+        if (ligado) {
+            setMostrar(false);
+
+            return;
+        }
+
+        const t = setTimeout(() => setMostrar(true), atrasoMs);
+
+        return () => clearTimeout(t);
+    }, [ligado, atrasoMs]);
+
+    return mostrar;
+}
+
+/**
  * Reage a QUALQUER mensagem nova recebida, em qualquer ecrã da app — o
  * servidor emite para a sala da identidade, sem depender da conversa aberta.
  */

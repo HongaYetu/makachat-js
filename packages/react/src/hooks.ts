@@ -8,6 +8,30 @@ export function useLigacao(): boolean {
     return useMakaChat().ligado;
 }
 
+/**
+ * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
+ * positivos do banner "sem ligação" em reconexões normais (arranque, voltar
+ * do background); desliga no instante em que a ligação volta.
+ */
+export function useSemLigacao(atrasoMs = 4000): boolean {
+    const ligado = useLigacao();
+    const [mostrar, setMostrar] = useState(false);
+
+    useEffect(() => {
+        if (ligado) {
+            setMostrar(false);
+
+            return;
+        }
+
+        const t = setTimeout(() => setMostrar(true), atrasoMs);
+
+        return () => clearTimeout(t);
+    }, [ligado, atrasoMs]);
+
+    return mostrar;
+}
+
 export function useVersaoChat(): number {
     const { engine } = useMakaChat();
     const [versao, setVersao] = useState(engine.versaoAtual);

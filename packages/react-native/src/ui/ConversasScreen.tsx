@@ -9,7 +9,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import { useConversas, useFuncionalidadeAtiva, useLigacao, useVersaoChat } from '../hooks';
+import { useConversas, useFuncionalidadeAtiva, useSemLigacao, useVersaoChat } from '../hooks';
 import { useMakaChat, useTema } from '../provider';
 import {
     Avatar,
@@ -23,6 +23,15 @@ import {
     Sheet,
 } from './comum';
 
+/** Tudo o que o topo (pesquisa + arquivadas) precisa — passado ao renderTopo. */
+export interface TopoConversasContexto {
+    busca: string;
+    setBusca(q: string): void;
+    /** undefined quando não aplicável (já nas arquivadas ou sem onAbrirArquivadas) */
+    abrirArquivadas?(): void;
+    arquivadas: boolean;
+}
+
 export interface ConversasScreenProps {
     arquivadas?: boolean;
     onAbrirConversa(conversa: Conversa): void;
@@ -31,15 +40,20 @@ export interface ConversasScreenProps {
     /** navegar para o modo arquivadas (a app decide: outro ecrã ou estado local) */
     onAbrirArquivadas?(): void;
     textoVazio?: string;
+    /**
+     * Topo CUSTOM da app (pesquisa/arquivadas ao estilo dela): recebe a busca
+     * controlada e a ação de arquivadas. Sem isto, o topo interno padrão é usado.
+     */
+    renderTopo?(ctx: TopoConversasContexto): React.ReactNode;
 }
 
 const SEMPRE = '9999-12-31T00:00:00.000Z';
 
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio }: ConversasScreenProps) {
+export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }: ConversasScreenProps) {
     const { engine, api, identidade, contactos } = useMakaChat();
     const tema = useTema();
-    const ligado = useLigacao();
+    const semLigacao = useSemLigacao();
     const conversas = useConversas(arquivadas);
     const versao = useVersaoChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
@@ -212,12 +226,22 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
 
     return (
         <View style={{ flex: 1, backgroundColor: tema.superficie }}>
-            {!ligado && (
+            {semLigacao && (
                 <View style={estilos.offline}>
                     <Text style={estilos.offlineTexto}>Sem ligação — a reconectar…</Text>
                 </View>
             )}
 
+            {/* topo: custom da app (renderTopo) ou pesquisa + arquivadas padrão */}
+            {renderTopo ? (
+                renderTopo({
+                    busca,
+                    setBusca,
+                    abrirArquivadas: !arquivadas && onAbrirArquivadas ? onAbrirArquivadas : undefined,
+                    arquivadas,
+                })
+            ) : (
+            <>
             {/* pesquisa */}
             <View style={[estilos.pesquisa, { backgroundColor: tema.fundo }]}>
                 <Ionicons name="search" size={17} color={tema.textoSuave} />
@@ -241,6 +265,8 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
                     <Ionicons name="archive-outline" size={19} color={tema.textoSuave} />
                     <Text style={{ fontSize: 14.5, fontWeight: '600', color: tema.texto }}>Arquivadas</Text>
                 </Pressable>
+            )}
+            </>
             )}
 
             <ListaPerformante
