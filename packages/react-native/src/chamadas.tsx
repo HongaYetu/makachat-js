@@ -602,13 +602,13 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     <View style={estilos.centro}>
                         {ativa.fase === 'a_receber' || ativa.fase === 'a_ligar' ? (
                             <Pulso>
-                                <Avatar nome={titulo} url={foto} tamanho={110} />
+                                <Avatar nome={titulo} url={foto} tamanho={132} />
                             </Pulso>
                         ) : (
-                            <Avatar nome={titulo} url={foto} tamanho={110} />
+                            <Avatar nome={titulo} url={foto} tamanho={132} />
                         )}
-                        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 16 }}>{titulo}</Text>
-                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, marginTop: 5 }}>
+                        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 20 }}>{titulo}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginTop: 8 }}>
                             {subtitulo ?? (inicioEm ? <Duracao desde={inicioEm} /> : null)}
                         </Text>
                     </View>
@@ -633,40 +633,82 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     </View>
                 )}
 
-                {/* controlos */}
-                <View style={[estilos.controlos, { bottom: insets.bottom + 18 }]}>
-                    {ativa.fase === 'falhada' ? (
-                        <Botao icone="close" cor="rgba(255,255,255,0.2)" aoTocar={aoDesligar} />
-                    ) : ativa.fase === 'a_receber' ? (
-                        <>
-                            <Pulso>
-                                <Botao icone="call" cor="#10b981" aoTocar={aoAtender} grande />
-                            </Pulso>
-                            <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} grande rodado />
-                        </>
-                    ) : (
-                        <>
-                            <Botao icone={mudo ? 'mic-off' : 'mic'} cor="rgba(255,255,255,0.2)" aoTocar={aoMudo} />
-                            {video && <Botao icone={camara ? 'videocam' : 'videocam-off'} cor="rgba(255,255,255,0.2)" aoTocar={aoCamara} />}
-                            {video && camara && <Botao icone="camera-reverse-outline" cor="rgba(255,255,255,0.2)" aoTocar={aoTrocarCamara} />}
-                            <Botao icone={altifalante ? 'volume-high' : 'volume-low'} cor="rgba(255,255,255,0.2)" aoTocar={aoAltifalante} />
-                            {aoEcra && <Botao icone={ecra ? 'stop-circle-outline' : 'share-outline'} cor={ecra ? '#10b981' : 'rgba(255,255,255,0.2)'} aoTocar={aoEcra} />}
-                            <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} rodado />
-                        </>
-                    )}
-                </View>
+                {/* controlos (estilo WhatsApp) */}
+                {ativa.fase === 'a_receber' ? (
+                    // incoming: dois botões grandes com rótulo, afastados
+                    <View style={[estilos.controlosReceber, { bottom: insets.bottom + 36 }]}>
+                        <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} grande rodado rotulo="Recusar" />
+                        <Pulso>
+                            <Botao icone="call" cor="#10b981" aoTocar={aoAtender} grande rotulo="Atender" />
+                        </Pulso>
+                    </View>
+                ) : ativa.fase === 'falhada' ? (
+                    <View style={[estilos.controlosReceber, { bottom: insets.bottom + 36 }]}>
+                        <Botao icone="close" aoTocar={aoDesligar} rotulo="Fechar" />
+                    </View>
+                ) : (
+                    // em curso: bandeja arredondada com o desligar integrado
+                    <View style={[estilos.bandeja, { bottom: insets.bottom + 24 }]}>
+                        <Botao icone={mudo ? 'mic-off' : 'mic'} ativo={mudo} aoTocar={aoMudo} />
+                        {video && <Botao icone={camara ? 'videocam' : 'videocam-off'} ativo={!camara} aoTocar={aoCamara} />}
+                        {video && camara && <Botao icone="camera-reverse-outline" aoTocar={aoTrocarCamara} />}
+                        <Botao icone={altifalante ? 'volume-high' : 'volume-low'} ativo={altifalante} aoTocar={aoAltifalante} />
+                        {aoEcra && <Botao icone={ecra ? 'stop-circle-outline' : 'share-outline'} ativo={ecra} aoTocar={aoEcra} />}
+                        <Botao icone="call" cor="#ef4444" aoTocar={aoDesligar} rodado />
+                    </View>
+                )}
             </View>
         </Modal>
     );
 }
 
-function Botao({ icone, cor, aoTocar, grande, rodado }: { icone: string; cor: string; aoTocar(): void; grande?: boolean; rodado?: boolean }) {
-    const lado = grande ? 58 : 48;
+/**
+ * Botão de controlo estilo WhatsApp: 60px (76px `grande`), toggle `ativo`
+ * (fundo branco + ícone escuro quando a função está ligada) e `rotulo`
+ * opcional por baixo (ecrã a receber).
+ */
+function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }: {
+    icone: string;
+    cor?: string;
+    aoTocar(): void;
+    grande?: boolean;
+    rodado?: boolean;
+    ativo?: boolean;
+    rotulo?: string;
+}) {
+    const lado = grande ? 76 : 60;
+    const fundo = cor ?? (ativo ? '#ffffff' : 'rgba(255,255,255,0.18)');
+    const corIcone = ativo && !cor ? '#0f172a' : '#fff';
+
+    const circulo = (
+        <Pressable
+            onPress={aoTocar}
+            style={({ pressed }: { pressed: boolean }) => ({
+                width: lado,
+                height: lado,
+                borderRadius: lado / 2,
+                backgroundColor: fundo,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.8 : 1,
+            })}
+        >
+            <Ionicons
+                name={icone as never}
+                size={grande ? 34 : 26}
+                color={corIcone}
+                style={rodado ? { transform: [{ rotate: '135deg' }] } : undefined}
+            />
+        </Pressable>
+    );
+
+    if (!rotulo) return circulo;
 
     return (
-        <Pressable onPress={aoTocar} style={{ width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name={icone as never} size={grande ? 28 : 24} color="#fff" style={rodado ? { transform: [{ rotate: '135deg' }] } : undefined} />
-        </Pressable>
+        <View style={{ alignItems: 'center', gap: 10 }}>
+            {circulo}
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{rotulo}</Text>
+        </View>
     );
 }
 
@@ -686,9 +728,25 @@ function Duracao({ desde }: { desde: number }) {
 const estilos = StyleSheet.create({
     centro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: 10 },
-    pip: { position: 'absolute', right: 14, bottom: 150, width: 108, height: 158, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+    pip: { position: 'absolute', right: 14, bottom: 160, width: 112, height: 168, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     nomeTile: { position: 'absolute', left: 10, bottom: 10, color: '#fff', fontWeight: '700', fontSize: 12, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
-    erro: { position: 'absolute', bottom: 150, left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-    controlos: { position: 'absolute', bottom: 46, left: 0, right: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 16 },
+    erro: { position: 'absolute', bottom: 160, left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+    // bandeja de controlos em curso (pill escura, estilo WhatsApp)
+    bandeja: {
+        position: 'absolute',
+        alignSelf: 'center',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        backgroundColor: 'rgba(30,41,59,0.92)',
+        borderRadius: 40,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginHorizontal: 16,
+    },
+    // incoming: botões grandes com rótulo, afastados na largura toda
+    controlosReceber: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-evenly' },
     pill: { position: 'absolute', top: 58, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0f172a', borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
 });

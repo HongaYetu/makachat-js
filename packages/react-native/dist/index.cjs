@@ -3135,9 +3135,9 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     ] }, t.chave)) }),
     emCurso && video && VideoTrack && local && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.pip, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
     (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: estilos8.centro, children: [
-      ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 110 }) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 110 }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 16 }, children: titulo }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "rgba(255,255,255,0.7)", fontSize: 15, marginTop: 5 }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : null) })
+      ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20 }, children: titulo }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8 }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : null) })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "chevron-down", size: 26, color: "#fff" }) }),
@@ -3145,22 +3145,58 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: { width: 42 } })
     ] }),
     erro && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.erro, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.controlos, { bottom: insets.bottom + 18 }], children: ativa.fase === "falhada" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "close", cor: "rgba(255,255,255,0.2)", aoTocar: aoDesligar }) : ativa.fase === "a_receber" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true })
-    ] }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: mudo ? "mic-off" : "mic", cor: "rgba(255,255,255,0.2)", aoTocar: aoMudo }),
-      video && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: camara ? "videocam" : "videocam-off", cor: "rgba(255,255,255,0.2)", aoTocar: aoCamara }),
-      video && camara && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "camera-reverse-outline", cor: "rgba(255,255,255,0.2)", aoTocar: aoTrocarCamara }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: altifalante ? "volume-high" : "volume-low", cor: "rgba(255,255,255,0.2)", aoTocar: aoAltifalante }),
-      aoEcra && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", cor: ecra ? "#10b981" : "rgba(255,255,255,0.2)", aoTocar: aoEcra }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
-    ] }) })
+    ativa.fase === "a_receber" ? (
+      // incoming: dois botões grandes com rótulo, afastados
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
+      ] })
+    ) : ativa.fase === "falhada" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
+      // em curso: bandeja arredondada com o desligar integrado
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.bandeja, { bottom: insets.bottom + 24 }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
+        video && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
+        video && camara && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
+        aoEcra && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
+      ] })
+    )
   ] }) });
 }
-function Botao({ icone, cor, aoTocar, grande, rodado }) {
-  const lado = grande ? 58 : 48;
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: aoTocar, style: { width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: icone, size: grande ? 28 : 24, color: "#fff", style: rodado ? { transform: [{ rotate: "135deg" }] } : void 0 }) });
+function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
+  const lado = grande ? 76 : 60;
+  const fundo = cor ?? (ativo ? "#ffffff" : "rgba(255,255,255,0.18)");
+  const corIcone = ativo && !cor ? "#0f172a" : "#fff";
+  const circulo = /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+    import_react_native9.Pressable,
+    {
+      onPress: aoTocar,
+      style: ({ pressed }) => ({
+        width: lado,
+        height: lado,
+        borderRadius: lado / 2,
+        backgroundColor: fundo,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: pressed ? 0.8 : 1
+      }),
+      children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        import_vector_icons8.Ionicons,
+        {
+          name: icone,
+          size: grande ? 34 : 26,
+          color: corIcone,
+          style: rodado ? { transform: [{ rotate: "135deg" }] } : void 0
+        }
+      )
+    }
+  );
+  if (!rotulo) return circulo;
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { alignItems: "center", gap: 10 }, children: [
+    circulo,
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 14, fontWeight: "600" }, children: rotulo })
+  ] });
 }
 function Duracao({ desde }) {
   const [, forcar] = (0, import_react11.useState)(0);
@@ -3173,10 +3209,26 @@ function Duracao({ desde }) {
 var estilos8 = import_react_native9.StyleSheet.create({
   centro: { ...import_react_native9.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   topo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 10 },
-  pip: { position: "absolute", right: 14, bottom: 150, width: 108, height: 158, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
+  pip: { position: "absolute", right: 14, bottom: 160, width: 112, height: 168, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
-  erro: { position: "absolute", bottom: 150, left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  controlos: { position: "absolute", bottom: 46, left: 0, right: 0, flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16 },
+  erro: { position: "absolute", bottom: 160, left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+  // bandeja de controlos em curso (pill escura, estilo WhatsApp)
+  bandeja: {
+    position: "absolute",
+    alignSelf: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    backgroundColor: "rgba(30,41,59,0.92)",
+    borderRadius: 40,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16
+  },
+  // incoming: botões grandes com rótulo, afastados na largura toda
+  controlosReceber: { position: "absolute", left: 0, right: 0, flexDirection: "row", alignItems: "flex-start", justifyContent: "space-evenly" },
   pill: { position: "absolute", top: 58, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0f172a", borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }
 });
 
