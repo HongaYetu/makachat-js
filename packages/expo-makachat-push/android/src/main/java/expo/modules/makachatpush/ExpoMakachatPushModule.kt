@@ -76,6 +76,15 @@ class ExpoMakachatPushModule : Module() {
             MakachatFcmService.cancelarNotificacaoMensagens(appContext.reactContext!!, conversaId)
         }
 
+        /**
+         * O ChamadasProvider marca o handler de onChamadaPush como subscrito:
+         * só então o FCM entrega chamadas ao JS em foreground — sem isto, a
+         * notificação nativa aparece sempre (nunca um emit para o vazio).
+         */
+        Function("ouvinteChamadasPronto") { pronto: Boolean ->
+            MakachatFcmService.ouvinteChamadasPronto = pronto
+        }
+
         /** Toque em-app: ringtone REAL do dispositivo em loop + vibração. */
         Function("tocarToqueDispositivo") {
             ToqueEmApp.tocar(appContext.reactContext!!)
@@ -117,6 +126,7 @@ class ExpoMakachatPushModule : Module() {
         OnDestroy {
             MakachatFcmService.emissor = null
             MakachatFcmService.emissorChamada = null
+            MakachatFcmService.ouvinteChamadasPronto = false
         }
     }
 }

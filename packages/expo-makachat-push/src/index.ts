@@ -42,6 +42,7 @@ interface ModuloNativo {
     cancelarNotificacaoMensagens(conversaId: string): void;
     configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
     configChamadas(): ConfigChamadas;
+    ouvinteChamadasPronto(pronto: boolean): void;
     tocarToqueDispositivo(): void;
     pararToqueDispositivo(): void;
     apresentarChamada(titulo: string, chamadaId: string, chamadaTipo: string, conversaId: string, chaveServico: string, foto: string | null): void;
@@ -96,6 +97,19 @@ export function cancelarNotificacaoChamada(chamadaId: string): void {
  */
 export async function obterConversaPendente(): Promise<string | null> {
     return nativo.obterConversaPendente();
+}
+
+/**
+ * Marca o handler de aoChamadaPush como subscrito: só então o push de chamada
+ * é entregue ao JS com a app em foreground — caso contrário o nativo apresenta
+ * sempre a notificação completa. Chamar com false no cleanup.
+ */
+export function ouvinteChamadasPronto(pronto: boolean): void {
+    try {
+        nativo.ouvinteChamadasPronto(pronto);
+    } catch {
+        // módulo antigo sem esta função
+    }
 }
 
 /**

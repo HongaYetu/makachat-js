@@ -31,6 +31,21 @@ class MakachatFcmService : FirebaseMessagingService() {
         var emissor: ((Map<String, String?>) -> Unit)? = null
         var emissorChamada: ((Map<String, String?>) -> Unit)? = null
 
+        /** o ChamadasProvider marcou o handler de onChamadaPush como subscrito */
+        var ouvinteChamadasPronto = false
+
+        /** app visível ao utilizador (uma activity resumed) — factos, não palpite */
+        fun processoEmForeground(): Boolean {
+            return try {
+                android.app.ActivityManager.RunningAppProcessInfo().let { info ->
+                    android.app.ActivityManager.getMyMemoryState(info)
+                    info.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                }
+            } catch (_: Exception) {
+                false
+            }
+        }
+
         /** broadcast interno para fechar o EcraChamadaActivity (atendeu/terminou noutro lado) */
         const val ACAO_FECHAR_ECRA = "expo.modules.makachatpush.FECHAR_ECRA_CHAMADA"
 
@@ -119,7 +134,11 @@ class MakachatFcmService : FirebaseMessagingService() {
             val avatar = ImagemHelper.avatarCircular(fotoUrl, titulo)
 
             fun pendenteActivity(acao: String): PendingIntent {
-                val intent = if (Opcoes.ecraNativo(context) && acao == "tocar") {
+                // 'atender' vai SEMPRE ao EcraChamadaActivity (trampolim: para o
+                // toque, persiste 'atender' e abre a app — só a activity pode
+                // abrir a app a partir de uma notificação em API 29+); 'tocar'
+                // (tap no corpo) abre o ecrã nativo se ligado, senão a app
+                val intent = if (acao == "atender" || (Opcoes.ecraNativo(context) && acao == "tocar")) {
                     Intent(context, EcraChamadaActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     }
@@ -145,8 +164,17 @@ class MakachatFcmService : FirebaseMessagingService() {
                 )
             }
 
-            // ordem importa no modo legado: 'tocar' persistido por último no tratarChamada
-            val rejeitar = pendenteActivity("rejeitar")
+            // rejeitar não precisa de abrir a app: broadcast que para o toque,
+            // cancela a notificação e rejeita no hub via endpoint push-auth
+            val rejeitar = PendingIntent.getBroadcast(
+                context,
+                (chamadaId + "rejeitar").hashCode(),
+                Intent(context, RespostaReceiver::class.java).apply {
+                    action = RespostaReceiver.ACAO_CHAMADA_REJEITAR
+                    putExtra("chamada_id", chamadaId)
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
             val atender = pendenteActivity("atender")
             val abrir = pendenteActivity("tocar")
 
@@ -180,6 +208,9 @@ class MakachatFcmService : FirebaseMessagingService() {
         }
 
         fun cancelarChamada(context: Context, chamadaId: String) {
+            // a notificação pode ser do foreground service (toque contínuo):
+            // matar o serviço remove-a e cala o ringtone; o cancel cobre o notify simples
+            ToqueChamadaService.parar(context)
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             gestor.cancel(chamadaId.hashCode())
         }
@@ -377,9 +408,8 @@ class MakachatFcmService : FirebaseMessagingService() {
         val chamadaId = dados["chamada_id"] ?: return
 
         if (dados["acao"] == "parar") {
-            cancelarChamada(applicationContext, chamadaId)
+            cancelarChamada(applicationContext, chamadaId) // também para o ToqueChamadaService
             prefs().edit().remove("chamada_pendente").apply()
-            ToqueChamadaService.parar(applicationContext)
             // fecha o ecrã nativo se estiver aberto (atenderam/terminou noutro lado)
             applicationContext.sendBroadcast(
                 Intent(ACAO_FECHAR_ECRA).setPackage(applicationContext.packageName),
@@ -395,9 +425,9 @@ class MakachatFcmService : FirebaseMessagingService() {
         val conversaId = dados["conversa_id"] ?: ""
         val chaveServico = dados["chave_servico"] ?: ""
 
-        // app viva: o JS decide — toca em-app (foreground) ou pede a notificação
-        // nativa completa via apresentarChamada (background com processo vivo)
-        if (emissorChamada != null) {
+        // app VISÍVEL com o handler JS subscrito → toca só em-app (sem notificação);
+        // qualquer outro caso (minimizada, killed, JS não pronto) → notificação nativa
+        if (processoEmForeground() && ouvinteChamadasPronto && emissorChamada != null) {
             emissorChamada?.invoke(
                 mapOf(
                     "chamada_id" to chamadaId,

@@ -59,6 +59,15 @@ class EcraChamadaActivity : Activity() {
 
             return
         }
+
+        // trampolim do botão Atender da notificação: sem UI — para o toque,
+        // persiste 'atender' e abre a app (o retomarPendente atende de verdade)
+        if (intent.getStringExtra("makachat_acao") == "atender") {
+            atender(chamadaId)
+
+            return
+        }
+
         val tipo = intent.getStringExtra("makachat_chamada_tipo") ?: "audio"
         val titulo = intent.getStringExtra("makachat_titulo") ?: "Chamada"
         val foto = intent.getStringExtra("makachat_foto")?.takeIf { it.isNotEmpty() }

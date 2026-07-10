@@ -479,8 +479,9 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         return () => sub.remove();
     }, [retomarPendente]);
 
-    // push de chamada com a app VIVA (Android): em foreground toca em-app (cobre
-    // o socket dormente); em background apresenta a notificação nativa completa
+    // push de chamada com a app em FOREGROUND (Android): o nativo só emite este
+    // evento com a app visível e este handler marcado como pronto — em qualquer
+    // outro estado apresenta ele próprio a notificação CallStyle completa
     useEffect(() => {
         const push = obterPushMakaChat();
 
@@ -499,26 +500,18 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             // o socket chegou primeiro — já está a tocar
             if (chamadaIdRef.current === chamada.chamada_id) return;
 
-            if (AppState.currentState === 'active') {
-                void tocarEmApp(chamada.chamada_id, chamada.chamada_tipo, chamada.conversa_id);
-            } else {
-                // app viva mas em background: mesmo caminho do app-morto
-                try {
-                    push.apresentarChamada?.({
-                        titulo: chamada.titulo || 'Chamada',
-                        chamada_id: chamada.chamada_id,
-                        chamada_tipo: chamada.chamada_tipo,
-                        conversa_id: chamada.conversa_id,
-                        chave_servico: chamada.chave_servico,
-                        foto: chamada.foto || null,
-                    });
-                } catch {
-                    // versão antiga do módulo nativo sem apresentarChamada
-                }
-            }
+            // defensivo: se alguma apresentação nativa ficou de uma corrida
+            // (serviço de toque incluído), morre antes do toque em-app começar
+            push.cancelarNotificacaoChamada?.(chamada.chamada_id);
+            void tocarEmApp(chamada.chamada_id, chamada.chamada_tipo, chamada.conversa_id);
         });
 
-        return () => sub.remove();
+        push.ouvinteChamadasPronto?.(true);
+
+        return () => {
+            push.ouvinteChamadasPronto?.(false);
+            sub.remove();
+        };
     }, [limpar, tocarEmApp]);
 
     const atender = async () => {

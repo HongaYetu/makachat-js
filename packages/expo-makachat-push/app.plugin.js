@@ -109,7 +109,9 @@ module.exports = function withMakachatPush(config, opcoes = {}) {
             garantirServico('expo.modules.makachatpush.ChamadaAtivaService', 'phoneCall|microphone');
         }
 
-        if (ecraNativo && !app.activity.some((a) => a.$['android:name'] === 'expo.modules.makachatpush.EcraChamadaActivity')) {
+        // declarada SEMPRE: o botão Atender da notificação usa esta activity como
+        // trampolim (para o toque + persiste 'atender' + abre a app), com ou sem ecraNativo
+        if (!app.activity.some((a) => a.$['android:name'] === 'expo.modules.makachatpush.EcraChamadaActivity')) {
             app.activity.push({
                 $: {
                     'android:name': 'expo.modules.makachatpush.EcraChamadaActivity',

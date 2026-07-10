@@ -3084,23 +3084,14 @@ function ChamadasProvider({ children }) {
       }
       if (chamada.acao !== "tocar") return;
       if (chamadaIdRef.current === chamada.chamada_id) return;
-      if (AppState3.currentState === "active") {
-        void tocarEmApp(chamada.chamada_id, chamada.chamada_tipo, chamada.conversa_id);
-      } else {
-        try {
-          push.apresentarChamada?.({
-            titulo: chamada.titulo || "Chamada",
-            chamada_id: chamada.chamada_id,
-            chamada_tipo: chamada.chamada_tipo,
-            conversa_id: chamada.conversa_id,
-            chave_servico: chamada.chave_servico,
-            foto: chamada.foto || null
-          });
-        } catch {
-        }
-      }
+      push.cancelarNotificacaoChamada?.(chamada.chamada_id);
+      void tocarEmApp(chamada.chamada_id, chamada.chamada_tipo, chamada.conversa_id);
     });
-    return () => sub.remove();
+    push.ouvinteChamadasPronto?.(true);
+    return () => {
+      push.ouvinteChamadasPronto?.(false);
+      sub.remove();
+    };
   }, [limpar, tocarEmApp]);
   const atender = async () => {
     if (!ativa) return;

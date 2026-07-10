@@ -22,10 +22,44 @@ class RespostaReceiver : BroadcastReceiver() {
         const val ACAO_RESPONDER = "expo.modules.makachatpush.RESPONDER"
         const val ACAO_LIDA = "expo.modules.makachatpush.MARCAR_LIDA"
         const val ACAO_ABRIR = "expo.modules.makachatpush.ABRIR_CONVERSA"
+        const val ACAO_CHAMADA_REJEITAR = "expo.modules.makachatpush.CHAMADA_REJEITAR"
         const val CHAVE_TEXTO = "makachat_texto_resposta"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        // Rejeitar da notificação de chamada: cala tudo e rejeita no hub SEM
+        // abrir a app (broadcasts não podem lançar activities em API 29+, mas
+        // rejeitar não precisa dela)
+        if (intent.action == ACAO_CHAMADA_REJEITAR) {
+            val chamadaId = intent.getStringExtra("chamada_id") ?: return
+
+            MakachatFcmService.cancelarChamada(context, chamadaId) // notificação + ToqueChamadaService
+            context.getSharedPreferences(MakachatFcmService.PREFS, Context.MODE_PRIVATE)
+                .edit().remove("chamada_pendente").apply()
+
+            val db = InboxDatabase.get(context)
+            val apiUrl = db.obterConfig("api_url") ?: return
+            val token = db.obterConfig("token_dispositivo") ?: return
+            val segredo = db.obterConfig("segredo_resposta") ?: return
+            val pendente = goAsync()
+
+            Thread {
+                try {
+                    chamar(apiUrl, "/v1/push/chamada/rejeitar", JSONObject().apply {
+                        put("token", token)
+                        put("segredo", segredo)
+                        put("chamada_id", chamadaId)
+                    })
+                } catch (_: Exception) {
+                    // sem rede — a chamada morre por timeout no hub
+                } finally {
+                    pendente.finish()
+                }
+            }.start()
+
+            return
+        }
+
         val conversaId = intent.getStringExtra("conversa_id") ?: return
         val titulo = intent.getStringExtra("titulo") ?: "Conversa"
 
