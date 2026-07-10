@@ -785,6 +785,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
+  const podeCriar = useFuncionalidadeAtiva("conversas.criar");
   const [busca, setBusca] = useState3("");
   const [resultadosServidor, setResultadosServidor] = useState3(null);
   const [menuDe, setMenuDe] = useState3(null);
@@ -949,7 +950,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         ListEmptyComponent: /* @__PURE__ */ jsx3(Text2, { style: { textAlign: "center", marginTop: 48, color: tema.textoSuave }, children: textoVazio ?? (arquivadas ? "Sem conversas arquivadas." : "Sem conversas \u2014 come\xE7a uma nova.") })
       }
     ),
-    !arquivadas && /* @__PURE__ */ jsx3(
+    !arquivadas && podeCriar && /* @__PURE__ */ jsx3(
       Pressable2,
       {
         onPress: () => setNovaAberta(true),
@@ -1814,6 +1815,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeAudioMsg = useFuncionalidadeAtiva("media.audio");
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const [conversa, setConversa] = useState7(null);
   const [texto, setTexto] = useState7("");
   const [responderA, setResponderA] = useState7(null);
@@ -2231,7 +2233,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         euId: eu?.identidade_id ?? null,
         aoFechar: () => setReacoesDe(null),
         aoRemoverMinha: (emoji) => void engine.alternarReacao(conversaId, reacoesDe.id, emoji),
-        aoMensagem: onAbrirOutraConversa ? async (p) => {
+        aoMensagem: onAbrirOutraConversa && podeCriarConversa ? async (p) => {
           const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
           await engine.atualizarConversas();
           onAbrirOutraConversa(nova.id);
@@ -2510,6 +2512,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   const tema = useTema();
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const [conversa, setConversa] = useState8(null);
   const [renomear, setRenomear] = useState8(false);
   const [novoNome, setNovoNome] = useState8("");
@@ -2646,7 +2649,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
         aoFechar: () => setMembroDe(null),
         titulo: membroDe?.nome,
         itens: membroDe ? [
-          ...onAbrirOutraConversa ? [{
+          ...onAbrirOutraConversa && podeCriarConversa ? [{
             icone: "chatbubble-outline",
             rotulo: "Enviar mensagem",
             acao: () => {

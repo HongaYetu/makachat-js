@@ -43,7 +43,10 @@ var FUNCIONALIDADES = [
   "chamadas.audio",
   "chamadas.video",
   "chamadas.partilha_ecra",
-  "conversas.eliminar"
+  "conversas.eliminar",
+  // criação de conversas pelo utilizador (nova conversa/mensagem direta);
+  // serviços com conversas só de sistema (ex.: via encomenda) não a ativam
+  "conversas.criar"
 ];
 
 // src/uuid.ts

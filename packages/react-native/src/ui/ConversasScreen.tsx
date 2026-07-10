@@ -44,6 +44,8 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
     const versao = useVersaoChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminar = useFuncionalidadeAtiva('conversas.eliminar');
+    // serviços com conversas só de sistema (ex.: via encomenda) não criam
+    const podeCriar = useFuncionalidadeAtiva('conversas.criar');
 
     const [busca, setBusca] = useState('');
     const [resultadosServidor, setResultadosServidor] = useState<Conversa[] | null>(null);
@@ -257,7 +259,7 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
             />
 
             {/* FAB nova conversa */}
-            {!arquivadas && (
+            {!arquivadas && podeCriar && (
                 <Pressable
                     onPress={() => setNovaAberta(true)}
                     style={({ pressed }: { pressed: boolean }) => [estilos.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }]}

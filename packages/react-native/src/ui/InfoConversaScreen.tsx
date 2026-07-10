@@ -21,6 +21,7 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
     const tema = useTema();
     const versao = useVersaoChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
+    const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [renomear, setRenomear] = useState(false);
@@ -204,7 +205,7 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                 itens={
                     membroDe
                         ? [
-                              ...(onAbrirOutraConversa
+                              ...(onAbrirOutraConversa && podeCriarConversa
                                   ? [{
                                         icone: 'chatbubble-outline' as const,
                                         rotulo: 'Enviar mensagem',

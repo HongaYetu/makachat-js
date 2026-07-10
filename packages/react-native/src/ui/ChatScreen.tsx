@@ -95,6 +95,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const podeAudioMsg = useFuncionalidadeAtiva('media.audio');
     const podeAudioChamada = useFuncionalidadeAtiva('chamadas.audio');
     const podeVideoChamada = useFuncionalidadeAtiva('chamadas.video');
+    const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [texto, setTexto] = useState('');
@@ -658,7 +659,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     euId={eu?.identidade_id ?? null}
                     aoFechar={() => setReacoesDe(null)}
                     aoRemoverMinha={(emoji) => void engine.alternarReacao(conversaId, reacoesDe.id, emoji)}
-                    aoMensagem={onAbrirOutraConversa ? async (p) => {
+                    aoMensagem={onAbrirOutraConversa && podeCriarConversa ? async (p) => {
                         const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
                         await engine.atualizarConversas();
                         onAbrirOutraConversa(nova.id);

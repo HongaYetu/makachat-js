@@ -46,6 +46,9 @@ export const FUNCIONALIDADES = [
     'chamadas.video',
     'chamadas.partilha_ecra',
     'conversas.eliminar',
+    // criação de conversas pelo utilizador (nova conversa/mensagem direta);
+    // serviços com conversas só de sistema (ex.: via encomenda) não a ativam
+    'conversas.criar',
 ] as const;
 
 export type Funcionalidade = (typeof FUNCIONALIDADES)[number];

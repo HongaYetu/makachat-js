@@ -986,6 +986,7 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   const { engine, api, contactos, identidade } = useMakaChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const versao = useVersaoChat();
   const [verArquivadas, setVerArquivadas] = (0, import_react8.useState)(arquivadas);
   const [conversas, setConversas] = (0, import_react8.useState)([]);
@@ -1057,7 +1058,7 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-1 px-4 pt-2.5 pb-0.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "flex-1 text-[15px] font-bold text-[var(--maka-texto)]", children: verArquivadas ? "Arquivadas" : "Conversas" }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: verArquivadas ? "Voltar \xE0s conversas" : "Arquivadas", onClick: () => setVerArquivadas(!verArquivadas), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: verArquivadas ? "tabler:arrow-left" : "tabler:archive" }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Nova conversa", onClick: () => setCriarGrupo(true), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-plus" }) })
+      podeCriarConversa && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Nova conversa", onClick: () => setCriarGrupo(true), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-plus" }) })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-3 pb-2 pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2 rounded-full bg-[var(--maka-fundo)] px-3.5 py-2", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:search", className: "shrink-0 text-[var(--maka-texto-suave)]" }),
@@ -1195,6 +1196,7 @@ function pessoasConhecidas(conversas, contactos, excluir = /* @__PURE__ */ new S
 }
 function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) {
   const { api, engine, contactos } = useMakaChat();
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const grupo = conversa.tipo === "grupo";
   const souAdmin = grupo && ["dono", "admin"].includes(eu.papel);
   const [nome, setNome] = (0, import_react8.useState)(conversa.titulo ?? "");
@@ -1275,7 +1277,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
             /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block truncate text-sm font-semibold text-[var(--maka-texto)]", children: souEu ? "Tu" : p.nome }),
             /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel !== "membro" ? p.papel : p.tipo })
           ] }),
-          !souEu && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-circle" }) }),
+          !souEu && podeCriarConversa && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-circle" }) }),
           !souEu && souAdmin && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Remover do grupo", onClick: () => {
             void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas());
           }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:user-minus", className: "text-red-500" }) })
@@ -1430,6 +1432,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const typing = useTypingConversa(conversaId);
   const enviar = useEnviarMensagem();
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
   const podeFicheiro = useFuncionalidadeAtiva("media.ficheiro");
   const podeFoto = useFuncionalidadeAtiva("media.foto");
@@ -2073,7 +2076,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
         euId: eu?.identidade_id ?? null,
         aoFechar: () => setReacoesDe(null),
         aoRemoverMinha: (emoji) => void engine.alternarReacao(conversaId, reacoesDe.id, emoji),
-        aoMensagem: conversa.tipo === "grupo" && aoAbrirOutraConversa ? async (p) => {
+        aoMensagem: conversa.tipo === "grupo" && aoAbrirOutraConversa && podeCriarConversa ? async (p) => {
           const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
           await engine.atualizarConversas();
           setReacoesDe(null);

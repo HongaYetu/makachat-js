@@ -241,7 +241,7 @@ declare const EVENTOS_SERVIDOR: {
     readonly CHAMADA_TERMINADA: "chat:chamada:terminada";
     readonly CHAMADA_PARTICIPANTE_SAIU: "chat:chamada:participante_saiu";
 };
-declare const FUNCIONALIDADES: readonly ["media.foto", "media.video", "media.ficheiro", "media.audio", "reacoes", "encaminhar", "grupos", "chamadas.audio", "chamadas.video", "chamadas.partilha_ecra", "conversas.eliminar"];
+declare const FUNCIONALIDADES: readonly ["media.foto", "media.video", "media.ficheiro", "media.audio", "reacoes", "encaminhar", "grupos", "chamadas.audio", "chamadas.video", "chamadas.partilha_ecra", "conversas.eliminar", "conversas.criar"];
 type Funcionalidade = (typeof FUNCIONALIDADES)[number];
 
 declare function uuid(): string;

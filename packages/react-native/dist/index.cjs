@@ -825,6 +825,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
+  const podeCriar = useFuncionalidadeAtiva("conversas.criar");
   const [busca, setBusca] = (0, import_react5.useState)("");
   const [resultadosServidor, setResultadosServidor] = (0, import_react5.useState)(null);
   const [menuDe, setMenuDe] = (0, import_react5.useState)(null);
@@ -989,7 +990,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { textAlign: "center", marginTop: 48, color: tema.textoSuave }, children: textoVazio ?? (arquivadas ? "Sem conversas arquivadas." : "Sem conversas \u2014 come\xE7a uma nova.") })
       }
     ),
-    !arquivadas && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+    !arquivadas && podeCriar && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       import_react_native3.Pressable,
       {
         onPress: () => setNovaAberta(true),
@@ -1823,6 +1824,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeAudioMsg = useFuncionalidadeAtiva("media.audio");
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const [conversa, setConversa] = (0, import_react9.useState)(null);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
@@ -2240,7 +2242,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         euId: eu?.identidade_id ?? null,
         aoFechar: () => setReacoesDe(null),
         aoRemoverMinha: (emoji) => void engine.alternarReacao(conversaId, reacoesDe.id, emoji),
-        aoMensagem: onAbrirOutraConversa ? async (p) => {
+        aoMensagem: onAbrirOutraConversa && podeCriarConversa ? async (p) => {
           const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
           await engine.atualizarConversas();
           onAbrirOutraConversa(nova.id);
@@ -2519,6 +2521,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   const tema = useTema();
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
+  const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const [conversa, setConversa] = (0, import_react10.useState)(null);
   const [renomear, setRenomear] = (0, import_react10.useState)(false);
   const [novoNome, setNovoNome] = (0, import_react10.useState)("");
@@ -2655,7 +2658,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
         aoFechar: () => setMembroDe(null),
         titulo: membroDe?.nome,
         itens: membroDe ? [
-          ...onAbrirOutraConversa ? [{
+          ...onAbrirOutraConversa && podeCriarConversa ? [{
             icone: "chatbubble-outline",
             rotulo: "Enviar mensagem",
             acao: () => {

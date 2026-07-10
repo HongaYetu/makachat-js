@@ -102,6 +102,8 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const { engine, api, contactos, identidade } = useMakaChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
+    // serviços com conversas só de sistema (ex.: via encomenda) não criam
+    const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
     const versao = useVersaoChat();
     const [verArquivadas, setVerArquivadas] = useState(arquivadas);
     const [conversas, setConversas] = useState<Conversa[]>([]);
@@ -209,9 +211,11 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                 <BotaoIcone titulo={verArquivadas ? 'Voltar às conversas' : 'Arquivadas'} onClick={() => setVerArquivadas(!verArquivadas)}>
                     <Icon icon={verArquivadas ? 'tabler:arrow-left' : 'tabler:archive'} />
                 </BotaoIcone>
-                <BotaoIcone titulo="Nova conversa" onClick={() => setCriarGrupo(true)}>
-                    <Icon icon="tabler:message-plus" />
-                </BotaoIcone>
+                {podeCriarConversa && (
+                    <BotaoIcone titulo="Nova conversa" onClick={() => setCriarGrupo(true)}>
+                        <Icon icon="tabler:message-plus" />
+                    </BotaoIcone>
+                )}
             </div>
             <div className="px-3 pb-2 pt-2">
                 <div className="flex items-center gap-2 rounded-full bg-[var(--maka-fundo)] px-3.5 py-2">
@@ -368,6 +372,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
     aoAbrirOutraConversa?(id: string): void; aoSaiu(): void;
 }) {
     const { api, engine, contactos } = useMakaChat();
+    const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
     const grupo = conversa.tipo === 'grupo';
     const souAdmin = grupo && ['dono', 'admin'].includes(eu.papel);
     const [nome, setNome] = useState(conversa.titulo ?? '');
@@ -457,7 +462,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                                     <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">{souEu ? 'Tu' : p.nome}</span>
                                     <span className="text-xs text-[var(--maka-texto-suave)]">{p.papel !== 'membro' ? p.papel : p.tipo}</span>
                                 </span>
-                                {!souEu && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="tabler:message-circle" /></BotaoIcone>}
+                                {!souEu && podeCriarConversa && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="tabler:message-circle" /></BotaoIcone>}
                                 {!souEu && souAdmin && (
                                     <BotaoIcone titulo="Remover do grupo" onClick={() => { void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas()); }}>
                                         <Icon icon="tabler:user-minus" className="text-red-500" />
@@ -668,6 +673,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
     const enviar = useEnviarMensagem();
 
     const podeAudioChamada = useFuncionalidadeAtiva('chamadas.audio');
+    const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
     const podeVideoChamada = useFuncionalidadeAtiva('chamadas.video');
     const podeFicheiro = useFuncionalidadeAtiva('media.ficheiro');
     const podeFoto = useFuncionalidadeAtiva('media.foto');
@@ -1393,7 +1399,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                     aoFechar={() => setReacoesDe(null)}
                     aoRemoverMinha={(emoji) => void engine.alternarReacao(conversaId, reacoesDe.id, emoji)}
                     aoMensagem={
-                        conversa.tipo === 'grupo' && aoAbrirOutraConversa
+                        conversa.tipo === 'grupo' && aoAbrirOutraConversa && podeCriarConversa
                             ? async (p) => {
                                   const { conversa: nova } = await api.criarPrivada({ id_externo: p.id_externo, tipo: p.tipo, nome: p.nome });
                                   await engine.atualizarConversas();
