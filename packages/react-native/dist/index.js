@@ -1750,10 +1750,10 @@ function Bolha({
               ] }) }),
               m.anexos.map((a) => /* @__PURE__ */ jsx6(AnexoView, { anexo: a, minha, aoAbrirFoto, aoAbrirUrl }, a.id)),
               !m.eliminada && (m.tipo === "partilha" || m.tipo === "link") && /* @__PURE__ */ jsx6(CartaoPartilha, { mensagem: m, minha }),
-              m.eliminada ? /* @__PURE__ */ jsxs5(Text5, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 14 }, children: [
-                /* @__PURE__ */ jsx6(Ionicons5, { name: "ban-outline", size: 13 }),
+              m.eliminada ? /* @__PURE__ */ jsxs5(Text5, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 15 }, children: [
+                /* @__PURE__ */ jsx6(Ionicons5, { name: "ban-outline", size: 14 }),
                 " Mensagem eliminada"
-              ] }) : m.conteudo ? /* @__PURE__ */ jsx6(Text5, { style: { fontSize: 15, lineHeight: 21, color: corTexto }, children: m.conteudo }) : null,
+              ] }) : m.conteudo ? /* @__PURE__ */ jsx6(Text5, { style: { fontSize: 16, lineHeight: 22, color: corTexto }, children: m.conteudo }) : null,
               /* @__PURE__ */ jsxs5(View5, { style: estilos5.rodape, children: [
                 m.encaminhada_de_id && /* @__PURE__ */ jsx6(Ionicons5, { name: "arrow-redo-outline", size: 11, color: corTexto, style: { opacity: 0.6 } }),
                 /* @__PURE__ */ jsxs5(Text5, { style: { fontSize: 10, color: corTexto, opacity: 0.6 }, children: [

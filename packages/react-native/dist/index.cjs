@@ -1760,10 +1760,10 @@ function Bolha({
               ] }) }),
               m.anexos.map((a) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(AnexoView, { anexo: a, minha, aoAbrirFoto, aoAbrirUrl }, a.id)),
               !m.eliminada && (m.tipo === "partilha" || m.tipo === "link") && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CartaoPartilha, { mensagem: m, minha }),
-              m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 14 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "ban-outline", size: 13 }),
+              m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 15 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "ban-outline", size: 14 }),
                 " Mensagem eliminada"
-              ] }) : m.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 15, lineHeight: 21, color: corTexto }, children: m.conteudo }) : null,
+              ] }) : m.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 16, lineHeight: 22, color: corTexto }, children: m.conteudo }) : null,
               /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: estilos5.rodape, children: [
                 m.encaminhada_de_id && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "arrow-redo-outline", size: 11, color: corTexto, style: { opacity: 0.6 } }),
                 /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 10, color: corTexto, opacity: 0.6 }, children: [

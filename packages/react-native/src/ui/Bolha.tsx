@@ -307,11 +307,11 @@ export function Bolha({
                 ))}
                 {!m.eliminada && (m.tipo === 'partilha' || m.tipo === 'link') && <CartaoPartilha mensagem={m} minha={minha} />}
                 {m.eliminada ? (
-                    <Text style={{ fontStyle: 'italic', color: corTexto, opacity: 0.6, fontSize: 14 }}>
-                        <Ionicons name="ban-outline" size={13} /> Mensagem eliminada
+                    <Text style={{ fontStyle: 'italic', color: corTexto, opacity: 0.6, fontSize: 15 }}>
+                        <Ionicons name="ban-outline" size={14} /> Mensagem eliminada
                     </Text>
                 ) : m.conteudo ? (
-                    <Text style={{ fontSize: 15, lineHeight: 21, color: corTexto }}>{m.conteudo}</Text>
+                    <Text style={{ fontSize: 16, lineHeight: 22, color: corTexto }}>{m.conteudo}</Text>
                 ) : null}
                 <View style={estilos.rodape}>
                     {m.encaminhada_de_id && <Ionicons name="arrow-redo-outline" size={11} color={corTexto} style={{ opacity: 0.6 }} />}
