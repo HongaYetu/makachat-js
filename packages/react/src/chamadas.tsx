@@ -63,6 +63,9 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     /** true enquanto mostramos o ecrã de falha — os eventos rejeitada/terminada não podem fechá-lo */
     const falhada = useRef(false);
     const faseRef = useRef<EstadoChamada['fase'] | null>(null);
+    /** id da chamada que EU estou a atender AGORA — o eco do próprio 'atendida'
+     *  não pode cair no ramo "atendi noutro dispositivo" e matar o connect */
+    const atendendoRef = useRef<string | null>(null);
     const [erroSolto, setErroSolto] = useState<string | null>(null);
     const arrasto = useRef<{ ativo: boolean; dx: number; dy: number }>({ ativo: false, dx: 0, dy: 0 });
 
@@ -75,6 +78,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         void room.current?.disconnect();
         room.current = null;
         falhada.current = false;
+        atendendoRef.current = null;
         elementos.current.clear();
 
         setAtiva(null);
@@ -257,10 +261,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
                         setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
                         comecarTimer();
-                    } else if (faseRef.current === 'a_receber') {
+                    } else if (faseRef.current === 'a_receber' && atendendoRef.current !== evento.chamada.id) {
                         // 1:1 e ainda a tocar: só pode ter sido EU a atender noutro dispositivo — para de tocar aqui
+                        // (se estou EU a atender AQUI, o eco chega antes de a fase virar em_curso — nunca limpar)
                         void engine.storage.obterConversa(evento.chamada.conversa_id).then((c) => {
-                            if (c?.tipo !== 'grupo' && faseRef.current === 'a_receber') limpar();
+                            if (c?.tipo !== 'grupo' && faseRef.current === 'a_receber' && atendendoRef.current !== evento.chamada.id) limpar();
                         });
                     }
                 } else if (evento.evento === 'participante_saiu') {
@@ -313,6 +318,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
+            atendendoRef.current = chamadaId;
             const r = await api.atenderChamada(chamadaId);
 
             setAtiva({ chamada: r.chamada, fase: 'em_curso' });
@@ -320,6 +326,14 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             if (r.livekit_token && r.ws_url) {
                 const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+
+                // a chamada foi limpa/terminada durante o connect — não ressuscitar
+                if (atendendoRef.current !== chamadaId) {
+                    void room.current?.disconnect();
+                    room.current = null;
+
+                    return;
+                }
 
                 if (!ok) {
                     falhada.current = true;
@@ -350,10 +364,23 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
+        atendendoRef.current = ativa.chamada.id;
         const r = await api.atenderChamada(ativa.chamada.id);
+
+        // em_curso ANTES do connect: o eco do próprio 'atendida' chega durante o
+        // ligarSala e não pode encontrar a fase ainda em 'a_receber' (matava a chamada)
+        setAtiva({ ...ativa, fase: 'em_curso', chamada: r.chamada });
 
         if (r.livekit_token && r.ws_url) {
             const ok = await ligarSala(r.livekit_token, r.ws_url, ativa.chamada.tipo === 'video');
+
+            // a chamada foi limpa/terminada durante o connect — não ressuscitar
+            if (atendendoRef.current !== ativa.chamada.id) {
+                void room.current?.disconnect();
+                room.current = null;
+
+                return;
+            }
 
             if (!ok) {
                 falhada.current = true;
@@ -364,7 +391,6 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
-        setAtiva({ ...ativa, fase: 'em_curso', chamada: r.chamada });
         comecarTimer();
     };
 

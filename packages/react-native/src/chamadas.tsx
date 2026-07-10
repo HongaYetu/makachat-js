@@ -119,6 +119,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const desligarRef = useRef<() => Promise<void>>(async () => undefined);
     const sozinhoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const chamadaIdRef = useRef<string | null>(null);
+    /** id da chamada que EU estou a atender AGORA — o push 'parar' do próprio
+     *  atender (pararToque a todos) não pode matar a chamada a meio do connect */
+    const atendendoRef = useRef<string | null>(null);
+    /** lock: mount + AppState 'active' podem disparar retomarPendente quase juntos */
+    const retomandoRef = useRef(false);
 
     useEffect(() => {
         chamadaIdRef.current = ativa?.chamada.id ?? null;
@@ -168,6 +173,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         void room.current?.disconnect?.();
         room.current = null;
         falhada.current = false;
+        atendendoRef.current = null;
 
         if (livekit?.AudioSession) void livekit.AudioSession.stopAudioSession?.();
 
@@ -398,12 +404,21 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         async (chamadaId: string, tipo: 'audio' | 'video') => {
             if (!suportado) return;
 
+            atendendoRef.current = chamadaId;
             const r = await api.atenderChamada(chamadaId);
             setAtiva({ chamada: r.chamada, fase: 'em_curso' });
             void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
 
             if (r.livekit_token && r.ws_url) {
                 const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === 'video');
+
+                // a chamada foi limpa/terminada durante o connect — não ressuscitar
+                if (atendendoRef.current !== chamadaId) {
+                    void room.current?.disconnect?.();
+                    room.current = null;
+
+                    return;
+                }
 
                 if (!ok) {
                     await falhar(chamadaId);
@@ -447,28 +462,34 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const retomarPendente = useCallback(async () => {
         const push = obterPushMakaChat();
 
-        if (!push?.obterChamadaPendente) return;
+        if (!push?.obterChamadaPendente || retomandoRef.current) return;
 
-        const pendente = await push.obterChamadaPendente().catch(() => null);
+        retomandoRef.current = true;
 
-        if (!pendente) return;
+        try {
+            const pendente = await push.obterChamadaPendente().catch(() => null);
 
-        push.cancelarNotificacaoChamada?.(pendente.chamada_id);
+            if (!pendente) return;
 
-        if (pendente.acao === 'rejeitar') {
-            await api.rejeitarChamada(pendente.chamada_id).catch(() => undefined);
+            push.cancelarNotificacaoChamada?.(pendente.chamada_id);
 
-            return;
+            if (pendente.acao === 'rejeitar') {
+                await api.rejeitarChamada(pendente.chamada_id).catch(() => undefined);
+
+                return;
+            }
+
+            if (pendente.acao === 'atender') {
+                await entrar(pendente.chamada_id, pendente.chamada_tipo).catch(() => undefined);
+
+                return;
+            }
+
+            // 'tocar': mostra o ringing normal com os dados que temos
+            await tocarEmApp(pendente.chamada_id, pendente.chamada_tipo, pendente.conversa_id);
+        } finally {
+            retomandoRef.current = false;
         }
-
-        if (pendente.acao === 'atender') {
-            await entrar(pendente.chamada_id, pendente.chamada_tipo).catch(() => undefined);
-
-            return;
-        }
-
-        // 'tocar': mostra o ringing normal com os dados que temos
-        await tocarEmApp(pendente.chamada_id, pendente.chamada_tipo, pendente.conversa_id);
     }, [api, entrar, tocarEmApp]);
 
     // app aberta por uma notificação de chamada (arranque frio ou background)
@@ -492,6 +513,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
         const sub = push.aoChamadaPush((chamada: { acao: string; chamada_id: string; chamada_tipo: 'audio' | 'video'; conversa_id: string; chave_servico: string; titulo?: string; foto?: string }) => {
             if (chamada.acao === 'parar') {
+                // sou EU a atender (o pararToque do atender vai a todos, incluindo
+                // este dispositivo) — nunca matar a chamada a meio do connect
+                if (atendendoRef.current === chamada.chamada_id) return;
+
                 // atenderam/terminou noutro lado — cala o ringing em-app
                 if (chamadaIdRef.current === chamada.chamada_id && faseRef.current === 'a_receber') limpar();
 

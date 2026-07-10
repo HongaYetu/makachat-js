@@ -2822,6 +2822,8 @@ function ChamadasProvider({ children }) {
   const desligarRef = (0, import_react11.useRef)(async () => void 0);
   const sozinhoTimer = (0, import_react11.useRef)(null);
   const chamadaIdRef = (0, import_react11.useRef)(null);
+  const atendendoRef = (0, import_react11.useRef)(null);
+  const retomandoRef = (0, import_react11.useRef)(false);
   (0, import_react11.useEffect)(() => {
     chamadaIdRef.current = ativa?.chamada.id ?? null;
   }, [ativa]);
@@ -2855,6 +2857,7 @@ function ChamadasProvider({ children }) {
     void room.current?.disconnect?.();
     room.current = null;
     falhada.current = false;
+    atendendoRef.current = null;
     if (livekit?.AudioSession) void livekit.AudioSession.stopAudioSession?.();
     setAtiva(null);
     setConversa(null);
@@ -3026,11 +3029,17 @@ function ChamadasProvider({ children }) {
   const entrar = (0, import_react11.useCallback)(
     async (chamadaId, tipo) => {
       if (!suportado) return;
+      atendendoRef.current = chamadaId;
       const r = await api.atenderChamada(chamadaId);
       setAtiva({ chamada: r.chamada, fase: "em_curso" });
       void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
+        if (atendendoRef.current !== chamadaId) {
+          void room.current?.disconnect?.();
+          room.current = null;
+          return;
+        }
         if (!ok) {
           await falhar(chamadaId);
           return;
@@ -3064,19 +3073,24 @@ function ChamadasProvider({ children }) {
   );
   const retomarPendente = (0, import_react11.useCallback)(async () => {
     const push = obterPushMakaChat();
-    if (!push?.obterChamadaPendente) return;
-    const pendente = await push.obterChamadaPendente().catch(() => null);
-    if (!pendente) return;
-    push.cancelarNotificacaoChamada?.(pendente.chamada_id);
-    if (pendente.acao === "rejeitar") {
-      await api.rejeitarChamada(pendente.chamada_id).catch(() => void 0);
-      return;
+    if (!push?.obterChamadaPendente || retomandoRef.current) return;
+    retomandoRef.current = true;
+    try {
+      const pendente = await push.obterChamadaPendente().catch(() => null);
+      if (!pendente) return;
+      push.cancelarNotificacaoChamada?.(pendente.chamada_id);
+      if (pendente.acao === "rejeitar") {
+        await api.rejeitarChamada(pendente.chamada_id).catch(() => void 0);
+        return;
+      }
+      if (pendente.acao === "atender") {
+        await entrar(pendente.chamada_id, pendente.chamada_tipo).catch(() => void 0);
+        return;
+      }
+      await tocarEmApp(pendente.chamada_id, pendente.chamada_tipo, pendente.conversa_id);
+    } finally {
+      retomandoRef.current = false;
     }
-    if (pendente.acao === "atender") {
-      await entrar(pendente.chamada_id, pendente.chamada_tipo).catch(() => void 0);
-      return;
-    }
-    await tocarEmApp(pendente.chamada_id, pendente.chamada_tipo, pendente.conversa_id);
   }, [api, entrar, tocarEmApp]);
   (0, import_react11.useEffect)(() => {
     void retomarPendente();
@@ -3090,6 +3104,7 @@ function ChamadasProvider({ children }) {
     if (!push?.aoChamadaPush) return;
     const sub = push.aoChamadaPush((chamada) => {
       if (chamada.acao === "parar") {
+        if (atendendoRef.current === chamada.chamada_id) return;
         if (chamadaIdRef.current === chamada.chamada_id && faseRef.current === "a_receber") limpar();
         return;
       }

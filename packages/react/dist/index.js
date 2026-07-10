@@ -498,6 +498,7 @@ function ChamadasProvider({ children }) {
   const elementos = useRef4(/* @__PURE__ */ new Map());
   const falhada = useRef4(false);
   const faseRef = useRef4(null);
+  const atendendoRef = useRef4(null);
   const [erroSolto, setErroSolto] = useState4(null);
   const arrasto = useRef4({ ativo: false, dx: 0, dy: 0 });
   const limpar = useCallback2(() => {
@@ -508,6 +509,7 @@ function ChamadasProvider({ children }) {
     void room.current?.disconnect();
     room.current = null;
     falhada.current = false;
+    atendendoRef.current = null;
     elementos.current.clear();
     setAtiva(null);
     setConversa(null);
@@ -637,9 +639,9 @@ function ChamadasProvider({ children }) {
         if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
           setAtiva((a) => a ? { ...a, fase: "em_curso", chamada: evento.chamada } : a);
           comecarTimer();
-        } else if (faseRef.current === "a_receber") {
+        } else if (faseRef.current === "a_receber" && atendendoRef.current !== evento.chamada.id) {
           void engine.storage.obterConversa(evento.chamada.conversa_id).then((c) => {
-            if (c?.tipo !== "grupo" && faseRef.current === "a_receber") limpar();
+            if (c?.tipo !== "grupo" && faseRef.current === "a_receber" && atendendoRef.current !== evento.chamada.id) limpar();
           });
         }
       } else if (evento.evento === "participante_saiu") {
@@ -679,11 +681,17 @@ function ChamadasProvider({ children }) {
         setTimeout(() => setErroSolto(null), 6e3);
         return;
       }
+      atendendoRef.current = chamadaId;
       const r = await api.atenderChamada(chamadaId);
       setAtiva({ chamada: r.chamada, fase: "em_curso" });
       void engine.storage.obterConversa(r.chamada.conversa_id).then(setConversa);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
+        if (atendendoRef.current !== chamadaId) {
+          void room.current?.disconnect();
+          room.current = null;
+          return;
+        }
         if (!ok) {
           falhada.current = true;
           await api.terminarChamada(chamadaId).catch(() => void 0);
@@ -705,9 +713,16 @@ function ChamadasProvider({ children }) {
       await api.rejeitarChamada(ativa.chamada.id).catch(() => void 0);
       return;
     }
+    atendendoRef.current = ativa.chamada.id;
     const r = await api.atenderChamada(ativa.chamada.id);
+    setAtiva({ ...ativa, fase: "em_curso", chamada: r.chamada });
     if (r.livekit_token && r.ws_url) {
       const ok = await ligarSala(r.livekit_token, r.ws_url, ativa.chamada.tipo === "video");
+      if (atendendoRef.current !== ativa.chamada.id) {
+        void room.current?.disconnect();
+        room.current = null;
+        return;
+      }
       if (!ok) {
         falhada.current = true;
         await api.terminarChamada(ativa.chamada.id).catch(() => void 0);
@@ -715,7 +730,6 @@ function ChamadasProvider({ children }) {
         return;
       }
     }
-    setAtiva({ ...ativa, fase: "em_curso", chamada: r.chamada });
     comecarTimer();
   };
   const desligar = async () => {
