@@ -34,6 +34,25 @@ import {
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+/** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
+export interface HeaderChatContexto {
+    conversa: Conversa | null;
+    /** o outro participante numa conversa 1:1 (null em grupos) */
+    contraparte: ParticipanteConversa | null;
+    grupo: boolean;
+    typingAtivo: boolean;
+    totalMembros: number;
+    /** conversa fechada (só leitura) */
+    fechada: boolean;
+    onVoltar?(): void;
+    abrirInfo(): void;
+    alternarPesquisa(): void;
+    abrirMenu(): void;
+    /** undefined quando indisponível (sem ChamadasProvider/flag ou conversa fechada) */
+    ligarAudio?(): void;
+    ligarVideo?(): void;
+}
+
 export interface ChatScreenProps {
     conversaId: string;
     /** voltar à lista (header) */
@@ -57,6 +76,12 @@ export interface ChatScreenProps {
      * para temas escuros) ou null para a app gerir sozinha.
      */
     barraEstado?: 'escura' | 'clara' | null;
+    /**
+     * Header CUSTOM da app (ex.: cores próprias ao navegar via router): recebe
+     * a conversa, presença e as ações (voltar/info/pesquisa/menu/chamadas).
+     * Sem isto, o header interno padrão é usado.
+     */
+    renderHeader?(ctx: HeaderChatContexto): React.ReactNode;
 }
 
 interface ItemLista {
@@ -74,7 +99,7 @@ interface ItemLista {
 const KC = obterKeyboardController();
 const CampoTeclado = (KC?.KeyboardAvoidingView ?? KeyboardAvoidingView) as typeof KeyboardAvoidingView;
 
-export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = 'escura' }: ChatScreenProps) {
+export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = 'escura', renderHeader }: ChatScreenProps) {
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
     const insets = useSafeAreaInsets();
@@ -392,7 +417,23 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
             {emFoco && barraEstado != null && (
                 <StatusBar animated barStyle={barraEstado === 'clara' ? 'light-content' : 'dark-content'} />
             )}
-            {/* header */}
+            {/* header: custom da app (renderHeader) ou o interno padrão */}
+            {renderHeader ? (
+                renderHeader({
+                    conversa,
+                    contraparte,
+                    grupo,
+                    typingAtivo: !!typing?.ativo,
+                    totalMembros: conversa?.participantes.filter((p) => !p.saiu_em).length ?? 0,
+                    fechada,
+                    onVoltar,
+                    abrirInfo: () => conversa && onAbrirInfo?.(conversa),
+                    alternarPesquisa: () => { setPesquisaAberta(!pesquisaAberta); setResultados([]); setPesquisaQ(''); },
+                    abrirMenu: () => setMenuAberto(true),
+                    ligarAudio: chamadas && podeAudioChamada && !fechada ? () => void chamadas.iniciar(conversaId, 'audio') : undefined,
+                    ligarVideo: chamadas && podeVideoChamada && !fechada ? () => void chamadas.iniciar(conversaId, 'video') : undefined,
+                })
+            ) : (
             <View style={[estilos.header, { backgroundColor: tema.superficie }]}>
                 {onVoltar && (
                     <Pressable onPress={onVoltar} style={{ padding: 6 }}>
@@ -423,6 +464,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     <Ionicons name="ellipsis-vertical" size={20} color={tema.texto} />
                 </Pressable>
             </View>
+            )}
 
             {/* pesquisa na conversa */}
             {pesquisaAberta && (

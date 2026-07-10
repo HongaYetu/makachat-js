@@ -1,4 +1,4 @@
-import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, ParticipanteConversa, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -177,6 +177,24 @@ interface ConversasScreenProps {
 declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio }: ConversasScreenProps): React.JSX.Element;
 declare function previewConversa(c: Conversa): string;
 
+/** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
+interface HeaderChatContexto {
+    conversa: Conversa | null;
+    /** o outro participante numa conversa 1:1 (null em grupos) */
+    contraparte: ParticipanteConversa | null;
+    grupo: boolean;
+    typingAtivo: boolean;
+    totalMembros: number;
+    /** conversa fechada (só leitura) */
+    fechada: boolean;
+    onVoltar?(): void;
+    abrirInfo(): void;
+    alternarPesquisa(): void;
+    abrirMenu(): void;
+    /** undefined quando indisponível (sem ChamadasProvider/flag ou conversa fechada) */
+    ligarAudio?(): void;
+    ligarVideo?(): void;
+}
 interface ChatScreenProps {
     conversaId: string;
     /** voltar à lista (header) */
@@ -203,8 +221,14 @@ interface ChatScreenProps {
      * para temas escuros) ou null para a app gerir sozinha.
      */
     barraEstado?: 'escura' | 'clara' | null;
+    /**
+     * Header CUSTOM da app (ex.: cores próprias ao navegar via router): recebe
+     * a conversa, presença e as ações (voltar/info/pesquisa/menu/chamadas).
+     * Sem isto, o header interno padrão é usado.
+     */
+    renderHeader?(ctx: HeaderChatContexto): React.ReactNode;
 }
-declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco, barraEstado }: ChatScreenProps): React.JSX.Element;
+declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco, barraEstado, renderHeader }: ChatScreenProps): React.JSX.Element;
 
 interface InfoConversaScreenProps {
     conversaId: string;
@@ -379,4 +403,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };

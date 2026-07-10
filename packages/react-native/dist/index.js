@@ -1799,7 +1799,7 @@ import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
 var KC = obterKeyboardController();
 var CampoTeclado = KC?.KeyboardAvoidingView ?? KeyboardAvoidingView;
-function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = "escura" }) {
+function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = "escura", renderHeader }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = useSafeAreaInsets2();
@@ -2033,7 +2033,24 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const banner = conversa?.chamada_ativa && chamadas && !fechada && conversa.tipo === "grupo";
   return /* @__PURE__ */ jsxs6(View6, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
     emFoco && barraEstado != null && /* @__PURE__ */ jsx7(StatusBar, { animated: true, barStyle: barraEstado === "clara" ? "light-content" : "dark-content" }),
-    /* @__PURE__ */ jsxs6(View6, { style: [estilos6.header, { backgroundColor: tema.superficie }], children: [
+    renderHeader ? renderHeader({
+      conversa,
+      contraparte,
+      grupo,
+      typingAtivo: !!typing?.ativo,
+      totalMembros: conversa?.participantes.filter((p) => !p.saiu_em).length ?? 0,
+      fechada,
+      onVoltar,
+      abrirInfo: () => conversa && onAbrirInfo?.(conversa),
+      alternarPesquisa: () => {
+        setPesquisaAberta(!pesquisaAberta);
+        setResultados([]);
+        setPesquisaQ("");
+      },
+      abrirMenu: () => setMenuAberto(true),
+      ligarAudio: chamadas && podeAudioChamada && !fechada ? () => void chamadas.iniciar(conversaId, "audio") : void 0,
+      ligarVideo: chamadas && podeVideoChamada && !fechada ? () => void chamadas.iniciar(conversaId, "video") : void 0
+    }) : /* @__PURE__ */ jsxs6(View6, { style: [estilos6.header, { backgroundColor: tema.superficie }], children: [
       onVoltar && /* @__PURE__ */ jsx7(Pressable6, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ jsxs6(Pressable6, { style: estilos6.headerCentro, onPress: () => conversa && onAbrirInfo?.(conversa), children: [
         /* @__PURE__ */ jsx7(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 38 }),
