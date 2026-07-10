@@ -74,16 +74,25 @@ var SqliteStorage = class {
   db;
   async init() {
     await this.criarEsquema();
+    if (!await this.esquemaValido()) {
+      await this.db.execAsync(
+        `DROP TABLE IF EXISTS conversas; DROP TABLE IF EXISTS mensagens; DROP TABLE IF EXISTS outbox; DROP TABLE IF EXISTS meta;`
+      );
+      await this.criarEsquema();
+    }
+  }
+  async esquemaValido() {
     try {
       await this.db.getAllAsync(`SELECT arquivada, ultima_atividade_em FROM conversas LIMIT 0`);
       await this.db.getAllAsync(`SELECT conversa_id, remetente_identidade_id, ref_cliente FROM mensagens LIMIT 0`);
       await this.db.getAllAsync(`SELECT criado_em FROM outbox LIMIT 0`);
       await this.db.getAllAsync(`SELECT chave, valor FROM meta LIMIT 0`);
-    } catch {
-      await this.db.execAsync(
-        `DROP TABLE IF EXISTS conversas; DROP TABLE IF EXISTS mensagens; DROP TABLE IF EXISTS outbox; DROP TABLE IF EXISTS meta;`
+      const dup = await this.db.getAllAsync(
+        `SELECT COUNT(*) - COUNT(DISTINCT id) AS n FROM conversas`
       );
-      await this.criarEsquema();
+      return (dup[0]?.n ?? 0) === 0;
+    } catch {
+      return false;
     }
   }
   async criarEsquema() {
@@ -505,7 +514,8 @@ function useConversas(arquivadas = false) {
   (0, import_react2.useEffect)(() => {
     let ativo = true;
     void engine.storage.listarConversas(arquivadas).then((lista) => {
-      const ordenada = [...lista].sort(
+      const unicas = Array.from(new Map(lista.map((c) => [c.id, c])).values());
+      const ordenada = unicas.sort(
         (a, b) => (Date.parse(b.ultima_atividade_em ?? "") || 0) - (Date.parse(a.ultima_atividade_em ?? "") || 0)
       );
       if (ativo) setConversas(ordenada);

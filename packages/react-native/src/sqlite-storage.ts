@@ -48,18 +48,32 @@ export class SqliteStorage implements StorageAdapter {
         await this.criarEsquema();
 
         // O SQLite local é só cache (a fonte de verdade é o hub). Um ficheiro .db
-        // de um build antigo pode ter um esquema diferente (não há migração aqui);
-        // se um probe às colunas críticas falhar, recriamos — a UI reidrata do hub.
+        // de um build antigo pode ter um esquema diferente (sem migração aqui) —
+        // colunas em falta OU sem PRIMARY KEY efetiva (linhas duplicadas por id).
+        // Se o probe falhar, recriamos — a UI reidrata do hub.
+        if (!(await this.esquemaValido())) {
+            await this.db.execAsync(
+                `DROP TABLE IF EXISTS conversas; DROP TABLE IF EXISTS mensagens; DROP TABLE IF EXISTS outbox; DROP TABLE IF EXISTS meta;`,
+            );
+            await this.criarEsquema();
+        }
+    }
+
+    private async esquemaValido(): Promise<boolean> {
         try {
             await this.db.getAllAsync(`SELECT arquivada, ultima_atividade_em FROM conversas LIMIT 0`);
             await this.db.getAllAsync(`SELECT conversa_id, remetente_identidade_id, ref_cliente FROM mensagens LIMIT 0`);
             await this.db.getAllAsync(`SELECT criado_em FROM outbox LIMIT 0`);
             await this.db.getAllAsync(`SELECT chave, valor FROM meta LIMIT 0`);
-        } catch {
-            await this.db.execAsync(
-                `DROP TABLE IF EXISTS conversas; DROP TABLE IF EXISTS mensagens; DROP TABLE IF EXISTS outbox; DROP TABLE IF EXISTS meta;`,
+
+            // sem PRIMARY KEY efetiva o INSERT OR REPLACE não deduplica → linhas repetidas
+            const dup = await this.db.getAllAsync<{ n: number }>(
+                `SELECT COUNT(*) - COUNT(DISTINCT id) AS n FROM conversas`,
             );
-            await this.criarEsquema();
+
+            return (dup[0]?.n ?? 0) === 0;
+        } catch {
+            return false;
         }
     }
 

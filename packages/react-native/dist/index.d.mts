@@ -24,6 +24,7 @@ declare class SqliteStorage implements StorageAdapter {
     private readonly db;
     constructor(db: SQLiteDatabaseLike);
     init(): Promise<void>;
+    private esquemaValido;
     private criarEsquema;
     upsertConversas(conversas: Conversa[]): Promise<void>;
     listarConversas(arquivadas?: boolean): Promise<Conversa[]>;

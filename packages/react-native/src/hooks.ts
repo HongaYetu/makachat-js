@@ -22,9 +22,10 @@ export function useConversas(arquivadas = false): Conversa[] {
         let ativo = true;
 
         void engine.storage.listarConversas(arquivadas).then((lista) => {
-            // ordena por tempo PARSEADO (robusto a formatos ISO mistos — com/sem
-            // milissegundos — que baralhariam o ORDER BY TEXT do SQLite): mais recente primeiro
-            const ordenada = [...lista].sort(
+            // dedup por id (defensivo — um .db antigo pode ter linhas repetidas) e
+            // ordena por tempo PARSEADO (robusto a ISO misto): mais recente primeiro
+            const unicas = Array.from(new Map(lista.map((c) => [c.id, c])).values());
+            const ordenada = unicas.sort(
                 (a, b) => (Date.parse(b.ultima_atividade_em ?? '') || 0) - (Date.parse(a.ultima_atividade_em ?? '') || 0),
             );
 
