@@ -156,7 +156,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
       aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
       aoMensagem: (mensagem) => {
         ouvintesMensagens.current.forEach((o) => o(mensagem));
-        if (typeof document === "undefined" || !document.hidden) tocarSom("recebida");
+        if (!mensagem.silenciosa && (typeof document === "undefined" || !document.hidden)) tocarSom("recebida");
         if (!notifAtivas.current || typeof document === "undefined" || !document.hidden) return;
         void adapter.obterConversa(mensagem.conversa_id).then((conversa) => {
           const autor = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);

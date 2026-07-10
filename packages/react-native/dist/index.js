@@ -398,7 +398,7 @@ function MakaChatProvider({
       aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
       aoMensagem: (mensagem) => {
         ouvintesMensagens.current.forEach((o) => o(mensagem));
-        tocarSom("recebida");
+        if (!mensagem.silenciosa) tocarSom("recebida");
       }
     });
     return {
@@ -3365,14 +3365,19 @@ function NotificacoesLocais({ avatarPadrao } = {}) {
           const nomeRemetente = remetente?.nome ?? "Algu\xE9m";
           const titulo = grupo ? conversa?.titulo ?? "Grupo" : nomeRemetente ?? conversa?.titulo ?? "Nova mensagem";
           const avatar = (grupo ? conversa?.foto_url : remetente?.foto_url) ?? avatarPadrao;
-          await notifee.createChannel({ id: "makachat_mensagens", name: "Mensagens", importance: 4 });
+          const canalId = mensagem.silenciosa ? "makachat_silenciosas" : "makachat_mensagens";
+          if (mensagem.silenciosa) {
+            await notifee.createChannel({ id: "makachat_silenciosas", name: "Eventos silenciosos", importance: 2 });
+          } else {
+            await notifee.createChannel({ id: "makachat_mensagens", name: "Mensagens", importance: 4 });
+          }
           await notifee.displayNotification({
             id: `mkm_${mensagem.conversa_id}`,
             title: titulo,
             body: grupo ? `${nomeRemetente}: ${previewDe(mensagem)}` : previewDe(mensagem),
             data: { makachat: "1", conversa_id: mensagem.conversa_id },
             android: {
-              channelId: "makachat_mensagens",
+              channelId: canalId,
               smallIcon: "ic_launcher",
               // avatar circular estilo WhatsApp (URL remoto suportado)
               ...avatar ? { largeIcon: avatar, circularLargeIcon: true } : {},

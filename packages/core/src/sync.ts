@@ -477,8 +477,8 @@ export class SyncEngine {
                     await this.atualizarConversas();
                 } else if (!duplicada) {
                     // mensagem minha vinda de outra aba não conta como não lida;
-                    // registos de chamada (efetuada/perdida) também não — o hub não os conta
-                    await this.atualizarPreviewLocal(payload.mensagem, !minha && payload.mensagem.tipo !== 'chamada');
+                    // silenciosas (decisão do hub) também não — a regra viaja na mensagem
+                    await this.atualizarPreviewLocal(payload.mensagem, !minha && !payload.mensagem.silenciosa);
                 }
 
                 await this.socket.marcarEntregues(payload.mensagem.conversa_id, payload.mensagem.id).catch(() => undefined);

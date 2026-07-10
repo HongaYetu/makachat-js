@@ -120,7 +120,9 @@ export function MakaChatProvider({
             aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
             aoMensagem: (mensagem) => {
                 ouvintesMensagens.current.forEach((o) => o(mensagem));
-                tocarSom('recebida');
+
+                // silenciosa (decisão do hub: não conta no badge) → sem som
+                if (!mensagem.silenciosa) tocarSom('recebida');
             },
         });
 

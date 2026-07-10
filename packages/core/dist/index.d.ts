@@ -56,6 +56,12 @@ interface Mensagem {
     ref_cliente: string;
     editada_em: string | null;
     eliminada: boolean;
+    /**
+     * Decidido pelo hub na criação: mensagem que NÃO conta como não lida
+     * (badge) — os clientes também não tocam som nem alertam (ex.: registos
+     * de chamada e outros eventos de sistema sem contagem).
+     */
+    silenciosa?: boolean;
     metadados?: MetadadosPartilha | null;
     reacoes: Reacao[];
     anexos: Anexo[];

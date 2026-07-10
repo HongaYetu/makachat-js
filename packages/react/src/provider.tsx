@@ -104,8 +104,9 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
                 // evento global: qualquer página subscrita recebe, sem depender da conversa aberta
                 ouvintesMensagens.current.forEach((o) => o(mensagem));
 
-                // som de mensagem recebida (página visível; em background é o sistema que avisa)
-                if (typeof document === 'undefined' || !document.hidden) tocarSom('recebida');
+                // som de mensagem recebida (página visível; em background é o sistema que avisa);
+                // silenciosa (decisão do hub: não conta no badge) → sem som
+                if (!mensagem.silenciosa && (typeof document === 'undefined' || !document.hidden)) tocarSom('recebida');
 
                 // extra opcional: notificação nativa quando a página está em background
                 if (!notifAtivas.current || typeof document === 'undefined' || !document.hidden) return;

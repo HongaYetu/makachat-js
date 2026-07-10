@@ -41,14 +41,24 @@ export function NotificacoesLocais({ avatarPadrao }: { avatarPadrao?: string } =
                     const titulo = grupo ? (conversa?.titulo ?? 'Grupo') : (nomeRemetente ?? conversa?.titulo ?? 'Nova mensagem');
                     const avatar = (grupo ? conversa?.foto_url : remetente?.foto_url) ?? avatarPadrao;
 
-                    await notifee.createChannel({ id: 'makachat_mensagens', name: 'Mensagens', importance: 4 });
+                    // mensagens SILENCIOSAS (decisão do hub: não contam no badge —
+                    // registos de chamada e outros eventos de sistema) aparecem num
+                    // canal LOW (sem som nem heads-up); as normais mantêm o canal com som
+                    const canalId = mensagem.silenciosa ? 'makachat_silenciosas' : 'makachat_mensagens';
+
+                    if (mensagem.silenciosa) {
+                        await notifee.createChannel({ id: 'makachat_silenciosas', name: 'Eventos silenciosos', importance: 2 });
+                    } else {
+                        await notifee.createChannel({ id: 'makachat_mensagens', name: 'Mensagens', importance: 4 });
+                    }
+
                     await notifee.displayNotification({
                         id: `mkm_${mensagem.conversa_id}`,
                         title: titulo,
                         body: grupo ? `${nomeRemetente}: ${previewDe(mensagem)}` : previewDe(mensagem),
                         data: { makachat: '1', conversa_id: mensagem.conversa_id },
                         android: {
-                            channelId: 'makachat_mensagens',
+                            channelId: canalId,
                             smallIcon: 'ic_launcher',
                             // avatar circular estilo WhatsApp (URL remoto suportado)
                             ...(avatar ? { largeIcon: avatar, circularLargeIcon: true } : {}),

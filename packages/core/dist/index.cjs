@@ -848,7 +848,7 @@ var SyncEngine = class {
         if (!conversa) {
           await this.atualizarConversas();
         } else if (!duplicada) {
-          await this.atualizarPreviewLocal(payload.mensagem, !minha && payload.mensagem.tipo !== "chamada");
+          await this.atualizarPreviewLocal(payload.mensagem, !minha && !payload.mensagem.silenciosa);
         }
         await this.socket.marcarEntregues(payload.mensagem.conversa_id, payload.mensagem.id).catch(() => void 0);
         this.notificar();
