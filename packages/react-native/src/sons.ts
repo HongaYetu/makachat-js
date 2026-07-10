@@ -1,4 +1,4 @@
-import { obterAudio } from './opcionais';
+import { obterAudio, obterPushMakaChat } from './opcionais';
 
 /**
  * Sons do chat (herdados do Kanda) via expo-audio (peer opcional — sem ele,
@@ -46,12 +46,27 @@ export function tocarSom(nome: NomeSom): void {
 }
 
 let toque: { play(): void; pause(): void; remove?(): void; loop?: boolean } | null = null;
+let toqueDispositivo = false;
 
 /** Toque de chamada em loop — 'ligar' (ringback de quem liga) ou 'receber' (ring). */
 export function comecarToque(tipo: TipoToque = 'ligar'): void {
+    if (toque || toqueDispositivo) return;
+
+    // quem recebe ouve SEMPRE o tom de toque definido no dispositivo (Android):
+    // o nativo toca o ringtone real em loop + vibração; mp3 só como fallback
+    if (tipo === 'receber') {
+        const push = obterPushMakaChat();
+
+        if (push?.tocarToqueDispositivo?.()) {
+            toqueDispositivo = true;
+
+            return;
+        }
+    }
+
     const audio = obterAudio();
 
-    if (!audio?.createAudioPlayer || toque) return;
+    if (!audio?.createAudioPlayer) return;
 
     try {
         toque = audio.createAudioPlayer(tipo === 'receber' ? FONTES.toque_receber : FONTES.a_chamar);
@@ -63,6 +78,11 @@ export function comecarToque(tipo: TipoToque = 'ligar'): void {
 }
 
 export function pararToque(): void {
+    if (toqueDispositivo) {
+        obterPushMakaChat()?.pararToqueDispositivo?.();
+        toqueDispositivo = false;
+    }
+
     try {
         toque?.pause();
         toque?.remove?.();

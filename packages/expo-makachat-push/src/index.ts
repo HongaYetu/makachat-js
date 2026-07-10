@@ -42,6 +42,8 @@ interface ModuloNativo {
     cancelarNotificacaoMensagens(conversaId: string): void;
     configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
     configChamadas(): ConfigChamadas;
+    tocarToqueDispositivo(): void;
+    pararToqueDispositivo(): void;
     apresentarChamada(titulo: string, chamadaId: string, chamadaTipo: string, conversaId: string, chaveServico: string, foto: string | null): void;
     iniciarChamadaAtiva(nome: string, foto: string | null, tipo: string): void;
     pararChamadaAtiva(): void;
@@ -94,6 +96,29 @@ export function cancelarNotificacaoChamada(chamadaId: string): void {
  */
 export async function obterConversaPendente(): Promise<string | null> {
     return nativo.obterConversaPendente();
+}
+
+/**
+ * Toque em-app com o ringtone REAL definido no dispositivo (loop + vibração;
+ * Android). Devolve false se o nativo não estiver disponível — o chamador
+ * cai no som empacotado.
+ */
+export function tocarToqueDispositivo(): boolean {
+    try {
+        nativo.tocarToqueDispositivo();
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function pararToqueDispositivo(): void {
+    try {
+        nativo.pararToqueDispositivo();
+    } catch {
+        // módulo antigo sem esta função
+    }
 }
 
 /**

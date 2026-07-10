@@ -76,6 +76,15 @@ class ExpoMakachatPushModule : Module() {
             MakachatFcmService.cancelarNotificacaoMensagens(appContext.reactContext!!, conversaId)
         }
 
+        /** Toque em-app: ringtone REAL do dispositivo em loop + vibração. */
+        Function("tocarToqueDispositivo") {
+            ToqueEmApp.tocar(appContext.reactContext!!)
+        }
+
+        Function("pararToqueDispositivo") {
+            ToqueEmApp.parar(appContext.reactContext!!)
+        }
+
         /** Flags dos serviços opcionais de chamada (injetadas pelo config plugin). */
         Function("configChamadas") {
             val ctx = appContext.reactContext!!

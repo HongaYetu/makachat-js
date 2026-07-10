@@ -373,9 +373,18 @@ function tocarSom(nome) {
   }
 }
 var toque = null;
+var toqueDispositivo = false;
 function comecarToque(tipo = "ligar") {
+  if (toque || toqueDispositivo) return;
+  if (tipo === "receber") {
+    const push = obterPushMakaChat();
+    if (push?.tocarToqueDispositivo?.()) {
+      toqueDispositivo = true;
+      return;
+    }
+  }
   const audio = obterAudio();
-  if (!audio?.createAudioPlayer || toque) return;
+  if (!audio?.createAudioPlayer) return;
   try {
     toque = audio.createAudioPlayer(tipo === "receber" ? FONTES.toque_receber : FONTES.a_chamar);
     toque.loop = true;
@@ -385,6 +394,10 @@ function comecarToque(tipo = "ligar") {
   }
 }
 function pararToque() {
+  if (toqueDispositivo) {
+    obterPushMakaChat()?.pararToqueDispositivo?.();
+    toqueDispositivo = false;
+  }
   try {
     toque?.pause();
     toque?.remove?.();
