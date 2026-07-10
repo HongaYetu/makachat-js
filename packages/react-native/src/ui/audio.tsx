@@ -32,7 +32,7 @@ function barrasDe(seed: string): number[] {
  * Player de mensagens de voz estilo WhatsApp: waveform, tempo, velocidade
  * 1x/1.5x/2x. Usa expo-audio (peer opcional) — sem ele mostra aviso.
  */
-export function ReprodutorAudio({ url, mimha }: { url: string; mimha: boolean }) {
+export function ReprodutorAudio({ url, mimha, duracaoSegundos }: { url: string; mimha: boolean; duracaoSegundos?: number | null }) {
     const tema = useTema();
     const audio = useMemo(() => obterAudio(), []);
     const corTexto = mimha ? tema.bolhaMinhaTexto : tema.texto;
@@ -41,16 +41,18 @@ export function ReprodutorAudio({ url, mimha }: { url: string; mimha: boolean })
         return <Text style={{ color: corTexto, fontSize: 13 }}>🎤 Mensagem de voz (instala expo-audio para ouvir)</Text>;
     }
 
-    return <PlayerInterno audio={audio} url={url} mimha={mimha} />;
+    return <PlayerInterno audio={audio} url={url} mimha={mimha} duracaoSegundos={duracaoSegundos} />;
 }
 
 /** Componente interno: só monta com expo-audio presente (hooks incondicionais). */
-function PlayerInterno({ audio, url, mimha }: { audio: any; url: string; mimha: boolean }) {
+function PlayerInterno({ audio, url, mimha, duracaoSegundos }: { audio: any; url: string; mimha: boolean; duracaoSegundos?: number | null }) {
     const tema = useTema();
     const player = useRef<any>(null);
     const [aTocar, setATocar] = useState(false);
     const [posicao, setPosicao] = useState(0);
-    const [duracao, setDuracao] = useState(0);
+    // duração conhecida do servidor (metadados do upload) — mostra o tempo real
+    // ANTES de tocar; o player refina quando reportar uma duração válida
+    const [duracao, setDuracao] = useState(duracaoSegundos && duracaoSegundos > 0 ? duracaoSegundos : 0);
     const [velocidade, setVelocidade] = useState<(typeof VELOCIDADES)[number]>(1);
     const barras = useMemo(() => barrasDe(url), [url]);
     const corTexto = mimha ? tema.bolhaMinhaTexto : tema.texto;
@@ -69,11 +71,14 @@ function PlayerInterno({ audio, url, mimha }: { audio: any; url: string; mimha: 
             const p = audio.createAudioPlayer({ uri: url });
             player.current = p;
             p.addListener?.('playbackStatusUpdate', (s: { currentTime?: number; duration?: number; playing?: boolean; didJustFinish?: boolean }) => {
-                setPosicao(s.currentTime ?? 0);
-                if (s.duration) setDuracao(s.duration);
+                setPosicao(Number.isFinite(s.currentTime) ? (s.currentTime as number) : 0);
+
+                // o Android reporta 0/NaN por instantes — só aceitar durações válidas
+                if (Number.isFinite(s.duration) && (s.duration as number) > 0) setDuracao(s.duration as number);
 
                 if (s.didJustFinish) {
                     setATocar(false);
+                    setPosicao(0);
                     p.seekTo?.(0);
                     p.pause?.();
                 }
@@ -100,7 +105,7 @@ function PlayerInterno({ audio, url, mimha }: { audio: any; url: string; mimha: 
         player.current?.setPlaybackRate?.(proxima, 'high');
     };
 
-    const progresso = duracao > 0 ? posicao / duracao : 0;
+    const progresso = duracao > 0 ? Math.min(1, Math.max(0, posicao / duracao)) : 0;
 
     return (
         <View style={estilos.linha}>

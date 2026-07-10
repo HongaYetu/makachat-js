@@ -243,9 +243,10 @@ declare function ChamadasProvider({ children }: {
  * Player de mensagens de voz estilo WhatsApp: waveform, tempo, velocidade
  * 1x/1.5x/2x. Usa expo-audio (peer opcional) — sem ele mostra aviso.
  */
-declare function ReprodutorAudio({ url, mimha }: {
+declare function ReprodutorAudio({ url, mimha, duracaoSegundos }: {
     url: string;
     mimha: boolean;
+    duracaoSegundos?: number | null;
 }): React.JSX.Element;
 /**
  * Gravador estilo WhatsApp (expo-audio): timer a andar, cancelar ou enviar.

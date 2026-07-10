@@ -149,7 +149,7 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }: {
     }
 
     if (anexo.tipo === 'audio' && anexo.url) {
-        return <ReprodutorAudio url={anexo.url} mimha={minha} />;
+        return <ReprodutorAudio url={anexo.url} mimha={minha} duracaoSegundos={anexo.duracao_segundos} />;
     }
 
     return (

@@ -1181,21 +1181,21 @@ function barrasDe(seed) {
   }
   return barras;
 }
-function ReprodutorAudio({ url, mimha }) {
+function ReprodutorAudio({ url, mimha, duracaoSegundos }) {
   const tema = useTema();
   const audio = (0, import_react6.useMemo)(() => obterAudio(), []);
   const corTexto = mimha ? tema.bolhaMinhaTexto : tema.texto;
   if (!audio) {
     return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { color: corTexto, fontSize: 13 }, children: "\u{1F3A4} Mensagem de voz (instala expo-audio para ouvir)" });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(PlayerInterno, { audio, url, mimha });
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(PlayerInterno, { audio, url, mimha, duracaoSegundos });
 }
-function PlayerInterno({ audio, url, mimha }) {
+function PlayerInterno({ audio, url, mimha, duracaoSegundos }) {
   const tema = useTema();
   const player = (0, import_react6.useRef)(null);
   const [aTocar, setATocar] = (0, import_react6.useState)(false);
   const [posicao, setPosicao] = (0, import_react6.useState)(0);
-  const [duracao, setDuracao] = (0, import_react6.useState)(0);
+  const [duracao, setDuracao] = (0, import_react6.useState)(duracaoSegundos && duracaoSegundos > 0 ? duracaoSegundos : 0);
   const [velocidade, setVelocidade] = (0, import_react6.useState)(1);
   const barras = (0, import_react6.useMemo)(() => barrasDe(url), [url]);
   const corTexto = mimha ? tema.bolhaMinhaTexto : tema.texto;
@@ -1212,10 +1212,11 @@ function PlayerInterno({ audio, url, mimha }) {
       const p = audio.createAudioPlayer({ uri: url });
       player.current = p;
       p.addListener?.("playbackStatusUpdate", (s) => {
-        setPosicao(s.currentTime ?? 0);
-        if (s.duration) setDuracao(s.duration);
+        setPosicao(Number.isFinite(s.currentTime) ? s.currentTime : 0);
+        if (Number.isFinite(s.duration) && s.duration > 0) setDuracao(s.duration);
         if (s.didJustFinish) {
           setATocar(false);
+          setPosicao(0);
           p.seekTo?.(0);
           p.pause?.();
         }
@@ -1238,7 +1239,7 @@ function PlayerInterno({ audio, url, mimha }) {
     setVelocidade(proxima);
     player.current?.setPlaybackRate?.(proxima, "high");
   };
-  const progresso = duracao > 0 ? posicao / duracao : 0;
+  const progresso = duracao > 0 ? Math.min(1, Math.max(0, posicao / duracao)) : 0;
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: estilos3.linha, children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: () => void alternar(), style: [estilos3.play, { backgroundColor: mimha ? "rgba(255,255,255,0.25)" : tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: aTocar ? "pause" : "play", size: 18, color: mimha ? tema.bolhaMinhaTexto : tema.primariaContraste }) }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: { flex: 1 }, children: [
@@ -1624,7 +1625,7 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }) {
     ] });
   }
   if (anexo.tipo === "audio" && anexo.url) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(ReprodutorAudio, { url: anexo.url, mimha: minha });
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(ReprodutorAudio, { url: anexo.url, mimha: minha, duracaoSegundos: anexo.duracao_segundos });
   }
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: () => anexo.url && aoAbrirUrl(anexo.url), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
     /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: iconeFicheiro(anexo.nome_ficheiro), size: 26, color: corTexto }),
@@ -1915,8 +1916,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       );
       setResponderA(null);
       descerParaFundo();
-    } catch {
-      import_react_native7.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar as fotos. Tenta novamente.");
+    } catch (e) {
+      import_react_native7.Alert.alert("Falha no envio", `N\xE3o foi poss\xEDvel enviar as fotos. ${e?.message ?? ""}`.trim());
     } finally {
       setAEnviarMedia(false);
     }
@@ -1927,8 +1928,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       const anexo = await enviarAnexoLocal(api, f);
       await enviar({ conversa_id: conversaId, tipo: f.tipo === "ficheiro" ? "ficheiro" : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
       descerParaFundo();
-    } catch {
-      import_react_native7.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar. Tenta novamente.");
+    } catch (e) {
+      import_react_native7.Alert.alert("Falha no envio", `N\xE3o foi poss\xEDvel enviar. ${e?.message ?? ""}`.trim());
     } finally {
       setAEnviarMedia(false);
     }

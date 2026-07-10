@@ -260,8 +260,9 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
             );
             setResponderA(null);
             descerParaFundo();
-        } catch {
-            Alert.alert('Falha no envio', 'Não foi possível enviar as fotos. Tenta novamente.');
+        } catch (e) {
+            // detalhe do erro no alerta — diagnosticar upload (rede/limite/permissão)
+            Alert.alert('Falha no envio', `Não foi possível enviar as fotos. ${(e as Error)?.message ?? ''}`.trim());
         } finally {
             setAEnviarMedia(false);
         }
@@ -274,8 +275,8 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
             const anexo = await enviarAnexoLocal(api, f);
             await enviar({ conversa_id: conversaId, tipo: f.tipo === 'ficheiro' ? 'ficheiro' : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
             descerParaFundo();
-        } catch {
-            Alert.alert('Falha no envio', 'Não foi possível enviar. Tenta novamente.');
+        } catch (e) {
+            Alert.alert('Falha no envio', `Não foi possível enviar. ${(e as Error)?.message ?? ''}`.trim());
         } finally {
             setAEnviarMedia(false);
         }
