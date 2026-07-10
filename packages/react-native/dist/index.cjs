@@ -255,6 +255,7 @@ function maiorId(atual, novo) {
 // src/provider.tsx
 var import_makachat_core = require("@hongayetu/makachat-core");
 var import_react = require("react");
+var import_react_native = require("react-native");
 var import_bottom_sheet = require("@gorhom/bottom-sheet");
 
 // src/tema.ts
@@ -478,6 +479,18 @@ function MakaChatProvider({
     void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
     return () => valor.socket.desligar();
   }, [valor]);
+  (0, import_react.useEffect)(() => {
+    const sub = import_react_native.AppState.addEventListener("change", (estado) => {
+      if (estado !== "active") return;
+      if (valor.socket.ligado) {
+        void valor.engine.sincronizarDelta().catch(() => void 0);
+        void valor.engine.flushOutbox().catch(() => void 0);
+      } else {
+        valor.socket.garantirLigado();
+      }
+    });
+    return () => sub.remove();
+  }, [valor]);
   const temaResolvido = (0, import_react.useMemo)(() => resolverTema(tema), [tema]);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     Contexto.Provider,
@@ -622,21 +635,21 @@ function useTotalNaoLidas() {
 // src/ui/comum.tsx
 var import_vector_icons = require("@expo/vector-icons");
 var import_react4 = require("react");
-var import_react_native = require("react-native");
+var import_react_native2 = require("react-native");
 var import_bottom_sheet2 = require("@gorhom/bottom-sheet");
 var import_react_native_safe_area_context = require("react-native-safe-area-context");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 function ListaPerformante(props) {
   const { estimatedItemSize: _ignorado, ...resto } = props;
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.FlatList, { ...resto });
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.FlatList, { ...resto });
 }
 function Avatar({ nome, url, tamanho = 48 }) {
   const tema = useTema();
   if (url) {
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Image, { source: { uri: url }, style: { width: tamanho, height: tamanho, borderRadius: tamanho / 2 } });
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Image, { source: { uri: url }, style: { width: tamanho, height: tamanho, borderRadius: tamanho / 2 } });
   }
   return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-    import_react_native.View,
+    import_react_native2.View,
     {
       style: {
         width: tamanho,
@@ -646,7 +659,7 @@ function Avatar({ nome, url, tamanho = 48 }) {
         alignItems: "center",
         justifyContent: "center"
       },
-      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: tamanho * 0.42 }, children: (nome || "?").trim().charAt(0).toUpperCase() })
+      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: tamanho * 0.42 }, children: (nome || "?").trim().charAt(0).toUpperCase() })
     }
   );
 }
@@ -657,8 +670,8 @@ function NomeComBadge({
   numeroLinhas = 1
 }) {
   const tema = useTema();
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react_native.View, { style: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { numberOfLines: numeroLinhas, style: [{ flexShrink: 1 }, estilo], children: nome }),
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react_native2.View, { style: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Text, { numberOfLines: numeroLinhas, style: [{ flexShrink: 1 }, estilo], children: nome }),
     metadados?.verificado === true && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_vector_icons.Ionicons, { name: "checkmark-circle", size: 15, color: tema.primaria })
   ] });
 }
@@ -714,9 +727,9 @@ function Sheet({
       handleIndicatorStyle: { backgroundColor: "rgba(100,116,139,0.35)" },
       backgroundStyle: { backgroundColor: tema.superficie, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
       children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_bottom_sheet2.BottomSheetView, { style: { paddingTop: 4, paddingBottom: insets.bottom + 12 }, children: [
-        titulo ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { style: [estilos.sheetTitulo, { color: tema.textoSuave }], numberOfLines: 1, children: titulo }) : null,
+        titulo ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Text, { style: [estilos.sheetTitulo, { color: tema.textoSuave }], numberOfLines: 1, children: titulo }) : null,
         itens?.map((item) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-          import_react_native.Pressable,
+          import_react_native2.Pressable,
           {
             onPress: () => {
               ref.current?.dismiss();
@@ -725,7 +738,7 @@ function Sheet({
             style: ({ pressed }) => [estilos.sheetItem, pressed && { backgroundColor: "rgba(0,0,0,0.05)" }],
             children: [
               /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_vector_icons.Ionicons, { name: item.icone, size: 21, color: item.destrutivo ? "#ef4444" : tema.textoSuave }),
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { style: { fontSize: 15, color: item.destrutivo ? "#ef4444" : tema.texto }, children: item.rotulo })
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Text, { style: { fontSize: 15, color: item.destrutivo ? "#ef4444" : tema.texto }, children: item.rotulo })
             ]
           },
           item.rotulo
@@ -738,23 +751,23 @@ function Sheet({
 function BadgeNaoLidas({ contagem }) {
   const tema = useTema();
   if (contagem <= 0) return null;
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.View, { style: [estilos.badge, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Text, { style: { color: tema.primariaContraste, fontSize: 11, fontWeight: "700" }, children: contagem > 99 ? "99+" : contagem }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.View, { style: [estilos.badge, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Text, { style: { color: tema.primariaContraste, fontSize: 11, fontWeight: "700" }, children: contagem > 99 ? "99+" : contagem }) });
 }
 function Pulso({ children }) {
-  const escala = (0, import_react4.useRef)(new import_react_native.Animated.Value(1)).current;
+  const escala = (0, import_react4.useRef)(new import_react_native2.Animated.Value(1)).current;
   (0, import_react4.useEffect)(() => {
-    const ciclo = import_react_native.Animated.loop(
-      import_react_native.Animated.sequence([
-        import_react_native.Animated.timing(escala, { toValue: 1.18, duration: 620, useNativeDriver: true }),
-        import_react_native.Animated.timing(escala, { toValue: 1, duration: 620, useNativeDriver: true })
+    const ciclo = import_react_native2.Animated.loop(
+      import_react_native2.Animated.sequence([
+        import_react_native2.Animated.timing(escala, { toValue: 1.18, duration: 620, useNativeDriver: true }),
+        import_react_native2.Animated.timing(escala, { toValue: 1, duration: 620, useNativeDriver: true })
       ])
     );
     ciclo.start();
     return () => ciclo.stop();
   }, [escala]);
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native.Animated.View, { style: { transform: [{ scale: escala }] }, children });
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react_native2.Animated.View, { style: { transform: [{ scale: escala }] }, children });
 }
-var estilos = import_react_native.StyleSheet.create({
+var estilos = import_react_native2.StyleSheet.create({
   sheetTitulo: { paddingHorizontal: 20, paddingVertical: 6, fontSize: 13, fontWeight: "600" },
   sheetItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 13 },
   badge: {
@@ -770,7 +783,7 @@ var estilos = import_react_native.StyleSheet.create({
 // src/ui/ConversasScreen.tsx
 var import_vector_icons2 = require("@expo/vector-icons");
 var import_react5 = require("react");
-var import_react_native2 = require("react-native");
+var import_react_native3 = require("react-native");
 var import_jsx_runtime3 = require("react/jsx-runtime");
 var SEMPRE = "9999-12-31T00:00:00.000Z";
 function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio }) {
@@ -860,7 +873,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         icone: "trash-outline",
         rotulo: "Eliminar conversa",
         destrutivo: true,
-        acao: () => import_react_native2.Alert.alert("Eliminar conversa?", "O hist\xF3rico desaparece para ti. A outra pessoa mant\xE9m a conversa dela.", [
+        acao: () => import_react_native3.Alert.alert("Eliminar conversa?", "O hist\xF3rico desaparece para ti. A outra pessoa mant\xE9m a conversa dela.", [
           { text: "Cancelar", style: "cancel" },
           { text: "Eliminar", style: "destructive", onPress: () => void engine.eliminarConversa(c.id) }
         ])
@@ -873,15 +886,15 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
     const silenciada = !!c.participante?.silenciada_ate && new Date(c.participante.silenciada_ate) > /* @__PURE__ */ new Date();
     const contraparte = contraparteDe(c, identidade);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-      import_react_native2.Pressable,
+      import_react_native3.Pressable,
       {
         onPress: () => onAbrirConversa(c),
         onLongPress: () => setMenuDe(c),
         style: ({ pressed }) => [estilos2.item, pressed && { backgroundColor: "rgba(0,0,0,0.04)" }],
         children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Avatar, { nome: c.titulo ?? "?", url: c.foto_url, tamanho: 52 }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native2.View, { style: { flex: 1, minWidth: 0 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native2.View, { style: estilos2.linhaTopo, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: { flex: 1, minWidth: 0 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: estilos2.linhaTopo, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                 NomeComBadge,
                 {
@@ -890,11 +903,11 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
                   estilo: [estilos2.titulo, { color: tema.texto }, naoLidas > 0 && { fontWeight: "800" }]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { fontSize: 12, color: naoLidas > 0 ? tema.primaria : tema.textoSuave }, children: horaCurta(c.ultima_atividade_em) })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 12, color: naoLidas > 0 ? tema.primaria : tema.textoSuave }, children: horaCurta(c.ultima_atividade_em) })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native2.View, { style: estilos2.linhaBaixo, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: estilos2.linhaBaixo, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                import_react_native2.Text,
+                import_react_native3.Text,
                 {
                   numberOfLines: 1,
                   style: { flex: 1, fontSize: 13.5, color: tema.textoSuave, fontWeight: naoLidas > 0 ? "600" : "400" },
@@ -912,12 +925,12 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
       c.id
     );
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native2.View, { style: { flex: 1, backgroundColor: tema.superficie }, children: [
-    !ligado && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.View, { style: estilos2.offline, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: estilos2.offlineTexto, children: "Sem liga\xE7\xE3o \u2014 a reconectar\u2026" }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native2.View, { style: [estilos2.pesquisa, { backgroundColor: tema.fundo }], children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: { flex: 1, backgroundColor: tema.superficie }, children: [
+    !ligado && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.View, { style: estilos2.offline, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: estilos2.offlineTexto, children: "Sem liga\xE7\xE3o \u2014 a reconectar\u2026" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: [estilos2.pesquisa, { backgroundColor: tema.fundo }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "search", size: 17, color: tema.textoSuave }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-        import_react_native2.TextInput,
+        import_react_native3.TextInput,
         {
           value: busca,
           onChangeText: setBusca,
@@ -926,11 +939,11 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
           style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 8 }
         }
       ),
-      busca.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Pressable, { onPress: () => setBusca(""), children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "close-circle", size: 18, color: tema.textoSuave }) })
+      busca.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Pressable, { onPress: () => setBusca(""), children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "close-circle", size: 18, color: tema.textoSuave }) })
     ] }),
-    !arquivadas && onAbrirArquivadas && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native2.Pressable, { onPress: onAbrirArquivadas, style: ({ pressed }) => [estilos2.arquivadas, pressed && { opacity: 0.6 }], children: [
+    !arquivadas && onAbrirArquivadas && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.Pressable, { onPress: onAbrirArquivadas, style: ({ pressed }) => [estilos2.arquivadas, pressed && { opacity: 0.6 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "archive-outline", size: 19, color: tema.textoSuave }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       ListaPerformante,
@@ -942,11 +955,11 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         onEndReachedThreshold: 0.4,
         extraData: versao,
         estimatedItemSize: 72,
-        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { textAlign: "center", marginTop: 48, color: tema.textoSuave }, children: textoVazio ?? (arquivadas ? "Sem conversas arquivadas." : "Sem conversas \u2014 come\xE7a uma nova.") })
+        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { textAlign: "center", marginTop: 48, color: tema.textoSuave }, children: textoVazio ?? (arquivadas ? "Sem conversas arquivadas." : "Sem conversas \u2014 come\xE7a uma nova.") })
       }
     ),
     !arquivadas && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-      import_react_native2.Pressable,
+      import_react_native3.Pressable,
       {
         onPress: () => setNovaAberta(true),
         style: ({ pressed }) => [estilos2.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }],
@@ -1015,9 +1028,9 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
     aoCriada(conversa);
   };
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Sheet, { visivel, aoFechar, titulo: "Nova conversa", children: [
-    podeGrupos && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { paddingHorizontal: 20, paddingBottom: 6, fontSize: 12.5, color: tema.textoSuave }, children: "Escolhe uma pessoa \u2014 ou v\xE1rias para criar um grupo." }),
+    podeGrupos && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { paddingHorizontal: 20, paddingBottom: 6, fontSize: 12.5, color: tema.textoSuave }, children: "Escolhe uma pessoa \u2014 ou v\xE1rias para criar um grupo." }),
     grupo && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-      import_react_native2.TextInput,
+      import_react_native3.TextInput,
       {
         value: nome,
         onChangeText: setNome,
@@ -1026,7 +1039,7 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
         style: [estilos2.inputNome, { backgroundColor: tema.fundo, color: tema.texto }]
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.View, { style: { maxHeight: 340 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.View, { style: { maxHeight: 340 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       ListaPerformante,
       {
         data: pessoas,
@@ -1036,7 +1049,7 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
           const chave = `${p.tipo}:${p.id_externo}`;
           const marcado = escolhidos.has(chave);
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            import_react_native2.Pressable,
+            import_react_native3.Pressable,
             {
               onPress: () => setEscolhidos((a) => {
                 if (marcado) {
@@ -1057,22 +1070,22 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
                   }
                 ),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Avatar, { nome: p.nome ?? p.id_externo, url: p.foto ?? null, tamanho: 38 }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
               ]
             }
           );
         },
-        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { padding: 20, color: tema.textoSuave }, children: "Sem contactos conhecidos." })
+        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { padding: 20, color: tema.textoSuave }, children: "Sem contactos conhecidos." })
       }
     ) }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-      import_react_native2.Pressable,
+      import_react_native3.Pressable,
       {
         disabled: !membros.length,
         onPress: () => void criar(),
         style: [estilos2.botaoCriar, { backgroundColor: tema.primaria, opacity: membros.length ? 1 : 0.4 }],
-        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native2.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: grupo ? `Criar grupo (${escolhidos.size})` : "Iniciar conversa" })
+        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: grupo ? `Criar grupo (${escolhidos.size})` : "Iniciar conversa" })
       }
     )
   ] });
@@ -1091,7 +1104,7 @@ function previewConversa(c) {
   };
   return u.tipo === "texto" || u.tipo === "sistema" || u.tipo === "chamada" ? u.conteudo ?? "" : p[u.tipo] ?? "";
 }
-var estilos2 = import_react_native2.StyleSheet.create({
+var estilos2 = import_react_native3.StyleSheet.create({
   offline: { backgroundColor: "#fef3c7", paddingVertical: 5, alignItems: "center" },
   offlineTexto: { color: "#92400e", fontSize: 12, fontWeight: "600" },
   pesquisa: {
@@ -1145,12 +1158,12 @@ var estilos2 = import_react_native2.StyleSheet.create({
 var import_vector_icons6 = require("@expo/vector-icons");
 var import_react_native_safe_area_context2 = require("react-native-safe-area-context");
 var import_react9 = require("react");
-var import_react_native6 = require("react-native");
+var import_react_native7 = require("react-native");
 
 // src/ui/audio.tsx
 var import_vector_icons3 = require("@expo/vector-icons");
 var import_react6 = require("react");
-var import_react_native3 = require("react-native");
+var import_react_native4 = require("react-native");
 var import_jsx_runtime4 = require("react/jsx-runtime");
 var VELOCIDADES = [1, 1.5, 2];
 function barrasDe(seed) {
@@ -1173,7 +1186,7 @@ function ReprodutorAudio({ url, mimha }) {
   const audio = (0, import_react6.useMemo)(() => obterAudio(), []);
   const corTexto = mimha ? tema.bolhaMinhaTexto : tema.texto;
   if (!audio) {
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Text, { style: { color: corTexto, fontSize: 13 }, children: "\u{1F3A4} Mensagem de voz (instala expo-audio para ouvir)" });
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { color: corTexto, fontSize: 13 }, children: "\u{1F3A4} Mensagem de voz (instala expo-audio para ouvir)" });
   }
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(PlayerInterno, { audio, url, mimha });
 }
@@ -1226,11 +1239,11 @@ function PlayerInterno({ audio, url, mimha }) {
     player.current?.setPlaybackRate?.(proxima, "high");
   };
   const progresso = duracao > 0 ? posicao / duracao : 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native3.View, { style: estilos3.linha, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Pressable, { onPress: () => void alternar(), style: [estilos3.play, { backgroundColor: mimha ? "rgba(255,255,255,0.25)" : tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: aTocar ? "pause" : "play", size: 18, color: mimha ? tema.bolhaMinhaTexto : tema.primariaContraste }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native3.View, { style: { flex: 1 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.View, { style: estilos3.onda, children: barras.map((altura, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        import_react_native3.View,
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: estilos3.linha, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: () => void alternar(), style: [estilos3.play, { backgroundColor: mimha ? "rgba(255,255,255,0.25)" : tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: aTocar ? "pause" : "play", size: 18, color: mimha ? tema.bolhaMinhaTexto : tema.primariaContraste }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: { flex: 1 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.View, { style: estilos3.onda, children: barras.map((altura, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        import_react_native4.View,
         {
           style: {
             width: 3,
@@ -1241,9 +1254,9 @@ function PlayerInterno({ audio, url, mimha }) {
         },
         i
       )) }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Text, { style: { fontSize: 11, color: corTexto, opacity: 0.7, marginTop: 3 }, children: duracaoMmSs(Math.floor(aTocar || posicao > 0 ? posicao : duracao)) })
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { fontSize: 11, color: corTexto, opacity: 0.7, marginTop: 3 }, children: duracaoMmSs(Math.floor(aTocar || posicao > 0 ? posicao : duracao)) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Pressable, { onPress: mudarVelocidade, style: [estilos3.velocidade, { backgroundColor: mimha ? "rgba(255,255,255,0.25)" : "rgba(100,116,139,0.15)" }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native3.Text, { style: { fontSize: 11, fontWeight: "800", color: corTexto }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: mudarVelocidade, style: [estilos3.velocidade, { backgroundColor: mimha ? "rgba(255,255,255,0.25)" : "rgba(100,116,139,0.15)" }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.Text, { style: { fontSize: 11, fontWeight: "800", color: corTexto }, children: [
       velocidade,
       "x"
     ] }) })
@@ -1300,22 +1313,22 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
   if (erro) {
     return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorErro, { aoCancelar, texto: "Sem acesso ao microfone." });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native3.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.View, { style: estilos3.pontoVermelho }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Text, { style: { fontVariant: ["tabular-nums"], fontSize: 15, color: tema.texto, fontWeight: "600" }, children: duracaoMmSs(segundos) }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Text, { style: { flex: 1, textAlign: "center", color: tema.textoSuave, fontSize: 13 }, children: "A gravar\u2026" }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Pressable, { onPress: () => void parar(false), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "trash-outline", size: 24, color: "#ef4444" }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Pressable, { onPress: () => void parar(true), style: [estilos3.enviarGravacao, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "send", size: 19, color: tema.primariaContraste }) })
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.View, { style: estilos3.pontoVermelho }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { fontVariant: ["tabular-nums"], fontSize: 15, color: tema.texto, fontWeight: "600" }, children: duracaoMmSs(segundos) }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { flex: 1, textAlign: "center", color: tema.textoSuave, fontSize: 13 }, children: "A gravar\u2026" }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: () => void parar(false), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "trash-outline", size: 24, color: "#ef4444" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: () => void parar(true), style: [estilos3.enviarGravacao, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "send", size: 19, color: tema.primariaContraste }) })
   ] });
 }
 function GravadorErro({ texto, aoCancelar }) {
   const tema = useTema();
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native3.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Text, { style: { flex: 1, color: "#ef4444", fontSize: 13 }, children: texto }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native3.Pressable, { onPress: aoCancelar, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "close-circle", size: 26, color: tema.textoSuave }) })
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { flex: 1, color: "#ef4444", fontSize: 13 }, children: texto }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: aoCancelar, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "close-circle", size: 26, color: tema.textoSuave }) })
   ] });
 }
-var estilos3 = import_react_native3.StyleSheet.create({
+var estilos3 = import_react_native4.StyleSheet.create({
   linha: { flexDirection: "row", alignItems: "center", gap: 9, width: 230, paddingVertical: 2 },
   play: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   onda: { flexDirection: "row", alignItems: "center", gap: 2, height: 26 },
@@ -1328,12 +1341,12 @@ var estilos3 = import_react_native3.StyleSheet.create({
 // src/ui/Bolha.tsx
 var import_vector_icons5 = require("@expo/vector-icons");
 var import_react8 = require("react");
-var import_react_native5 = require("react-native");
+var import_react_native6 = require("react-native");
 
 // src/ui/media.tsx
 var import_vector_icons4 = require("@expo/vector-icons");
 var import_react7 = require("react");
-var import_react_native4 = require("react-native");
+var import_react_native5 = require("react-native");
 var import_jsx_runtime5 = require("react/jsx-runtime");
 async function escolherFotosEVideos() {
   const picker = obterImagePicker();
@@ -1393,23 +1406,23 @@ async function enviarAnexoLocal(api, ficheiro, opcoes) {
 function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = (0, import_react7.useState)("");
-  const { width } = (0, import_react_native4.useWindowDimensions)();
+  const { width } = (0, import_react_native5.useWindowDimensions)();
   const lado = (width - 48) / 3;
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 16 }, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 16 }, children: [
         ficheiros.length,
         " ",
         ficheiros.length === 1 ? "item" : "itens"
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoAdicionarMais, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "add-circle-outline", size: 26, color: "#fff" }) })
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Pressable, { onPress: aoAdicionarMais, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "add-circle-outline", size: 26, color: "#fff" }) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.View, { style: estilos4.lobbyGrelha, children: ficheiros.map((f, i) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: { width: lado, height: lado, borderRadius: 12, overflow: "hidden" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Image, { source: { uri: f.uri }, style: { width: "100%", height: "100%" } }),
-      f.tipo === "video" && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.View, { style: estilos4.lobbyPlay, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "play", size: 22, color: "#fff" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.View, { style: estilos4.lobbyGrelha, children: ficheiros.map((f, i) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: { width: lado, height: lado, borderRadius: 12, overflow: "hidden" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Image, { source: { uri: f.uri }, style: { width: "100%", height: "100%" } }),
+      f.tipo === "video" && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.View, { style: estilos4.lobbyPlay, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "play", size: 22, color: "#fff" }) }),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        import_react_native4.Pressable,
+        import_react_native5.Pressable,
         {
           onPress: () => aoMudar(ficheiros.filter((_, j) => j !== i)),
           style: estilos4.lobbyRemover,
@@ -1417,9 +1430,9 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        import_react_native4.TextInput,
+        import_react_native5.TextInput,
         {
           value: legenda,
           onChangeText: setLegenda,
@@ -1429,7 +1442,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       ),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        import_react_native4.Pressable,
+        import_react_native5.Pressable,
         {
           disabled: aEnviar || !ficheiros.length,
           onPress: () => aoEnviar(legenda.trim()),
@@ -1441,12 +1454,12 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
   ] }) });
 }
 function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar, insets }) {
-  const { width, height } = (0, import_react_native4.useWindowDimensions)();
+  const { width, height } = (0, import_react_native5.useWindowDimensions)();
   const fotos = mensagens.flatMap((m) => m.anexos.filter((a) => a.tipo === "foto" && a.url).map((a) => ({ anexo: a, mensagem: m }))).sort((a, b) => a.mensagem.id < b.mensagem.id ? -1 : 1);
   const inicial = Math.max(0, fotos.findIndex((f) => f.anexo.id === inicialAnexoId));
   const [indice, setIndice] = (0, import_react7.useState)(inicial);
   const atual = fotos[indice];
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: { flex: 1, backgroundColor: "#000" }, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: { flex: 1, backgroundColor: "#000" }, children: [
     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
       ListaPerformante,
       {
@@ -1457,32 +1470,32 @@ function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminha
         getItemLayout: (_, index) => ({ length: width, offset: width * index, index }),
         keyExtractor: (f) => f.anexo.id,
         onMomentumScrollEnd: (e) => setIndice(Math.round(e.nativeEvent.contentOffset.x / width)),
-        renderItem: ({ item: f }) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.View, { style: { width, height, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Image, { source: { uri: f.anexo.url ?? void 0 }, style: { width, height: height * 0.8 }, resizeMode: "contain" }) })
+        renderItem: ({ item: f }) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.View, { style: { width, height, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Image, { source: { uri: f.anexo.url ?? void 0 }, style: { width, height: height * 0.8 }, resizeMode: "contain" }) })
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.galeriaTopo, { paddingTop: insets.top + 8 }], children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Text, { style: { color: "#fff", fontWeight: "700" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.galeriaTopo, { paddingTop: insets.top + 8 }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.Text, { style: { color: "#fff", fontWeight: "700" }, children: [
         fotos.length ? indice + 1 : 0,
         "/",
         fotos.length
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.View, { style: { width: 42 } })
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.View, { style: { width: 42 } })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: [estilos4.galeriaAcoes, { bottom: insets.bottom + 12 }], children: [
-      aoResponder && atual && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Pressable, { onPress: () => {
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.galeriaAcoes, { bottom: insets.bottom + 12 }], children: [
+      aoResponder && atual && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.Pressable, { onPress: () => {
         aoFechar();
         aoResponder(atual.mensagem);
       }, style: estilos4.galeriaBotao, children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "arrow-undo-outline", size: 22, color: "#fff" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Text, { style: estilos4.galeriaRotulo, children: "Responder" })
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Text, { style: estilos4.galeriaRotulo, children: "Responder" })
       ] }),
-      aoEncaminhar && atual && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.Pressable, { onPress: () => {
+      aoEncaminhar && atual && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.Pressable, { onPress: () => {
         aoFechar();
         aoEncaminhar(atual.mensagem);
       }, style: estilos4.galeriaBotao, children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "arrow-redo-outline", size: 22, color: "#fff" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Text, { style: estilos4.galeriaRotulo, children: "Encaminhar" })
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Text, { style: estilos4.galeriaRotulo, children: "Encaminhar" })
       ] })
     ] })
   ] }) });
@@ -1497,9 +1510,9 @@ function VideoInterno({ video, url, aoFechar, insets }) {
   const player = video.useVideoPlayer(url, (p) => {
     p.play();
   });
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native4.View, { style: { flex: 1, backgroundColor: "#000" }, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Modal, { visible: true, animationType: "fade", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: { flex: 1, backgroundColor: "#000" }, children: [
     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(VideoView, { player, style: { flex: 1 }, contentFit: "contain", nativeControls: true, allowsFullscreen: true }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native4.Pressable, { onPress: aoFechar, style: [estilos4.videoFechar, { top: insets.top + 8 }], children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) })
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Pressable, { onPress: aoFechar, style: [estilos4.videoFechar, { top: insets.top + 8 }], children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) })
   ] }) });
 }
 function tamanhoLegivel(bytes) {
@@ -1507,10 +1520,10 @@ function tamanhoLegivel(bytes) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-var estilos4 = import_react_native4.StyleSheet.create({
+var estilos4 = import_react_native5.StyleSheet.create({
   lobbyTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 8 },
   lobbyGrelha: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 12, alignContent: "flex-start" },
-  lobbyPlay: { ...import_react_native4.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.3)" },
+  lobbyPlay: { ...import_react_native5.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.3)" },
   lobbyRemover: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(15,23,42,0.8)", alignItems: "center", justifyContent: "center" },
   lobbyFundo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
   lobbyLegenda: { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, color: "#fff", fontSize: 15 },
@@ -1546,8 +1559,8 @@ function CartaoRegistoChamada({ mensagem, aoLigar }) {
   const meta = mensagem.metadados ?? {};
   const video = meta.chamada_tipo === "video";
   const atendida = meta.resultado === "atendida";
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.View, { style: [estilos5.cartaoChamada, { backgroundColor: tema.superficie }], children: [
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.View, { style: [estilos5.chamadaIcone, { backgroundColor: atendida ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)" }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: [estilos5.cartaoChamada, { backgroundColor: tema.superficie }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.View, { style: [estilos5.chamadaIcone, { backgroundColor: atendida ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)" }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
       import_vector_icons5.Ionicons,
       {
         name: video ? atendida ? "videocam" : "videocam-off" : atendida ? "call" : "call-outline",
@@ -1555,18 +1568,18 @@ function CartaoRegistoChamada({ mensagem, aoLigar }) {
         color: atendida ? "#10b981" : "#ef4444"
       }
     ) }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.View, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontSize: 14, fontWeight: "700", color: tema.texto }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 14, fontWeight: "700", color: tema.texto }, children: [
         "Chamada de ",
         video ? "v\xEDdeo" : "voz"
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontSize: 12, color: atendida ? tema.textoSuave : "#ef4444", fontWeight: atendida ? "400" : "700" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 12, color: atendida ? tema.textoSuave : "#ef4444", fontWeight: atendida ? "400" : "700" }, children: [
         atendida ? `Dura\xE7\xE3o ${duracaoMmSs(meta.duracao_segundos ?? 0)}` : "N\xE3o atendida",
         " \xB7 ",
         horaCurta(mensagem.criada_em)
       ] })
     ] }),
-    aoLigar && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Pressable, { onPress: () => aoLigar(video ? "video" : "audio"), style: [estilos5.chamadaLigar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: video ? "videocam" : "call", size: 17, color: tema.primariaContraste }) })
+    aoLigar && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Pressable, { onPress: () => aoLigar(video ? "video" : "audio"), style: [estilos5.chamadaLigar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: video ? "videocam" : "call", size: 17, color: tema.primariaContraste }) })
   ] });
 }
 function CartaoPartilha({ mensagem, minha }) {
@@ -1575,16 +1588,16 @@ function CartaoPartilha({ mensagem, minha }) {
   const meta = mensagem.metadados ?? {};
   const abrir = () => {
     if (aoAbrirPartilha) return aoAbrirPartilha(meta);
-    if (meta.url) void import_react_native5.Linking.openURL(meta.url).catch(() => void 0);
+    if (meta.url) void import_react_native6.Linking.openURL(meta.url).catch(() => void 0);
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Pressable, { onPress: abrir, style: [estilos5.partilha, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
-    meta.imagem_url ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Image, { source: { uri: meta.imagem_url }, style: { width: 62, height: 62 } }) : null,
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.View, { style: { flex: 1, padding: 9, justifyContent: "center" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Text, { numberOfLines: 1, style: { fontSize: 14, fontWeight: "700", color: minha ? tema.bolhaMinhaTexto : tema.texto }, children: String(meta.titulo ?? meta.url ?? "Partilha") }),
-      meta.subtitulo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Text, { numberOfLines: 1, style: { fontSize: 12, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.8 }, children: meta.subtitulo }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.View, { style: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: abrir, style: [estilos5.partilha, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
+    meta.imagem_url ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Image, { source: { uri: meta.imagem_url }, style: { width: 62, height: 62 } }) : null,
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flex: 1, padding: 9, justifyContent: "center" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 14, fontWeight: "700", color: minha ? tema.bolhaMinhaTexto : tema.texto }, children: String(meta.titulo ?? meta.url ?? "Partilha") }),
+      meta.subtitulo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 12, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.8 }, children: meta.subtitulo }) : null,
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "link-outline", size: 11, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Text, { style: { fontSize: 10, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.7 }, children: String(meta.contexto_tipo ?? "liga\xE7\xE3o") })
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 10, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.7 }, children: String(meta.contexto_tipo ?? "liga\xE7\xE3o") })
       ] })
     ] })
   ] });
@@ -1602,22 +1615,22 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }) {
   const tema = useTema();
   const corTexto = minha ? tema.bolhaMinhaTexto : tema.texto;
   if (anexo.tipo === "foto" && anexo.url) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Pressable, { onPress: () => aoAbrirFoto(anexo), children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Image, { source: { uri: anexo.url }, style: estilos5.foto }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Pressable, { onPress: () => aoAbrirFoto(anexo), children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Image, { source: { uri: anexo.url }, style: estilos5.foto }) });
   }
   if (anexo.tipo === "video" && anexo.url) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Pressable, { onPress: () => aoAbrirUrl(anexo.url), style: estilos5.foto, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Image, { source: { uri: anexo.url }, style: import_react_native5.StyleSheet.absoluteFillObject }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.View, { style: estilos5.playVideo, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "play", size: 26, color: "#fff" }) })
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: () => aoAbrirUrl(anexo.url), style: estilos5.foto, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Image, { source: { uri: anexo.url }, style: import_react_native6.StyleSheet.absoluteFillObject }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.View, { style: estilos5.playVideo, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "play", size: 26, color: "#fff" }) })
     ] });
   }
   if (anexo.tipo === "audio" && anexo.url) {
     return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(ReprodutorAudio, { url: anexo.url, mimha: minha });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Pressable, { onPress: () => anexo.url && aoAbrirUrl(anexo.url), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: () => anexo.url && aoAbrirUrl(anexo.url), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
     /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: iconeFicheiro(anexo.nome_ficheiro), size: 26, color: corTexto }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.View, { style: { flex: 1, minWidth: 0 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Text, { numberOfLines: 1, style: { fontSize: 13.5, fontWeight: "600", color: corTexto }, children: anexo.nome_ficheiro ?? "Ficheiro" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontSize: 11, color: corTexto, opacity: 0.7 }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flex: 1, minWidth: 0 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 13.5, fontWeight: "600", color: corTexto }, children: anexo.nome_ficheiro ?? "Ficheiro" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 11, color: corTexto, opacity: 0.7 }, children: [
         tamanhoLegivel(anexo.tamanho_bytes),
         " ",
         (anexo.nome_ficheiro ?? "").split(".").pop()?.toUpperCase()
@@ -1645,44 +1658,44 @@ function Bolha({
   aoLigar
 }) {
   const tema = useTema();
-  const arrasto = (0, import_react8.useRef)(new import_react_native5.Animated.Value(0)).current;
+  const arrasto = (0, import_react8.useRef)(new import_react_native6.Animated.Value(0)).current;
   const disparou = (0, import_react8.useRef)(false);
   const [reagiu] = (0, import_react8.useState)(false);
   void reagiu;
   const responder = (0, import_react8.useMemo)(
-    () => import_react_native5.PanResponder.create({
+    () => import_react_native6.PanResponder.create({
       onMoveShouldSetPanResponder: (_e, g) => !m.eliminada && g.dx > 14 && Math.abs(g.dy) < 12,
       onPanResponderMove: (_e, g) => {
         const x = Math.min(Math.max(g.dx, 0), 80);
         arrasto.setValue(x);
         if (x >= 60 && !disparou.current) {
           disparou.current = true;
-          import_react_native5.Vibration.vibrate(8);
+          import_react_native6.Vibration.vibrate(8);
         }
       },
       onPanResponderRelease: (_e, g) => {
         if (g.dx >= 60) aoResponder();
         disparou.current = false;
-        import_react_native5.Animated.spring(arrasto, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 240 }).start();
+        import_react_native6.Animated.spring(arrasto, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 240 }).start();
       },
       onPanResponderTerminate: () => {
         disparou.current = false;
-        import_react_native5.Animated.spring(arrasto, { toValue: 0, useNativeDriver: true }).start();
+        import_react_native6.Animated.spring(arrasto, { toValue: 0, useNativeDriver: true }).start();
       }
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [m.id, m.eliminada]
   );
   if (m.tipo === "sistema") {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.View, { style: estilos5.sistema, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Text, { style: [estilos5.sistemaTexto, { color: tema.textoSuave }], children: m.conteudo }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.View, { style: estilos5.sistema, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: [estilos5.sistemaTexto, { color: tema.textoSuave }], children: m.conteudo }) });
   }
   if (m.tipo === "chamada") {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.View, { style: { alignItems: "center", marginVertical: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CartaoRegistoChamada, { mensagem: m, aoLigar }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.View, { style: { alignItems: "center", marginVertical: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CartaoRegistoChamada, { mensagem: m, aoLigar }) });
   }
   const grupos = agruparReacoes(m.reacoes);
   const corTexto = minha ? tema.bolhaMinhaTexto : tema.texto;
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
-    import_react_native5.Animated.View,
+    import_react_native6.Animated.View,
     {
       style: [
         { flexDirection: "row", justifyContent: minha ? "flex-end" : "flex-start", paddingHorizontal: 10, marginTop: primeiraDoBloco ? 6 : 1.5 },
@@ -1691,9 +1704,9 @@ function Bolha({
       ],
       ...responder.panHandlers,
       children: [
-        !minha && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.View, { style: { width: 30, marginRight: 4, justifyContent: "flex-end" }, children: ultimaDoBloco && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Avatar, { nome: autor?.nome ?? "?", url: autor?.foto_url, tamanho: 26 }) }),
+        !minha && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.View, { style: { width: 30, marginRight: 4, justifyContent: "flex-end" }, children: ultimaDoBloco && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Avatar, { nome: autor?.nome ?? "?", url: autor?.foto_url, tamanho: 26 }) }),
         /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
-          import_react_native5.Pressable,
+          import_react_native6.Pressable,
           {
             onLongPress: m.eliminada ? void 0 : aoLongPress,
             delayLongPress: 280,
@@ -1708,28 +1721,28 @@ function Bolha({
             ],
             children: [
               grupo && !minha && primeiraDoBloco && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(NomeComBadge, { nome: autor?.nome ?? "\u2026", metadados: autor?.metadados, estilo: { fontSize: 12, fontWeight: "800", color: tema.primaria } }),
-              respondida && m.resposta_a_id && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Pressable, { onPress: () => aoClicarCitacao(m.resposta_a_id), style: [estilos5.citacao, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.06)" }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { numberOfLines: 1, style: { fontSize: 12, color: corTexto, opacity: 0.85 }, children: [
+              respondida && m.resposta_a_id && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Pressable, { onPress: () => aoClicarCitacao(m.resposta_a_id), style: [estilos5.citacao, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.06)" }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 12, color: corTexto, opacity: 0.85 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "arrow-undo-outline", size: 11 }),
                 " ",
                 respondida.conteudo ?? "\u{1F4CE} anexo"
               ] }) }),
               m.anexos.map((a) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(AnexoView, { anexo: a, minha, aoAbrirFoto, aoAbrirUrl }, a.id)),
               !m.eliminada && (m.tipo === "partilha" || m.tipo === "link") && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CartaoPartilha, { mensagem: m, minha }),
-              m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 14 }, children: [
+              m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 14 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "ban-outline", size: 13 }),
                 " Mensagem eliminada"
-              ] }) : m.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Text, { style: { fontSize: 15, lineHeight: 21, color: corTexto }, children: m.conteudo }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.View, { style: estilos5.rodape, children: [
+              ] }) : m.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 15, lineHeight: 21, color: corTexto }, children: m.conteudo }) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: estilos5.rodape, children: [
                 m.encaminhada_de_id && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "arrow-redo-outline", size: 11, color: corTexto, style: { opacity: 0.6 } }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontSize: 10, color: corTexto, opacity: 0.6 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 10, color: corTexto, opacity: 0.6 }, children: [
                   m.editada_em ? "editada \xB7 " : "",
                   horaCurta(m.criada_em)
                 ] }),
                 minha && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Ticks, { mensagem: m, outros, cor: corTexto })
               ] }),
-              grupos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native5.Pressable, { onPress: aoVerReacoes, style: [estilos5.chipsReacoes, { backgroundColor: tema.superficie }, minha ? { right: 8 } : { left: 8 }], children: grupos.map((g) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontSize: 12 }, children: [
+              grupos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Pressable, { onPress: aoVerReacoes, style: [estilos5.chipsReacoes, { backgroundColor: tema.superficie }, minha ? { right: 8 } : { left: 8 }], children: grupos.map((g) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 12 }, children: [
                 g.emoji,
-                g.contagem > 1 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native5.Text, { style: { fontSize: 10, fontWeight: "700", color: tema.textoSuave }, children: [
+                g.contagem > 1 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 10, fontWeight: "700", color: tema.textoSuave }, children: [
                   " ",
                   g.contagem
                 ] }) : null
@@ -1741,7 +1754,7 @@ function Bolha({
     }
   );
 }
-var estilos5 = import_react_native5.StyleSheet.create({
+var estilos5 = import_react_native6.StyleSheet.create({
   sistema: { alignSelf: "center", backgroundColor: "rgba(100,116,139,0.12)", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4, marginVertical: 5, maxWidth: "86%" },
   sistemaTexto: { fontSize: 12, textAlign: "center" },
   bolha: { maxWidth: "76%", paddingHorizontal: 11, paddingVertical: 7, gap: 4, shadowColor: "#0f172a", shadowOpacity: 0.06, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
@@ -1761,7 +1774,7 @@ var estilos5 = import_react_native5.StyleSheet.create({
 var import_jsx_runtime7 = require("react/jsx-runtime");
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
 var KC = obterKeyboardController();
-var CampoTeclado = KC?.KeyboardAvoidingView ?? import_react_native6.KeyboardAvoidingView;
+var CampoTeclado = KC?.KeyboardAvoidingView ?? import_react_native7.KeyboardAvoidingView;
 function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
@@ -1799,7 +1812,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [pesquisaQ, setPesquisaQ] = (0, import_react9.useState)("");
   const [resultados, setResultados] = (0, import_react9.useState)([]);
   const [resultadoIdx, setResultadoIdx] = (0, import_react9.useState)(0);
-  const [appAtiva, setAppAtiva] = (0, import_react9.useState)(import_react_native6.AppState.currentState === "active");
+  const [appAtiva, setAppAtiva] = (0, import_react9.useState)(import_react_native7.AppState.currentState === "active");
   const lista = (0, import_react9.useRef)(null);
   const ultimaVista = (0, import_react9.useRef)(null);
   const aCarregarAntigas = (0, import_react9.useRef)(false);
@@ -1837,7 +1850,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
   (0, import_react9.useEffect)(() => {
-    const sub = import_react_native6.AppState.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
+    const sub = import_react_native7.AppState.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();
   }, []);
   (0, import_react9.useEffect)(() => {
@@ -1896,7 +1909,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       setResponderA(null);
       descerParaFundo();
     } catch {
-      import_react_native6.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar as fotos. Tenta novamente.");
+      import_react_native7.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar as fotos. Tenta novamente.");
     } finally {
       setAEnviarMedia(false);
     }
@@ -1908,7 +1921,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       await enviar({ conversa_id: conversaId, tipo: f.tipo === "ficheiro" ? "ficheiro" : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
       descerParaFundo();
     } catch {
-      import_react_native6.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar. Tenta novamente.");
+      import_react_native7.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar. Tenta novamente.");
     } finally {
       setAEnviarMedia(false);
     }
@@ -1975,7 +1988,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
             void engine.eliminarMensagem(conversaId, m.id, false);
             return;
           }
-          import_react_native6.Alert.alert("Eliminar mensagem?", void 0, [
+          import_react_native7.Alert.alert("Eliminar mensagem?", void 0, [
             { text: "Cancelar", style: "cancel" },
             { text: "Para mim", onPress: () => void engine.eliminarMensagem(conversaId, m.id, false) },
             { text: "Para todos", style: "destructive", onPress: () => void engine.eliminarMensagem(conversaId, m.id, true) }
@@ -1986,29 +1999,29 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     return lista2;
   };
   const banner = conversa?.chamada_ativa && chamadas && !fechada;
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.header, { backgroundColor: tema.superficie }], children: [
-      onVoltar && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Pressable, { style: estilos6.headerCentro, onPress: () => conversa && onAbrirInfo?.(conversa), children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: [estilos6.header, { backgroundColor: tema.superficie }], children: [
+      onVoltar && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Pressable, { style: estilos6.headerCentro, onPress: () => conversa && onAbrirInfo?.(conversa), children: [
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 38 }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: { flex: 1, minWidth: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flex: 1, minWidth: 0 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(NomeComBadge, { nome: conversa?.titulo ?? "\u2026", metadados: contraparte?.metadados, estilo: { fontSize: 16, fontWeight: "700", color: tema.texto } }),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Presenca2, { contraparte, typingAtivo: !!typing?.ativo, grupo, totalMembros: conversa?.participantes.filter((p) => !p.saiu_em).length ?? 0 })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => {
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => {
         setPesquisaAberta(!pesquisaAberta);
         setResultados([]);
         setPesquisaQ("");
       }, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "search", size: 21, color: tema.texto }) }),
-      chamadas && podeAudioChamada && !fechada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => void chamadas.iniciar(conversaId, "audio"), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "call-outline", size: 21, color: tema.texto }) }),
-      chamadas && podeVideoChamada && !fechada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => void chamadas.iniciar(conversaId, "video"), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "videocam-outline", size: 22, color: tema.texto }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setMenuAberto(true), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "ellipsis-vertical", size: 20, color: tema.texto }) })
+      chamadas && podeAudioChamada && !fechada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => void chamadas.iniciar(conversaId, "audio"), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "call-outline", size: 21, color: tema.texto }) }),
+      chamadas && podeVideoChamada && !fechada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => void chamadas.iniciar(conversaId, "video"), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "videocam-outline", size: 22, color: tema.texto }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => setMenuAberto(true), style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "ellipsis-vertical", size: 20, color: tema.texto }) })
     ] }),
-    pesquisaAberta && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.pesquisaBarra, { backgroundColor: tema.superficie }], children: [
+    pesquisaAberta && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: [estilos6.pesquisaBarra, { backgroundColor: tema.superficie }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "search", size: 16, color: tema.textoSuave }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-        import_react_native6.TextInput,
+        import_react_native7.TextInput,
         {
           autoFocus: true,
           value: pesquisaQ,
@@ -2019,32 +2032,32 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           style: { flex: 1, fontSize: 14.5, color: tema.texto, paddingVertical: 7 }
         }
       ),
-      resultados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: [
+      resultados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: [
         resultadoIdx + 1,
         "/",
         resultados.length
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => navegarResultado(-1), style: { padding: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-up", size: 19, color: tema.textoSuave }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => navegarResultado(1), style: { padding: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-down", size: 19, color: tema.textoSuave }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setPesquisaAberta(false), style: { padding: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "close", size: 19, color: tema.textoSuave }) })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => navegarResultado(-1), style: { padding: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-up", size: 19, color: tema.textoSuave }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => navegarResultado(1), style: { padding: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-down", size: 19, color: tema.textoSuave }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => setPesquisaAberta(false), style: { padding: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "close", size: 19, color: tema.textoSuave }) })
     ] }),
-    banner && conversa?.chamada_ativa && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: estilos6.bannerChamada, children: [
+    banner && conversa?.chamada_ativa && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: estilos6.bannerChamada, children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: conversa.chamada_ativa.tipo === "video" ? "videocam" : "call", size: 18, color: "#fff" }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Text, { style: { flex: 1, color: "#fff", fontWeight: "700", fontSize: 13.5 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { flex: 1, color: "#fff", fontWeight: "700", fontSize: 13.5 }, children: [
         "Chamada de ",
         conversa.chamada_ativa.tipo === "video" ? "v\xEDdeo" : "voz",
         " a decorrer"
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-        import_react_native6.Pressable,
+        import_react_native7.Pressable,
         {
           onPress: () => void chamadas?.entrar(conversa.chamada_ativa.id, conversa.chamada_ativa.tipo),
           style: estilos6.bannerEntrar,
-          children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { color: "#059669", fontWeight: "800", fontSize: 13 }, children: "Entrar" })
+          children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { color: "#059669", fontWeight: "800", fontSize: 13 }, children: "Entrar" })
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: { flex: 1 }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flex: 1 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         ListaPerformante,
         {
@@ -2054,8 +2067,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           keyExtractor: (item) => item.chave,
           estimatedItemSize: 64,
           extraData: `${versao}_${destacada}`,
-          ListHeaderComponent: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { height: 10 } }),
-          ListFooterComponent: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { height: 8 } }),
+          ListHeaderComponent: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { height: 10 } }),
+          ListFooterComponent: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { height: 8 } }),
           viewabilityConfig,
           onViewableItemsChanged: aoMudarVisiveis,
           onScrollBeginDrag: () => {
@@ -2073,7 +2086,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           },
           renderItem: ({ item }) => {
             if (item.tipo === "separador") {
-              return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: estilos6.separador, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: [estilos6.separadorTexto, { color: tema.textoSuave }], children: item.rotulo }) });
+              return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: estilos6.separador, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: [estilos6.separadorTexto, { color: tema.textoSuave }], children: item.rotulo }) });
             }
             if (item.tipo === "typing") {
               return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(TypingBolha, {});
@@ -2105,7 +2118,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
                 aoAbrirUrl: (url) => {
                   const anexo = m.anexos.find((a) => a.url === url);
                   if (anexo?.tipo === "video") setVideoAberto(url);
-                  else void import_react_native6.Linking.openURL(url).catch(() => void 0);
+                  else void import_react_native7.Linking.openURL(url).catch(() => void 0);
                 },
                 aoLigar: chamadas && !fechada ? (tipo) => void chamadas.iniciar(conversaId, tipo) : void 0
               }
@@ -2113,8 +2126,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           }
         }
       ),
-      !noFundo && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Pressable, { onPress: descerParaFundo, style: [estilos6.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }], children: [
-        novas > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Text, { style: { color: tema.primariaContraste, fontWeight: "800", fontSize: 12 }, children: [
+      !noFundo && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Pressable, { onPress: descerParaFundo, style: [estilos6.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }], children: [
+        novas > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { color: tema.primariaContraste, fontWeight: "800", fontSize: 12 }, children: [
           novas,
           " ",
           novas === 1 ? "nova" : "novas"
@@ -2122,18 +2135,18 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-down", size: 18, color: novas > 0 ? tema.primariaContraste : tema.textoSuave })
       ] })
     ] }),
-    (responderA || editar) && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.previa, { backgroundColor: tema.superficie }], children: [
+    (responderA || editar) && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: [estilos6.previa, { backgroundColor: tema.superficie }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: editar ? "pencil-outline" : "arrow-undo-outline", size: 17, color: tema.primaria }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { flex: 1, fontSize: 13, color: tema.textoSuave }, children: editar ? "A editar mensagem" : `${(responderA && conversa?.participantes.find((p) => p.identidade_id === responderA.remetente_identidade_id)?.nome) ?? ""}: ${responderA?.conteudo ?? "\u{1F4CE} anexo"}` }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => {
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { numberOfLines: 1, style: { flex: 1, fontSize: 13, color: tema.textoSuave }, children: editar ? "A editar mensagem" : `${(responderA && conversa?.participantes.find((p) => p.identidade_id === responderA.remetente_identidade_id)?.nome) ?? ""}: ${responderA?.conteudo ?? "\u{1F4CE} anexo"}` }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => {
         setResponderA(null);
         setEditar(null);
         if (editar) setTexto("");
       }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "close-circle", size: 20, color: tema.textoSuave }) })
     ] }),
-    fechada ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.fechada, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 12) }], children: [
+    fechada ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: [estilos6.fechada, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 12) }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "lock-closed-outline", size: 16, color: tema.textoSuave }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { flex: 1, fontSize: 13, color: tema.textoSuave }, children: conversa?.fecho_motivo ?? "Esta conversa est\xE1 fechada." })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { flex: 1, fontSize: 13, color: tema.textoSuave }, children: conversa?.fecho_motivo ?? "Esta conversa est\xE1 fechada." })
     ] }) : aGravar ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       GravadorAudio,
       {
@@ -2146,12 +2159,12 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       CampoTeclado,
       {
-        behavior: KC ? "translate-with-padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0,
+        behavior: KC ? "translate-with-padding" : import_react_native7.Platform.OS === "ios" ? "padding" : void 0,
         keyboardVerticalOffset: -(Math.max(insets.bottom, 8) - 8),
-        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
-          (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
+        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
+          (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-            import_react_native6.TextInput,
+            import_react_native7.TextInput,
             {
               value: texto,
               onChangeText: aoEscrever,
@@ -2161,12 +2174,12 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
               style: [estilos6.input, { backgroundColor: tema.fundo, color: tema.texto }]
             }
           ),
-          texto.trim() ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => void aoEnviar(), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: editar ? "checkmark" : "send", size: 19, color: tema.primariaContraste }) }) : podeAudioMsg ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAGravar(true), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "mic", size: 20, color: tema.primariaContraste }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { width: 42 } })
+          texto.trim() ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => void aoEnviar(), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: editar ? "checkmark" : "send", size: 19, color: tema.primariaContraste }) }) : podeAudioMsg ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => setAGravar(true), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "mic", size: 20, color: tema.primariaContraste }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { width: 42 } })
         ] })
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Sheet, { visivel: acoesDe !== null, aoFechar: () => setAcoesDe(null), itens: acoesDe ? itensAcoes(acoesDe) : [], children: acoesDe && podeReagir && !acoesDe.eliminada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: estilos6.emojis, children: EMOJIS.map((e) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-      import_react_native6.Pressable,
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Sheet, { visivel: acoesDe !== null, aoFechar: () => setAcoesDe(null), itens: acoesDe ? itensAcoes(acoesDe) : [], children: acoesDe && podeReagir && !acoesDe.eliminada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: estilos6.emojis, children: EMOJIS.map((e) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+      import_react_native7.Pressable,
       {
         onPress: () => {
           const alvo = acoesDe;
@@ -2174,7 +2187,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           if (alvo) void engine.alternarReacao(conversaId, alvo.id, e);
         },
         style: { padding: 6 },
-        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { fontSize: 26 }, children: e })
+        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 26 }, children: e })
       },
       e
     )) }) }),
@@ -2284,19 +2297,19 @@ function Presenca2({ contraparte, typingAtivo, grupo, totalMembros }) {
       if (p.identidade_id === contraparte.identidade_id) setOnline(p.online);
     });
   }, [contraparte, subscreverPresenca, socket]);
-  if (typingAtivo) return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { fontSize: 12, color: tema.primaria, fontWeight: "600" }, children: "a escrever\u2026" });
-  if (grupo) return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: [
+  if (typingAtivo) return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 12, color: tema.primaria, fontWeight: "600" }, children: "a escrever\u2026" });
+  if (grupo) return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: [
     totalMembros,
     " membros"
   ] });
-  if (online) return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { fontSize: 12, color: "#10b981", fontWeight: "600" }, children: "online" });
+  if (online) return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 12, color: "#10b981", fontWeight: "600" }, children: "online" });
   return null;
 }
 function TypingBolha() {
   const tema = useTema();
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: { flexDirection: "row", paddingHorizontal: 10, marginTop: 6 }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { width: 30, marginRight: 4 } }),
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { backgroundColor: tema.bolhaOutro, borderRadius: tema.raio, borderBottomLeftRadius: 6, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", gap: 4 }, children: [0, 1, 2].map((i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(PontoTyping, { atraso: i * 160 }, i)) })
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flexDirection: "row", paddingHorizontal: 10, marginTop: 6 }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { width: 30, marginRight: 4 } }),
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { backgroundColor: tema.bolhaOutro, borderRadius: tema.raio, borderBottomLeftRadius: 6, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", gap: 4 }, children: [0, 1, 2].map((i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(PontoTyping, { atraso: i * 160 }, i)) })
   ] });
 }
 function PontoTyping({ atraso }) {
@@ -2310,17 +2323,17 @@ function PontoTyping({ atraso }) {
       clearTimeout(arranque);
     };
   }, [atraso]);
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { width: 7, height: 7, borderRadius: 4, backgroundColor: tema.textoSuave, opacity: opaco ? 0.85 : 0.3 } });
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { width: 7, height: 7, borderRadius: 4, backgroundColor: tema.textoSuave, opacity: opaco ? 0.85 : 0.3 } });
 }
 function SheetReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMensagem }) {
   const tema = useTema();
   return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Sheet, { visivel: true, aoFechar, titulo: "Rea\xE7\xF5es", children: [
-    mensagem.reacoes.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { paddingHorizontal: 20, paddingVertical: 12, color: tema.textoSuave }, children: "Sem rea\xE7\xF5es." }),
+    mensagem.reacoes.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { paddingHorizontal: 20, paddingVertical: 12, color: tema.textoSuave }, children: "Sem rea\xE7\xF5es." }),
     mensagem.reacoes.map((r) => {
       const p = conversa.participantes.find((x) => x.identidade_id === r.identidade_id);
       const souEu = r.identidade_id === euId;
       return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
-        import_react_native6.Pressable,
+        import_react_native7.Pressable,
         {
           onPress: () => {
             if (souEu) {
@@ -2334,11 +2347,11 @@ function SheetReacoes({ mensagem, conversa, euId, aoFechar, aoRemoverMinha, aoMe
           style: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 9 },
           children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Avatar, { nome: p?.nome ?? "?", url: p?.foto_url, tamanho: 36 }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: { flex: 1 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { fontSize: 15, fontWeight: "600", color: tema.texto }, children: souEu ? "Tu" : p?.nome ?? "Utilizador" }),
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: souEu ? "Toca para remover" : aoMensagem ? "Toca para enviar mensagem" : "" })
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flex: 1 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 15, fontWeight: "600", color: tema.texto }, children: souEu ? "Tu" : p?.nome ?? "Utilizador" }),
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: souEu ? "Toca para remover" : aoMensagem ? "Toca para enviar mensagem" : "" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { style: { fontSize: 22 }, children: r.emoji })
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 22 }, children: r.emoji })
           ]
         },
         r.identidade_id
@@ -2355,7 +2368,7 @@ function SheetEncaminhar({ aoFechar, aoConfirmar }) {
     void engine.storage.listarConversas(false).then(setConversas);
   }, [engine]);
   return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(Sheet, { visivel: true, aoFechar, titulo: "Encaminhar para\u2026", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { maxHeight: 360 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.View, { style: { maxHeight: 360 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       ListaPerformante,
       {
         data: conversas,
@@ -2364,7 +2377,7 @@ function SheetEncaminhar({ aoFechar, aoConfirmar }) {
         renderItem: ({ item: c }) => {
           const marcada = escolhidas.has(c.id);
           return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
-            import_react_native6.Pressable,
+            import_react_native7.Pressable,
             {
               onPress: () => setEscolhidas((a) => {
                 const n = new Set(a);
@@ -2376,7 +2389,7 @@ function SheetEncaminhar({ aoFechar, aoConfirmar }) {
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: marcada ? "checkmark-circle" : "ellipse-outline", size: 22, color: marcada ? tema.primaria : tema.textoSuave }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Avatar, { nome: c.titulo ?? "?", url: c.foto_url, tamanho: 36 }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, children: c.titulo ?? "Conversa" })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { numberOfLines: 1, style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, children: c.titulo ?? "Conversa" })
               ]
             }
           );
@@ -2384,12 +2397,12 @@ function SheetEncaminhar({ aoFechar, aoConfirmar }) {
       }
     ) }),
     /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-      import_react_native6.Pressable,
+      import_react_native7.Pressable,
       {
         disabled: !escolhidas.size,
         onPress: () => aoConfirmar([...escolhidas]),
         style: { marginHorizontal: 16, marginTop: 10, borderRadius: 24, paddingVertical: 13, alignItems: "center", backgroundColor: tema.primaria, opacity: escolhidas.size ? 1 : 0.4 },
-        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
+        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
           "Enviar",
           escolhidas.size ? ` (${escolhidas.size})` : ""
         ] })
@@ -2424,7 +2437,7 @@ function itensLista(mensagens, typing, euId) {
 function mesmoDia(a, b) {
   return new Date(a).toDateString() === new Date(b).toDateString();
 }
-var estilos6 = import_react_native6.StyleSheet.create({
+var estilos6 = import_react_native7.StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingTop: 50, paddingBottom: 8, paddingHorizontal: 8, gap: 2 },
   headerCentro: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, minWidth: 0 },
   pesquisaBarra: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 14, paddingVertical: 4 },
@@ -2459,7 +2472,7 @@ var estilos6 = import_react_native6.StyleSheet.create({
 // src/ui/InfoConversaScreen.tsx
 var import_vector_icons7 = require("@expo/vector-icons");
 var import_react10 = require("react");
-var import_react_native7 = require("react-native");
+var import_react_native8 = require("react-native");
 var import_jsx_runtime8 = require("react/jsx-runtime");
 function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa }) {
   const { engine, api, identidade, contactos } = useMakaChat();
@@ -2494,7 +2507,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
         await atualizar();
       }
     } catch {
-      import_react_native7.Alert.alert("Falha", "N\xE3o foi poss\xEDvel mudar a foto do grupo.");
+      import_react_native8.Alert.alert("Falha", "N\xE3o foi poss\xEDvel mudar a foto do grupo.");
     }
   };
   const guardarNome = async () => {
@@ -2505,7 +2518,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
     await atualizar();
   };
   const sairDoGrupo = () => {
-    import_react_native7.Alert.alert("Sair do grupo?", "Deixas de receber mensagens desta conversa.", [
+    import_react_native8.Alert.alert("Sair do grupo?", "Deixas de receber mensagens desta conversa.", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Sair",
@@ -2521,7 +2534,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
     ]);
   };
   const removerMembro = (p) => {
-    import_react_native7.Alert.alert(`Remover ${p.nome}?`, void 0, [
+    import_react_native8.Alert.alert(`Remover ${p.nome}?`, void 0, [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Remover",
@@ -2530,21 +2543,21 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
       }
     ]);
   };
-  if (!conversa) return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.View, { style: { flex: 1, backgroundColor: tema.fundo } });
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.View, { style: [estilos7.header, { backgroundColor: tema.superficie }], children: [
-      onVoltar && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Pressable, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })
+  if (!conversa) return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: { flex: 1, backgroundColor: tema.fundo } });
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.header, { backgroundColor: tema.superficie }], children: [
+      onVoltar && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Pressable, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.ScrollView, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.View, { style: [estilos7.topo, { backgroundColor: tema.superficie }], children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.Pressable, { onPress: grupo && souAdmin ? () => void mudarFoto() : void 0, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.ScrollView, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.topo, { backgroundColor: tema.superficie }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: grupo && souAdmin ? () => void mudarFoto() : void 0, children: [
           /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Avatar, { nome: conversa.titulo ?? "?", url: conversa.foto_url, tamanho: 96 }),
-          grupo && souAdmin && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.View, { style: [estilos7.mudarFoto, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "camera", size: 15, color: tema.primariaContraste }) })
+          grupo && souAdmin && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.mudarFoto, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "camera", size: 15, color: tema.primariaContraste }) })
         ] }),
-        renomear ? /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.View, { style: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }, children: [
+        renomear ? /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-            import_react_native7.TextInput,
+            import_react_native8.TextInput,
             {
               autoFocus: true,
               value: novoNome,
@@ -2552,9 +2565,9 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
               style: [estilos7.inputNome, { backgroundColor: tema.fundo, color: tema.texto }]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Pressable, { onPress: () => void guardarNome(), children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "checkmark-circle", size: 30, color: tema.primaria }) })
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Pressable, { onPress: () => void guardarNome(), children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "checkmark-circle", size: 30, color: tema.primaria }) })
         ] }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
-          import_react_native7.Pressable,
+          import_react_native8.Pressable,
           {
             onPress: grupo && souAdmin ? () => {
               setNovoNome(conversa.titulo ?? "");
@@ -2562,37 +2575,37 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
             } : void 0,
             style: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { fontSize: 20, fontWeight: "800", color: tema.texto }, children: conversa.titulo }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 20, fontWeight: "800", color: tema.texto }, children: conversa.titulo }),
               grupo && souAdmin && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "pencil", size: 16, color: tema.textoSuave })
             ]
           }
         ),
-        grupo && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.Text, { style: { fontSize: 13, color: tema.textoSuave, marginTop: 3 }, children: [
+        grupo && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Text, { style: { fontSize: 13, color: tema.textoSuave, marginTop: 3 }, children: [
           membros.length,
           " membros"
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: [estilos7.seccaoTitulo, { color: tema.textoSuave }], children: grupo ? "Membros" : "Participantes" }),
-        grupo && souAdmin && podeGrupos && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.Pressable, { onPress: () => setAdicionarAberto(true), style: estilos7.membro, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.View, { style: [estilos7.addIcone, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "person-add", size: 18, color: tema.primariaContraste }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { fontSize: 15, fontWeight: "600", color: tema.primaria }, children: "Adicionar membros" })
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: [estilos7.seccaoTitulo, { color: tema.textoSuave }], children: grupo ? "Membros" : "Participantes" }),
+        grupo && souAdmin && podeGrupos && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: () => setAdicionarAberto(true), style: estilos7.membro, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.addIcone, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "person-add", size: 18, color: tema.primariaContraste }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 15, fontWeight: "600", color: tema.primaria }, children: "Adicionar membros" })
         ] }),
         membros.map((p) => {
           const souEuMesmo = p.identidade_id === eu?.identidade_id;
-          return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.Pressable, { onPress: souEuMesmo ? void 0 : () => setMembroDe(p), style: estilos7.membro, children: [
+          return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: souEuMesmo ? void 0 : () => setMembroDe(p), style: estilos7.membro, children: [
             /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Avatar, { nome: p.nome, url: p.foto_url, tamanho: 42 }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.View, { style: { flex: 1, minWidth: 0 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, minWidth: 0 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(NomeComBadge, { nome: souEuMesmo ? "Tu" : p.nome, metadados: p.metadados, estilo: { fontSize: 15, fontWeight: "600", color: tema.texto } }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
             ] }),
-            (p.papel === "dono" || p.papel === "admin") && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.View, { style: [estilos7.papel, { borderColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { fontSize: 10.5, fontWeight: "700", color: tema.primaria }, children: p.papel === "dono" ? "Dono" : "Admin" }) })
+            (p.papel === "dono" || p.papel === "admin") && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.papel, { borderColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 10.5, fontWeight: "700", color: tema.primaria }, children: p.papel === "dono" ? "Dono" : "Admin" }) })
           ] }, p.identidade_id);
         })
       ] }),
-      grupo && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.Pressable, { onPress: sairDoGrupo, style: estilos7.membro, children: [
+      grupo && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: sairDoGrupo, style: estilos7.membro, children: [
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "exit-outline", size: 22, color: "#ef4444" }),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { fontSize: 15, fontWeight: "600", color: "#ef4444" }, children: "Sair do grupo" })
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 15, fontWeight: "600", color: "#ef4444" }, children: "Sair do grupo" })
       ] }) })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
@@ -2646,7 +2659,7 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }) {
   }, [conversa, contactos]);
   const alvos = candidatos.filter((c) => escolhidos.has(`${c.tipo}:${c.id_externo}`));
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(Sheet, { visivel: true, aoFechar, titulo: "Adicionar membros", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.View, { style: { maxHeight: 340 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: { maxHeight: 340 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       ListaPerformante,
       {
         data: candidatos,
@@ -2656,7 +2669,7 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }) {
           const chave = `${p.tipo}:${p.id_externo}`;
           const marcado = escolhidos.has(chave);
           return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
-            import_react_native7.Pressable,
+            import_react_native8.Pressable,
             {
               onPress: () => setEscolhidos((a) => {
                 const n = new Set(a);
@@ -2668,21 +2681,21 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }) {
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: marcado ? "checkmark-circle" : "ellipse-outline", size: 22, color: marcado ? tema.primaria : tema.textoSuave }),
                 /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Avatar, { nome: p.nome ?? p.id_externo, url: p.foto ?? null, tamanho: 36 }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo })
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo })
               ]
             }
           );
         },
-        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native7.Text, { style: { padding: 20, color: tema.textoSuave }, children: "Sem contactos para adicionar." })
+        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { padding: 20, color: tema.textoSuave }, children: "Sem contactos para adicionar." })
       }
     ) }),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-      import_react_native7.Pressable,
+      import_react_native8.Pressable,
       {
         disabled: !alvos.length,
         onPress: () => void aoAdicionar(alvos),
         style: { marginHorizontal: 16, marginTop: 10, borderRadius: 24, paddingVertical: 13, alignItems: "center", backgroundColor: tema.primaria, opacity: alvos.length ? 1 : 0.4 },
-        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native7.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
+        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
           "Adicionar",
           alvos.length ? ` (${alvos.length})` : ""
         ] })
@@ -2690,7 +2703,7 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }) {
     )
   ] });
 }
-var estilos7 = import_react_native7.StyleSheet.create({
+var estilos7 = import_react_native8.StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingTop: 50, paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
   topo: { alignItems: "center", paddingVertical: 22, marginBottom: 10 },
   mudarFoto: { position: "absolute", right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
@@ -2705,7 +2718,7 @@ var estilos7 = import_react_native7.StyleSheet.create({
 // src/chamadas.tsx
 var import_vector_icons8 = require("@expo/vector-icons");
 var import_react11 = require("react");
-var import_react_native8 = require("react-native");
+var import_react_native9 = require("react-native");
 var import_jsx_runtime9 = require("react/jsx-runtime");
 var Ctx = (0, import_react11.createContext)(null);
 function useChamadas() {
@@ -2718,7 +2731,7 @@ function useChamadasOpcional() {
 }
 var globalsRegistados = false;
 async function iniciarServicoChamada(titulo) {
-  if (import_react_native8.Platform.OS !== "android") return;
+  if (import_react_native9.Platform.OS !== "android") return;
   const notifee = obterNotifee();
   if (!notifee?.displayNotification) return;
   try {
@@ -2739,7 +2752,7 @@ async function iniciarServicoChamada(titulo) {
   }
 }
 async function pararServicoChamada() {
-  if (import_react_native8.Platform.OS !== "android") return;
+  if (import_react_native9.Platform.OS !== "android") return;
   const notifee = obterNotifee();
   await notifee?.stopForegroundService?.().catch?.(() => void 0);
   await notifee?.cancelNotification?.("makachat_chamada_ativa").catch?.(() => void 0);
@@ -2869,7 +2882,7 @@ function ChamadasProvider({ children }) {
     [suportado, livekit, lkClient, sincronizarTiles]
   );
   (0, import_react11.useEffect)(() => {
-    const sub = import_react_native8.AppState.addEventListener("change", (estado) => {
+    const sub = import_react_native9.AppState.addEventListener("change", (estado) => {
       const r = room.current;
       if (!r || !lkClient) return;
       if (estado !== "active" && camara) {
@@ -2971,7 +2984,7 @@ function ChamadasProvider({ children }) {
   }, [api, engine, entrar]);
   (0, import_react11.useEffect)(() => {
     void retomarPendente();
-    const sub = import_react_native8.AppState.addEventListener("change", (estado) => {
+    const sub = import_react_native9.AppState.addEventListener("change", (estado) => {
       if (estado === "active") void retomarPendente();
     });
     return () => sub.remove();
@@ -3049,20 +3062,20 @@ function ChamadasProvider({ children }) {
         aoCamara: () => void alternarCamara(),
         aoTrocarCamara: () => void trocarCamara(),
         aoAltifalante: () => void alternarAltifalante(),
-        aoEcra: import_react_native8.Platform.OS === "android" && podePartilhaEcra ? () => void alternarEcra() : void 0,
+        aoEcra: import_react_native9.Platform.OS === "android" && podePartilhaEcra ? () => void alternarEcra() : void 0,
         aoMinimizar: () => setMinimizada(true),
         tema
       }
     ),
-    ativa && minimizada && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native8.Pressable, { onPress: () => setMinimizada(false), style: estilos8.pill, children: [
+    ativa && minimizada && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.Pressable, { onPress: () => setMinimizada(false), style: estilos8.pill, children: [
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 28 }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13 }, children: ativa.fase === "em_curso" && inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : "Chamada\u2026" }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13 }, children: ativa.fase === "em_curso" && inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : "Chamada\u2026" }),
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "expand-outline", size: 16, color: "rgba(255,255,255,0.8)" })
     ] })
   ] });
 }
 function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }) {
-  const { width, height } = (0, import_react_native8.useWindowDimensions)();
+  const { width, height } = (0, import_react_native9.useWindowDimensions)();
   const video = ativa.chamada.tipo === "video";
   const titulo = ativa.fase === "a_receber" ? ativa.iniciador?.nome ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
   const foto = ativa.fase === "a_receber" ? ativa.iniciador?.foto_url ?? null : conversa?.foto_url ?? null;
@@ -3071,24 +3084,24 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const local = tiles.find((t) => t.local && t.trackRef);
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Modal, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native8.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-    emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.View, { style: { ...import_react_native8.StyleSheet.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native8.View, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Modal, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+    emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: { ...import_react_native9.StyleSheet.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover" }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Text, { style: estilos8.nomeTile, children: t.nome })
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: estilos8.nomeTile, children: t.nome })
     ] }, t.chave)) }),
-    emCurso && video && VideoTrack && local && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.View, { style: estilos8.pip, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
-    (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native8.View, { style: estilos8.centro, children: [
+    emCurso && video && VideoTrack && local && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.pip, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
+    (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: estilos8.centro, children: [
       ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 110 }) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 110 }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Text, { style: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 16 }, children: titulo }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Text, { style: { color: "rgba(255,255,255,0.7)", fontSize: 15, marginTop: 5 }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : null) })
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 16 }, children: titulo }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "rgba(255,255,255,0.7)", fontSize: 15, marginTop: 5 }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : null) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native8.View, { style: estilos8.topo, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Pressable, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "chevron-down", size: 26, color: "#fff" }) }),
-      emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Text, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.View, { style: { width: 42 } })
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: estilos8.topo, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "chevron-down", size: 26, color: "#fff" }) }),
+      emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: { width: 42 } })
     ] }),
-    erro && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.View, { style: estilos8.erro, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.View, { style: estilos8.controlos, children: ativa.fase === "falhada" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "close", cor: "rgba(255,255,255,0.2)", aoTocar: aoDesligar }) : ativa.fase === "a_receber" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
+    erro && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.erro, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.controlos, children: ativa.fase === "falhada" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "close", cor: "rgba(255,255,255,0.2)", aoTocar: aoDesligar }) : ativa.fase === "a_receber" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true }) }),
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true })
     ] }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
@@ -3103,7 +3116,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
 }
 function Botao({ icone, cor, aoTocar, grande, rodado }) {
   const lado = grande ? 64 : 54;
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native8.Pressable, { onPress: aoTocar, style: { width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: icone, size: grande ? 28 : 24, color: "#fff", style: rodado ? { transform: [{ rotate: "135deg" }] } : void 0 }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: aoTocar, style: { width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: icone, size: grande ? 28 : 24, color: "#fff", style: rodado ? { transform: [{ rotate: "135deg" }] } : void 0 }) });
 }
 function Duracao({ desde }) {
   const [, forcar] = (0, import_react11.useState)(0);
@@ -3113,8 +3126,8 @@ function Duracao({ desde }) {
   }, []);
   return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
 }
-var estilos8 = import_react_native8.StyleSheet.create({
-  centro: { ...import_react_native8.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+var estilos8 = import_react_native9.StyleSheet.create({
+  centro: { ...import_react_native9.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   topo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 10 },
   pip: { position: "absolute", right: 14, bottom: 150, width: 108, height: 158, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },

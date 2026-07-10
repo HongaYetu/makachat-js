@@ -381,6 +381,11 @@ declare class MakaSocket {
     ligar(): Promise<void>;
     private ligarInterno;
     desligar(): void;
+    /**
+     * Reconexão imediata (ex.: app volta do background — Android mata websockets
+     * e o backoff do socket.io demoraria a notar). No-op se já ligado/sem socket.
+     */
+    garantirLigado(): void;
     on(evento: string, handler: (payload: never) => void): void;
     private emitirComAck;
     enviarMensagem(dados: DadosEnvioMensagem & {

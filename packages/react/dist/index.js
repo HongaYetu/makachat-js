@@ -213,6 +213,20 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
     return () => valor.socket.desligar();
   }, [valor]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const aoVisibilidade = () => {
+      if (document.visibilityState !== "visible") return;
+      if (valor.socket.ligado) {
+        void valor.engine.sincronizarDelta().catch(() => void 0);
+        void valor.engine.flushOutbox().catch(() => void 0);
+      } else {
+        valor.socket.garantirLigado();
+      }
+    };
+    document.addEventListener("visibilitychange", aoVisibilidade);
+    return () => document.removeEventListener("visibilitychange", aoVisibilidade);
+  }, [valor]);
   return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], aoAbrirPartilha }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {

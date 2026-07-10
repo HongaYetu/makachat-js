@@ -63,6 +63,8 @@ export class MakaSocket {
         this.socket = io(`${credenciais.socket_url}/chat`, {
             auth: { token: credenciais.token },
             transports: ['websocket'],
+            reconnection: true,
+            reconnectionDelayMax: 5_000,
         });
 
         for (const [evento, handler] of this.handlers) {
@@ -86,6 +88,16 @@ export class MakaSocket {
         this.geracao += 1;
         this.socket?.disconnect();
         this.socket = null;
+    }
+
+    /**
+     * Reconexão imediata (ex.: app volta do background — Android mata websockets
+     * e o backoff do socket.io demoraria a notar). No-op se já ligado/sem socket.
+     */
+    garantirLigado(): void {
+        if (this.socket && !this.socket.connected) {
+            this.socket.connect();
+        }
     }
 
     on(evento: string, handler: (payload: never) => void): void {

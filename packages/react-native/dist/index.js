@@ -201,6 +201,7 @@ import {
   SyncEngine
 } from "@hongayetu/makachat-core";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 // src/tema.ts
@@ -423,6 +424,18 @@ function MakaChatProvider({
     void valor.engine.iniciar();
     void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
     return () => valor.socket.desligar();
+  }, [valor]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (estado) => {
+      if (estado !== "active") return;
+      if (valor.socket.ligado) {
+        void valor.engine.sincronizarDelta().catch(() => void 0);
+        void valor.engine.flushOutbox().catch(() => void 0);
+      } else {
+        valor.socket.garantirLigado();
+      }
+    });
+    return () => sub.remove();
   }, [valor]);
   const temaResolvido = useMemo(() => resolverTema(tema), [tema]);
   return /* @__PURE__ */ jsx(
@@ -1108,7 +1121,7 @@ import { useSafeAreaInsets as useSafeAreaInsets2 } from "react-native-safe-area-
 import { useCallback as useCallback3, useEffect as useEffect6, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
 import {
   Alert as Alert2,
-  AppState,
+  AppState as AppState2,
   KeyboardAvoidingView,
   Linking as Linking2,
   Platform,
@@ -1790,7 +1803,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [pesquisaQ, setPesquisaQ] = useState7("");
   const [resultados, setResultados] = useState7([]);
   const [resultadoIdx, setResultadoIdx] = useState7(0);
-  const [appAtiva, setAppAtiva] = useState7(AppState.currentState === "active");
+  const [appAtiva, setAppAtiva] = useState7(AppState2.currentState === "active");
   const lista = useRef7(null);
   const ultimaVista = useRef7(null);
   const aCarregarAntigas = useRef7(false);
@@ -1828,7 +1841,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
   useEffect6(() => {
-    const sub = AppState.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
+    const sub = AppState2.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();
   }, []);
   useEffect6(() => {
@@ -2696,7 +2709,7 @@ var estilos7 = StyleSheet7.create({
 // src/chamadas.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { AppState as AppState2, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
+import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
 import { Fragment, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
@@ -2860,7 +2873,7 @@ function ChamadasProvider({ children }) {
     [suportado, livekit, lkClient, sincronizarTiles]
   );
   useEffect8(() => {
-    const sub = AppState2.addEventListener("change", (estado) => {
+    const sub = AppState3.addEventListener("change", (estado) => {
       const r = room.current;
       if (!r || !lkClient) return;
       if (estado !== "active" && camara) {
@@ -2962,7 +2975,7 @@ function ChamadasProvider({ children }) {
   }, [api, engine, entrar]);
   useEffect8(() => {
     void retomarPendente();
-    const sub = AppState2.addEventListener("change", (estado) => {
+    const sub = AppState3.addEventListener("change", (estado) => {
       if (estado === "active") void retomarPendente();
     });
     return () => sub.remove();

@@ -14,6 +14,7 @@ import {
     Typing,
 } from '@hongayetu/makachat-core';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SqliteStorage } from './sqlite-storage';
 import { MakaTema, resolverTema, TemaResolvido } from './tema';
@@ -171,6 +172,24 @@ export function MakaChatProvider({
             .catch(() => undefined);
 
         return () => valor.socket.desligar();
+    }, [valor]);
+
+    // App volta do background: o Android mata websockets com o ecrã desligado.
+    // Reconecta já (sem esperar o backoff) — o aoLigar trata do delta+outbox; se
+    // o socket "sobreviveu", faz na mesma um delta leve (eventos podem ter-se perdido).
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (estado: string) => {
+            if (estado !== 'active') return;
+
+            if (valor.socket.ligado) {
+                void valor.engine.sincronizarDelta().catch(() => undefined);
+                void valor.engine.flushOutbox().catch(() => undefined);
+            } else {
+                valor.socket.garantirLigado();
+            }
+        });
+
+        return () => sub.remove();
     }, [valor]);
 
     const temaResolvido = useMemo(() => resolverTema(tema), [tema]);

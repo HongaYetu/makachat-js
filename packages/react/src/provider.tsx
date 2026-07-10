@@ -183,6 +183,27 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
         return () => valor.socket.desligar();
     }, [valor]);
 
+    // Tab volta a visível: browsers suspendem timers/websockets em tabs em background.
+    // Reconecta já; se o socket sobreviveu, delta leve para recuperar eventos perdidos.
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+
+        const aoVisibilidade = () => {
+            if (document.visibilityState !== 'visible') return;
+
+            if (valor.socket.ligado) {
+                void valor.engine.sincronizarDelta().catch(() => undefined);
+                void valor.engine.flushOutbox().catch(() => undefined);
+            } else {
+                valor.socket.garantirLigado();
+            }
+        };
+
+        document.addEventListener('visibilitychange', aoVisibilidade);
+
+        return () => document.removeEventListener('visibilitychange', aoVisibilidade);
+    }, [valor]);
+
     return (
         <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [], aoAbrirPartilha }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
