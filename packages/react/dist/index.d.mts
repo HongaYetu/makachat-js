@@ -141,7 +141,9 @@ declare function MakaChatBoxFull({ conversaAbertaId, queryParam }?: BoxProps): R
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
 declare function MakaChatBoxMin({ conversaAbertaId, queryParam }?: BoxProps): React.JSX.Element;
 interface DockApi {
-    abrir(conversaId: string): void;
+    abrir(conversaId: string, opcoes?: {
+        minimizada?: boolean;
+    }): void;
     fechar(conversaId: string): void;
 }
 declare function useDock(): DockApi;

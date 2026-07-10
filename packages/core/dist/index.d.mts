@@ -536,7 +536,8 @@ declare class SyncEngine {
     /** Flush idempotente: reenvio com o mesmo ref_cliente nunca duplica no servidor. */
     flushOutbox(): Promise<void>;
     private marcarFalhada;
-    private minhaIdentidadeId;
+    /** identidade_id desta identidade na conversa (público — a UI usa p/ atribuição de chamadas). */
+    minhaIdentidadeId(conversaId: string): Promise<string | null>;
     alternarReacao(conversaId: string, mensagemId: string, emoji: string): Promise<void>;
     editarMensagem(mensagemId: string, conteudo: string): Promise<void>;
     eliminarMensagem(conversaId: string, mensagemId: string, paraTodos: boolean): Promise<void>;

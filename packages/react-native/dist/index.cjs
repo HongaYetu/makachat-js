@@ -1762,7 +1762,7 @@ var import_jsx_runtime7 = require("react/jsx-runtime");
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
 var KC = obterKeyboardController();
 var CampoTeclado = KC?.KeyboardAvoidingView ?? import_react_native6.KeyboardAvoidingView;
-function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }) {
+function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = (0, import_react_native_safe_area_context2.useSafeAreaInsets)();
@@ -1829,9 +1829,10 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const fechada = conversa?.estado === "fechada";
   (0, import_react9.useEffect)(() => {
     void engine.entrarConversa(conversaId);
+    if (!emFoco) return;
     const sair = registarVisivel(conversaId);
     return sair;
-  }, [engine, conversaId, registarVisivel]);
+  }, [engine, conversaId, registarVisivel, emFoco]);
   (0, import_react9.useEffect)(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
@@ -1841,12 +1842,12 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   }, []);
   (0, import_react9.useEffect)(() => {
     const ultima = mensagens.at(-1);
-    if (!ultima || !appAtiva || !noFundo) return;
+    if (!ultima || !appAtiva || !emFoco || !noFundo) return;
     if (ultimaVista.current === ultima.id) return;
     ultimaVista.current = ultima.id;
     void engine.marcarLidas(conversaId).catch(() => void 0);
     setNovas(0);
-  }, [mensagens, appAtiva, noFundo, engine, conversaId]);
+  }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
   const totalAnterior = (0, import_react9.useRef)(mensagens.length);
   (0, import_react9.useEffect)(() => {
     if (mensagens.length > totalAnterior.current && !noFundo) {
@@ -2882,8 +2883,11 @@ function ChamadasProvider({ children }) {
   (0, import_react11.useEffect)(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
-        setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
-        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+        void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
+          if (minha && evento.chamada.iniciador_identidade_id === minha) return;
+          setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
+          void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+        });
       } else if (evento.evento === "atendida") {
         if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
           setAtiva((a) => a ? { ...a, fase: "em_curso", chamada: evento.chamada } : a);

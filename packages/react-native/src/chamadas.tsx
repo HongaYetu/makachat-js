@@ -271,8 +271,14 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         () =>
             subscreverChamadas((evento: EventoChamada) => {
                 if (evento.evento === 'iniciada') {
-                    setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
-                    void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                    // eco da PRÓPRIA chamada (outra sessão/dispositivo desta identidade)
+                    // nunca vira UI de receção nem toque
+                    void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
+                        if (minha && evento.chamada.iniciador_identidade_id === minha) return;
+
+                        setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
+                        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                    });
                 } else if (evento.evento === 'atendida') {
                     if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
                         setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));

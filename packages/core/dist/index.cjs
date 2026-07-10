@@ -723,6 +723,7 @@ var SyncEngine = class {
     this.notificar();
   }
   // ---- ações com aplicação local (o gateway exclui o remetente do broadcast) ----
+  /** identidade_id desta identidade na conversa (público — a UI usa p/ atribuição de chamadas). */
   async minhaIdentidadeId(conversaId) {
     const conversa = await this.storage.obterConversa(conversaId);
     const eu = conversa?.participantes.find(

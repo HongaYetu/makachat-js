@@ -192,8 +192,13 @@ interface ChatScreenProps {
     } | null;
     /** compat: abrir anexos fora (por omissão usa galeria/player internos) */
     onAbrirAnexo?(url: string, tipo: string): void;
+    /**
+     * O ecrã está em foco de NAVEGAÇÃO? (ex.: useIsFocused do react-navigation).
+     * Ecrãs montados em stacks/tabs inativos não devem marcar mensagens como lidas.
+     */
+    emFoco?: boolean;
 }
-declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }: ChatScreenProps): React.JSX.Element;
+declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco }: ChatScreenProps): React.JSX.Element;
 
 interface InfoConversaScreenProps {
     conversaId: string;

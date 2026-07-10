@@ -108,7 +108,7 @@ function DuasColunas({ conversaAbertaId, queryParam }: BoxProps) {
 // ---------------------------------------------------------------- Dock (boxes múltiplas estilo Facebook)
 
 interface DockApi {
-    abrir(conversaId: string): void;
+    abrir(conversaId: string, opcoes?: { minimizada?: boolean }): void;
     fechar(conversaId: string): void;
 }
 
@@ -175,14 +175,17 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
     }, [limite]);
 
     const abrir = useCallback(
-        (conversaId: string) => {
+        (conversaId: string, opcoes?: { minimizada?: boolean }) => {
+            const minimizada = opcoes?.minimizada ?? false;
+
             setPopover(false);
             setBoxes((atuais) => {
                 if (atuais.some((b) => b.conversaId === conversaId)) {
-                    return atuais.map((b) => (b.conversaId === conversaId ? { ...b, minimizada: false } : b));
+                    // já aberta: só expande se o pedido NÃO for minimizado (autoAbrir não fecha nada)
+                    return minimizada ? atuais : atuais.map((b) => (b.conversaId === conversaId ? { ...b, minimizada: false } : b));
                 }
 
-                return [...atuais, { conversaId, minimizada: false }].slice(-limite);
+                return [...atuais, { conversaId, minimizada }].slice(-limite);
             });
         },
         [limite],
@@ -211,7 +214,9 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
         );
 
         if (comNaoLidas && !boxes.some((b) => b.conversaId === comNaoLidas.id)) {
-            abrir(comNaoLidas.id);
+            // MINIMIZADA: barra com badge — o painel só monta quando o utilizador clica.
+            // Abrir expandida marcava a conversa como lida sem qualquer interação.
+            abrir(comNaoLidas.id, { minimizada: true });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [versao, autoAbrir]);

@@ -583,14 +583,17 @@ function ChamadasProvider({ children }) {
   useEffect4(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
-        if (typeof document !== "undefined" && document.hidden) {
-          mostrarNotificacao(
-            `${evento.iniciador?.nome ?? "Algu\xE9m"} est\xE1 a ligar`,
-            { corpo: evento.chamada.tipo === "video" ? "Chamada de v\xEDdeo" : "Chamada de \xE1udio", icone: evento.iniciador?.foto_url ?? void 0, tag: `chamada_${evento.chamada.id}` }
-          );
-        }
-        setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
-        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+        void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
+          if (minha && evento.chamada.iniciador_identidade_id === minha) return;
+          if (typeof document !== "undefined" && document.hidden) {
+            mostrarNotificacao(
+              `${evento.iniciador?.nome ?? "Algu\xE9m"} est\xE1 a ligar`,
+              { corpo: evento.chamada.tipo === "video" ? "Chamada de v\xEDdeo" : "Chamada de \xE1udio", icone: evento.iniciador?.foto_url ?? void 0, tag: `chamada_${evento.chamada.id}` }
+            );
+          }
+          setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
+          void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+        });
       } else if (evento.evento === "atendida") {
         if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
           setAtiva((a) => a ? { ...a, fase: "em_curso", chamada: evento.chamada } : a);
@@ -2670,13 +2673,14 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
     setBoxes((atuais) => atuais.length > limite ? atuais.slice(-limite) : atuais);
   }, [limite]);
   const abrir = useCallback3(
-    (conversaId) => {
+    (conversaId, opcoes) => {
+      const minimizada = opcoes?.minimizada ?? false;
       setPopover(false);
       setBoxes((atuais) => {
         if (atuais.some((b) => b.conversaId === conversaId)) {
-          return atuais.map((b) => b.conversaId === conversaId ? { ...b, minimizada: false } : b);
+          return minimizada ? atuais : atuais.map((b) => b.conversaId === conversaId ? { ...b, minimizada: false } : b);
         }
-        return [...atuais, { conversaId, minimizada: false }].slice(-limite);
+        return [...atuais, { conversaId, minimizada }].slice(-limite);
       });
     },
     [limite]
@@ -2696,7 +2700,7 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
       (c) => (c.participante?.mensagens_nao_lidas ?? 0) > 0 && !estaVisivel(c.id)
     );
     if (comNaoLidas && !boxes.some((b) => b.conversaId === comNaoLidas.id)) {
-      abrir(comNaoLidas.id);
+      abrir(comNaoLidas.id, { minimizada: true });
     }
   }, [versao, autoAbrir]);
   const naoLidas = conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0);

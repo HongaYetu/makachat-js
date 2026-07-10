@@ -331,7 +331,8 @@ export class SyncEngine {
 
     // ---- ações com aplicação local (o gateway exclui o remetente do broadcast) ----
 
-    private async minhaIdentidadeId(conversaId: string): Promise<string | null> {
+    /** identidade_id desta identidade na conversa (público — a UI usa p/ atribuição de chamadas). */
+    async minhaIdentidadeId(conversaId: string): Promise<string | null> {
         const conversa = await this.storage.obterConversa(conversaId);
         const eu = conversa?.participantes.find(
             (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo,

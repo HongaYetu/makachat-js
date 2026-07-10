@@ -200,15 +200,21 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         () =>
             subscreverChamadas((evento: EventoChamada) => {
                 if (evento.evento === 'iniciada') {
-                    if (typeof document !== 'undefined' && document.hidden) {
-                        mostrarNotificacao(
-                            `${evento.iniciador?.nome ?? 'Alguém'} está a ligar`,
-                            { corpo: evento.chamada.tipo === 'video' ? 'Chamada de vídeo' : 'Chamada de áudio', icone: evento.iniciador?.foto_url ?? undefined, tag: `chamada_${evento.chamada.id}` },
-                        );
-                    }
+                    // eco da PRÓPRIA chamada (outra tab/dispositivo desta identidade)
+                    // nunca vira UI de receção, toque nem notificação
+                    void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
+                        if (minha && evento.chamada.iniciador_identidade_id === minha) return;
 
-                    setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
-                    void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                        if (typeof document !== 'undefined' && document.hidden) {
+                            mostrarNotificacao(
+                                `${evento.iniciador?.nome ?? 'Alguém'} está a ligar`,
+                                { corpo: evento.chamada.tipo === 'video' ? 'Chamada de vídeo' : 'Chamada de áudio', icone: evento.iniciador?.foto_url ?? undefined, tag: `chamada_${evento.chamada.id}` },
+                            );
+                        }
+
+                        setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
+                        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+                    });
                 } else if (evento.evento === 'atendida') {
                     // num grupo, outro atender não me arrasta: se ainda estou a_receber, continuo a tocar (posso "entrar")
                     if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {

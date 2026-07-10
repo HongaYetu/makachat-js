@@ -1753,7 +1753,7 @@ import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
 var KC = obterKeyboardController();
 var CampoTeclado = KC?.KeyboardAvoidingView ?? KeyboardAvoidingView;
-function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }) {
+function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = useSafeAreaInsets2();
@@ -1820,9 +1820,10 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const fechada = conversa?.estado === "fechada";
   useEffect6(() => {
     void engine.entrarConversa(conversaId);
+    if (!emFoco) return;
     const sair = registarVisivel(conversaId);
     return sair;
-  }, [engine, conversaId, registarVisivel]);
+  }, [engine, conversaId, registarVisivel, emFoco]);
   useEffect6(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
@@ -1832,12 +1833,12 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   }, []);
   useEffect6(() => {
     const ultima = mensagens.at(-1);
-    if (!ultima || !appAtiva || !noFundo) return;
+    if (!ultima || !appAtiva || !emFoco || !noFundo) return;
     if (ultimaVista.current === ultima.id) return;
     ultimaVista.current = ultima.id;
     void engine.marcarLidas(conversaId).catch(() => void 0);
     setNovas(0);
-  }, [mensagens, appAtiva, noFundo, engine, conversaId]);
+  }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
   const totalAnterior = useRef7(mensagens.length);
   useEffect6(() => {
     if (mensagens.length > totalAnterior.current && !noFundo) {
@@ -2873,8 +2874,11 @@ function ChamadasProvider({ children }) {
   useEffect8(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
-        setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
-        void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+        void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
+          if (minha && evento.chamada.iniciador_identidade_id === minha) return;
+          setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
+          void engine.storage.obterConversa(evento.chamada.conversa_id).then(setConversa);
+        });
       } else if (evento.evento === "atendida") {
         if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
           setAtiva((a) => a ? { ...a, fase: "em_curso", chamada: evento.chamada } : a);

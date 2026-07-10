@@ -45,6 +45,11 @@ export interface ChatScreenProps {
     chamadas?: { iniciar(conversaId: string, tipo: 'audio' | 'video'): Promise<void>; entrar(chamadaId: string, tipo: 'audio' | 'video'): Promise<void> } | null;
     /** compat: abrir anexos fora (por omissão usa galeria/player internos) */
     onAbrirAnexo?(url: string, tipo: string): void;
+    /**
+     * O ecrã está em foco de NAVEGAÇÃO? (ex.: useIsFocused do react-navigation).
+     * Ecrãs montados em stacks/tabs inativos não devem marcar mensagens como lidas.
+     */
+    emFoco?: boolean;
 }
 
 interface ItemLista {
@@ -62,7 +67,7 @@ interface ItemLista {
 const KC = obterKeyboardController();
 const CampoTeclado = (KC?.KeyboardAvoidingView ?? KeyboardAvoidingView) as typeof KeyboardAvoidingView;
 
-export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }: ChatScreenProps) {
+export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true }: ChatScreenProps) {
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
     const insets = useSafeAreaInsets();
@@ -145,13 +150,16 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const grupo = conversa?.tipo === 'grupo';
     const fechada = conversa?.estado === 'fechada';
 
-    // entrada na conversa + visibilidade + conversa fresca
+    // entrada na conversa + visibilidade + conversa fresca (visível só quando em foco)
     useEffect(() => {
         void engine.entrarConversa(conversaId);
+
+        if (!emFoco) return;
+
         const sair = registarVisivel(conversaId);
 
         return sair;
-    }, [engine, conversaId, registarVisivel]);
+    }, [engine, conversaId, registarVisivel, emFoco]);
 
     useEffect(() => {
         void engine.storage.obterConversa(conversaId).then(setConversa);
@@ -163,17 +171,17 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
         return () => sub.remove();
     }, []);
 
-    // marcar lidas: só com app ativa, ecrã visível e no fundo da lista
+    // marcar lidas: só com app ativa, ecrã em foco de navegação e no fundo da lista
     useEffect(() => {
         const ultima = mensagens.at(-1);
 
-        if (!ultima || !appAtiva || !noFundo) return;
+        if (!ultima || !appAtiva || !emFoco || !noFundo) return;
         if (ultimaVista.current === ultima.id) return;
 
         ultimaVista.current = ultima.id;
         void engine.marcarLidas(conversaId).catch(() => undefined);
         setNovas(0);
-    }, [mensagens, appAtiva, noFundo, engine, conversaId]);
+    }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
 
     // contagem de novas quando o scroll está recuado
     const totalAnterior = useRef(mensagens.length);
