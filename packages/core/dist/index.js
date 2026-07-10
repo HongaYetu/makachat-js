@@ -515,12 +515,10 @@ var SyncEngine = class {
   async entrarConversa(conversaId) {
     this.salas.add(conversaId);
     await this.socket.entrarConversa(conversaId).catch(() => void 0);
-    if (!await this.storage.obterConversa(conversaId)) {
-      await this.api.obterConversa(conversaId).then(async ({ conversa }) => {
-        await this.storage.upsertConversas([conversa]);
-        this.notificar();
-      }).catch(() => void 0);
-    }
+    await this.api.obterConversa(conversaId).then(async ({ conversa }) => {
+      await this.storage.upsertConversas([conversa]);
+      this.notificar();
+    }).catch(() => void 0);
     await this.carregarMensagens(conversaId).catch(() => 0);
   }
   async atualizarConversas() {

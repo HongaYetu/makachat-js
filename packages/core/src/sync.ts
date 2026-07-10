@@ -91,15 +91,17 @@ export class SyncEngine {
         this.salas.add(conversaId);
         await this.socket.entrarConversa(conversaId).catch(() => undefined);
 
-        if (!(await this.storage.obterConversa(conversaId))) {
-            await this.api
-                .obterConversa(conversaId)
-                .then(async ({ conversa }) => {
-                    await this.storage.upsertConversas([conversa]);
-                    this.notificar();
-                })
-                .catch(() => undefined);
-        }
+        // Refresca SEMPRE o estado da conversa (aberta/fechada, participantes,
+        // contexto) do servidor. Sem isto, uma conversa reaberta/fechada no hub
+        // continuaria a aparecer com o estado antigo a partir da cache local —
+        // ex.: reaberta por uma encomenda ativa mas ainda "fechada" no ecrã.
+        await this.api
+            .obterConversa(conversaId)
+            .then(async ({ conversa }) => {
+                await this.storage.upsertConversas([conversa]);
+                this.notificar();
+            })
+            .catch(() => undefined);
 
         // Carrega a última página do histórico via REST (idempotente, deduplicado
         // por id). Sem isto, uma conversa com o DB local vazio — ex.: primeira
