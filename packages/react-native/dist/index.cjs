@@ -1802,6 +1802,16 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const lista = (0, import_react9.useRef)(null);
   const ultimaVista = (0, import_react9.useRef)(null);
   const aCarregarAntigas = (0, import_react9.useRef)(false);
+  const aDescer = (0, import_react9.useRef)(false);
+  const descerParaFundo = () => {
+    aDescer.current = true;
+    lista.current?.scrollToOffset({ offset: 0, animated: true });
+    setNovas(0);
+    setNoFundo(true);
+    setTimeout(() => {
+      aDescer.current = false;
+    }, 450);
+  };
   const semMaisAntigas = (0, import_react9.useRef)(false);
   const eu = conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null;
   const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em);
@@ -1858,7 +1868,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     socket.typing(conversaId, false);
     tocarSom("enviada");
     await enviar({ conversa_id: conversaId, tipo: "texto", conteudo, resposta_a_id: responderA?.id }).catch(() => void 0);
-    lista.current?.scrollToOffset({ offset: 0, animated: true });
+    descerParaFundo();
   };
   const enviarFotos = async (legenda) => {
     setAEnviarMedia(true);
@@ -1874,7 +1884,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         anexos
       );
       setResponderA(null);
-      lista.current?.scrollToOffset({ offset: 0, animated: true });
+      descerParaFundo();
     } catch {
       import_react_native6.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar as fotos. Tenta novamente.");
     } finally {
@@ -1886,7 +1896,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     try {
       const anexo = await enviarAnexoLocal(api, f);
       await enviar({ conversa_id: conversaId, tipo: f.tipo === "ficheiro" ? "ficheiro" : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
-      lista.current?.scrollToOffset({ offset: 0, animated: true });
+      descerParaFundo();
     } catch {
       import_react_native6.Alert.alert("Falha no envio", "N\xE3o foi poss\xEDvel enviar. Tenta novamente.");
     } finally {
@@ -2036,11 +2046,13 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           extraData: `${versao}_${destacada}`,
           contentContainerStyle: { paddingVertical: 8 },
           onScroll: (e) => {
+            if (aDescer.current) return;
             const fundo = e.nativeEvent.contentOffset.y < 60;
             setNoFundo(fundo);
             if (fundo) setNovas(0);
           },
           onMomentumScrollEnd: (e) => {
+            if (aDescer.current) return;
             setNoFundo(e.nativeEvent.contentOffset.y < 60);
           },
           scrollEventThrottle: 16,
@@ -2096,11 +2108,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           }
         }
       ),
-      !noFundo && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Pressable, { onPress: () => {
-        lista.current?.scrollToOffset({ offset: 0, animated: true });
-        setNovas(0);
-        setNoFundo(true);
-      }, style: [estilos6.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }], children: [
+      !noFundo && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Pressable, { onPress: descerParaFundo, style: [estilos6.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }], children: [
         novas > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Text, { style: { color: tema.primariaContraste, fontWeight: "800", fontSize: 12 }, children: [
           novas,
           " ",

@@ -105,6 +105,19 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const lista = useRef<{ scrollToOffset(o: { offset: number; animated?: boolean }): void; scrollToIndex(o: { index: number; animated?: boolean; viewPosition?: number }): void } | null>(null);
     const ultimaVista = useRef<string | null>(null);
     const aCarregarAntigas = useRef(false);
+    // enquanto descemos programaticamente para o fundo, o onScroll da animação
+    // reportaria offsets altos e reativava o botão — esta flag ignora-o.
+    const aDescer = useRef(false);
+
+    const descerParaFundo = () => {
+        aDescer.current = true;
+        lista.current?.scrollToOffset({ offset: 0, animated: true });
+        setNovas(0);
+        setNoFundo(true);
+        setTimeout(() => {
+            aDescer.current = false;
+        }, 450);
+    };
     const semMaisAntigas = useRef(false);
 
     const eu = conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null;
@@ -187,7 +200,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
         tocarSom('enviada');
 
         await enviar({ conversa_id: conversaId, tipo: 'texto', conteudo, resposta_a_id: responderA?.id }).catch(() => undefined);
-        lista.current?.scrollToOffset({ offset: 0, animated: true });
+        descerParaFundo();
     };
 
     const enviarFotos = async (legenda: string) => {
@@ -207,7 +220,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 anexos,
             );
             setResponderA(null);
-            lista.current?.scrollToOffset({ offset: 0, animated: true });
+            descerParaFundo();
         } catch {
             Alert.alert('Falha no envio', 'Não foi possível enviar as fotos. Tenta novamente.');
         } finally {
@@ -221,7 +234,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
         try {
             const anexo = await enviarAnexoLocal(api, f);
             await enviar({ conversa_id: conversaId, tipo: f.tipo === 'ficheiro' ? 'ficheiro' : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
-            lista.current?.scrollToOffset({ offset: 0, animated: true });
+            descerParaFundo();
         } catch {
             Alert.alert('Falha no envio', 'Não foi possível enviar. Tenta novamente.');
         } finally {
@@ -413,14 +426,14 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     extraData={`${versao}_${destacada}`}
                     contentContainerStyle={{ paddingVertical: 8 }}
                     onScroll={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
+                        if (aDescer.current) return; // a descer programaticamente — ignora
                         const fundo = e.nativeEvent.contentOffset.y < 60;
                         setNoFundo(fundo);
 
                         if (fundo) setNovas(0);
                     }}
                     onMomentumScrollEnd={(e: { nativeEvent: { contentOffset: { y: number } } }) => {
-                        // apanha a posição final ao assentar (o onScroll grosseiro podia
-                        // deixar o noFundo preso em false → botão "descer" sempre visível)
+                        if (aDescer.current) return;
                         setNoFundo(e.nativeEvent.contentOffset.y < 60);
                     }}
                     scrollEventThrottle={16}
@@ -486,7 +499,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
                 {/* botão para o fundo + novas */}
                 {!noFundo && (
-                    <Pressable onPress={() => { lista.current?.scrollToOffset({ offset: 0, animated: true }); setNovas(0); setNoFundo(true); }} style={[estilos.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }]}>
+                    <Pressable onPress={descerParaFundo} style={[estilos.paraFundo, novas > 0 ? { backgroundColor: tema.primaria } : { backgroundColor: tema.superficie }]}>
                         {novas > 0 && (
                             <Text style={{ color: tema.primariaContraste, fontWeight: '800', fontSize: 12 }}>
                                 {novas} {novas === 1 ? 'nova' : 'novas'}
