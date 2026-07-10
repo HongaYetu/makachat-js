@@ -39,6 +39,7 @@
         "react-native-reanimated": ">=3.0.0",
         "react-native-gesture-handler": ">=2.0.0",
         "react-native-safe-area-context": ">=4.0.0",
+        "react-native-keyboard-controller": ">=1.12.0",
         "expo-sqlite": ">=14.0.0",
         "@expo/vector-icons": ">=14.0.0",
         "react": ">=18.0.0",
@@ -61,6 +62,9 @@
         "typescript": "^5.7.0"
     },
     "peerDependenciesMeta": {
+        "react-native-keyboard-controller": {
+            "optional": true
+        },
         "@livekit/react-native": {
             "optional": true
         },

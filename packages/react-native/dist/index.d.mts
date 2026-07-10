@@ -192,7 +192,6 @@ interface ChatScreenProps {
     /** compat: abrir anexos fora (por omissão usa galeria/player internos) */
     onAbrirAnexo?(url: string, tipo: string): void;
 }
-/** Conversa completa estilo WhatsApp — paridade com o ConversaPainel da web. */
 declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }: ChatScreenProps): React.JSX.Element;
 
 interface InfoConversaScreenProps {

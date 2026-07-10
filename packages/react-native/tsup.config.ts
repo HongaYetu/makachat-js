@@ -26,6 +26,7 @@ export default defineConfig({
         'react-native-reanimated',
         'react-native-gesture-handler',
         'react-native-safe-area-context',
+        'react-native-keyboard-controller',
     ],
     loader: { '.mp3': 'copy' },
     outExtension: ({ format }) => ({ js: format === 'esm' ? '.js' : '.cjs' }),

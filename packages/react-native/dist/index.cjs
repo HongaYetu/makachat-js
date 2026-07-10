@@ -330,6 +330,13 @@ var obterPushMakaChat = () => {
     return null;
   }
 };
+var obterKeyboardController = () => {
+  try {
+    return require("react-native-keyboard-controller");
+  } catch {
+    return null;
+  }
+};
 
 // src/sons.ts
 var FONTES = {
@@ -1743,6 +1750,8 @@ var estilos5 = import_react_native5.StyleSheet.create({
 // src/ui/ChatScreen.tsx
 var import_jsx_runtime7 = require("react/jsx-runtime");
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
+var KC = obterKeyboardController();
+var CampoTeclado = KC?.KeyboardAvoidingView ?? import_react_native6.KeyboardAvoidingView;
 function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
@@ -2106,7 +2115,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.KeyboardAvoidingView, { behavior: import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
+    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CampoTeclado, { behavior: KC ? "padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
       (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         import_react_native6.TextInput,

@@ -15,6 +15,7 @@ import {
     View,
 } from 'react-native';
 import { useEnviarMensagem, useFuncionalidadeAtiva, useMensagens, useTypingConversa, useVersaoChat } from '../hooks';
+import { obterKeyboardController } from '../opcionais';
 import { useMakaChat, useTema } from '../provider';
 import { tocarSom } from '../sons';
 import { GravadorAudio } from './audio';
@@ -56,6 +57,11 @@ interface ItemLista {
 }
 
 /** Conversa completa estilo WhatsApp — paridade com o ConversaPainel da web. */
+// KeyboardAvoidingView do react-native-keyboard-controller (robusto em
+// Android/edge-to-edge, requer <KeyboardProvider> na app) — senão o do RN.
+const KC = obterKeyboardController();
+const CampoTeclado = (KC?.KeyboardAvoidingView ?? KeyboardAvoidingView) as typeof KeyboardAvoidingView;
+
 export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }: ChatScreenProps) {
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
@@ -515,7 +521,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     }}
                 />
             ) : (
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <CampoTeclado behavior={KC ? 'padding' : Platform.OS === 'ios' ? 'padding' : undefined}>
                     <View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }]}>
                         {(podeFoto || podeFicheiro) && (
                             <Pressable onPress={() => setAnexoMenu(true)} style={{ padding: 7 }}>
@@ -542,7 +548,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                             <View style={{ width: 42 }} />
                         )}
                     </View>
-                </KeyboardAvoidingView>
+                </CampoTeclado>
             )}
 
             {/* sheets */}

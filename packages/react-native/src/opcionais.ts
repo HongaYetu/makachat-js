@@ -91,3 +91,13 @@ export const obterPushMakaChat = (): any => {
         return null;
     }
 };
+
+// KeyboardAvoidingView robusto (edge-to-edge/Android). Requer a app ter o
+// <KeyboardProvider> na raiz. Sem o módulo, cai no KeyboardAvoidingView do RN.
+export const obterKeyboardController = (): any => {
+    try {
+        return require('react-native-keyboard-controller');
+    } catch {
+        return null;
+    }
+};

@@ -276,6 +276,13 @@ var obterPushMakaChat = () => {
     return null;
   }
 };
+var obterKeyboardController = () => {
+  try {
+    return __require("react-native-keyboard-controller");
+  } catch {
+    return null;
+  }
+};
 
 // src/sons.ts
 var FONTES = {
@@ -1734,6 +1741,8 @@ var estilos5 = StyleSheet5.create({
 // src/ui/ChatScreen.tsx
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
+var KC = obterKeyboardController();
+var CampoTeclado = KC?.KeyboardAvoidingView ?? KeyboardAvoidingView;
 function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
@@ -2097,7 +2106,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ jsx7(KeyboardAvoidingView, { behavior: Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
+    ) : /* @__PURE__ */ jsx7(CampoTeclado, { behavior: KC ? "padding" : Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
       (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),
       /* @__PURE__ */ jsx7(
         TextInput3,
