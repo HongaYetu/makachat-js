@@ -1767,8 +1767,14 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const tema = useTema();
   const insets = (0, import_react_native_safe_area_context2.useSafeAreaInsets)();
   const animTeclado = KC?.useKeyboardAnimation ? KC.useKeyboardAnimation() : null;
+  const progressoJs = (0, import_react9.useRef)(new import_react_native6.Animated.Value(0)).current;
+  (0, import_react9.useEffect)(() => {
+    if (!animTeclado?.progress?.addListener) return;
+    const id = animTeclado.progress.addListener(({ value }) => progressoJs.setValue(value));
+    return () => animTeclado.progress.removeListener(id);
+  }, [animTeclado?.progress]);
   const padFundoBase = Math.max(insets.bottom, 8);
-  const padFundoInput = animTeclado ? animTeclado.progress.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] }) : padFundoBase;
+  const padFundoInput = animTeclado ? progressoJs.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] }) : padFundoBase;
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);

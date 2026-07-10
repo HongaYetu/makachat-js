@@ -1759,8 +1759,14 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const tema = useTema();
   const insets = useSafeAreaInsets2();
   const animTeclado = KC?.useKeyboardAnimation ? KC.useKeyboardAnimation() : null;
+  const progressoJs = useRef7(new Animated3.Value(0)).current;
+  useEffect6(() => {
+    if (!animTeclado?.progress?.addListener) return;
+    const id = animTeclado.progress.addListener(({ value }) => progressoJs.setValue(value));
+    return () => animTeclado.progress.removeListener(id);
+  }, [animTeclado?.progress]);
   const padFundoBase = Math.max(insets.bottom, 8);
-  const padFundoInput = animTeclado ? animTeclado.progress.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] }) : padFundoBase;
+  const padFundoInput = animTeclado ? progressoJs.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] }) : padFundoBase;
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);

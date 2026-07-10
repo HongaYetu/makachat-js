@@ -70,15 +70,29 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     // Padding do composer sincronizado com o teclado (evita dupla compensação):
     // fechado → insets.bottom (folga da barra de navegação); aberto → 8 (o teclado
     // já cobre essa zona — mantê-lo criava uma folga enorme entre input e teclado).
-    // O progress do keyboard-controller anima frame-a-frame COM o teclado.
+    // O progress do keyboard-controller é NATIVE-driven (não anima padding);
+    // espelhamo-lo num Animated.Value JS via listener — esse pode animar layout.
     // KC é constante de módulo → a ordem de hooks é estável.
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const animTeclado = KC?.useKeyboardAnimation
-        ? (KC.useKeyboardAnimation() as { progress: { interpolate(c: { inputRange: number[]; outputRange: number[] }): unknown } })
+        ? (KC.useKeyboardAnimation() as {
+              progress: { addListener(cb: (e: { value: number }) => void): string; removeListener(id: string): void };
+          })
         : null;
+    const progressoJs = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (!animTeclado?.progress?.addListener) return;
+
+        const id = animTeclado.progress.addListener(({ value }) => progressoJs.setValue(value));
+
+        return () => animTeclado.progress.removeListener(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [animTeclado?.progress]);
+
     const padFundoBase = Math.max(insets.bottom, 8);
     const padFundoInput = animTeclado
-        ? animTeclado.progress.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] })
+        ? progressoJs.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] })
         : padFundoBase;
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 500);
