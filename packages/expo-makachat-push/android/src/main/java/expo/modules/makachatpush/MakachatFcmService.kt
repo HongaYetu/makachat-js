@@ -31,27 +31,6 @@ class MakachatFcmService : FirebaseMessagingService() {
         var emissor: ((Map<String, String?>) -> Unit)? = null
         var emissorChamada: ((Map<String, String?>) -> Unit)? = null
 
-        /** cache em memória dos avatares descarregados (url → bitmap) */
-        private val avatares = mutableMapOf<String, android.graphics.Bitmap?>()
-
-        /** Descarrega (com cache) o avatar do remetente; null em falha/sem rede. */
-        private fun avatarDe(url: String?): android.graphics.Bitmap? {
-            if (url.isNullOrEmpty()) return null
-            avatares[url]?.let { return it }
-
-            return try {
-                val ligacao = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                ligacao.connectTimeout = 4000
-                ligacao.readTimeout = 4000
-                val bitmap = ligacao.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
-                ligacao.disconnect()
-                avatares[url] = bitmap
-                bitmap
-            } catch (_: Exception) {
-                null
-            }
-        }
-
         fun cancelarChamada(context: Context, chamadaId: String) {
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             gestor.cancel(chamadaId.hashCode())
@@ -87,24 +66,27 @@ class MakachatFcmService : FirebaseMessagingService() {
                 return
             }
 
-            // avatar do remetente (guardado por conversa quando o push chega)
-            val fotoUrl = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString("foto_$conversaId", null)
-            val avatar = avatarDe(fotoUrl)
-            val iconeAvatar = avatar?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
+            // metadados da conversa (guardados quando o push chega): grupo + avatar
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val eGrupo = prefs.getString("tipo_$conversaId", null) == "grupo"
+            val tituloGrupo = prefs.getString("titulo_$conversaId", null)
+            val fotoRemetente = prefs.getString("foto_$conversaId", null)
+            val fotoConversa = prefs.getString("foto_conversa_$conversaId", null)
 
+            // Persons do histórico sem ícone (estilo limpo, padrão kanda-notifications);
+            // o avatar aparece no largeIcon circular (grupo → foto do grupo, senão remetente)
             for (linha in historico) {
-                val pessoa = if (linha.minha) eu else Person.Builder()
-                    .setName(linha.remetente)
-                    .apply { iconeAvatar?.let { setIcon(it) } }
-                    .build()
+                val pessoa = if (linha.minha) eu else Person.Builder().setName(linha.remetente).build()
                 estilo.addMessage(NotificationCompat.MessagingStyle.Message(linha.corpo, linha.em, if (linha.minha) null else pessoa))
             }
 
-            if (historico.any { !it.minha && it.remetente != titulo }) {
-                estilo.conversationTitle = titulo
+            if (eGrupo) {
+                estilo.conversationTitle = tituloGrupo ?: titulo
                 estilo.isGroupConversation = true
             }
+
+            val nomeAvatar = if (eGrupo) (tituloGrupo ?: titulo) else (historico.lastOrNull { !it.minha }?.remetente ?: titulo)
+            val avatar = ImagemHelper.avatarCircular(if (eGrupo) fotoConversa else fotoRemetente, nomeAvatar)
 
             // responder ao vivo (RemoteInput) + marcar como lida
             val extras = { acao: String ->
@@ -143,7 +125,7 @@ class MakachatFcmService : FirebaseMessagingService() {
 
             val notificacao = NotificationCompat.Builder(context, CANAL)
                 .setSmallIcon(context.applicationInfo.icon)
-                .apply { avatar?.let { setLargeIcon(it) } }
+                .setLargeIcon(avatar)
                 .setStyle(estilo)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setAutoCancel(true)
@@ -188,10 +170,13 @@ class MakachatFcmService : FirebaseMessagingService() {
 
         val titulo = dados["titulo"] ?: "Nova mensagem"
 
-        // avatar do remetente para a notificação (guardado por conversa)
-        dados["foto"]?.takeIf { it.isNotEmpty() }?.let {
-            prefs().edit().putString("foto_$conversaId", it).apply()
-        }
+        // metadados para a notificação estilo WhatsApp (avatar + grupo), por conversa
+        prefs().edit().apply {
+            dados["foto"]?.takeIf { it.isNotEmpty() }?.let { putString("foto_$conversaId", it) }
+            dados["conversa_tipo"]?.takeIf { it.isNotEmpty() }?.let { putString("tipo_$conversaId", it) }
+            dados["conversa_titulo"]?.takeIf { it.isNotEmpty() }?.let { putString("titulo_$conversaId", it) }
+            dados["conversa_foto"]?.takeIf { it.isNotEmpty() }?.let { putString("foto_conversa_$conversaId", it) }
+        }.apply()
 
         InboxDatabase.get(applicationContext).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
         mostrarMensagens(applicationContext, conversaId, titulo)

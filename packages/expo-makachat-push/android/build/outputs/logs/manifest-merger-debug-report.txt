@@ -1,0 +1,38 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:1:1-14:12
+INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:1:1-14:12
+	package
+		INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:1:11-69
+application
+ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:2:5-13:19
+service#expo.modules.makachatpush.MakachatFcmService
+ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:3:9-9:19
+	android:exported
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:5:13-37
+	android:name
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:4:13-72
+intent-filter#action:name:com.google.firebase.MESSAGING_EVENT
+ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:6:13-8:29
+	android:priority
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:6:28-48
+action#com.google.firebase.MESSAGING_EVENT
+ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:7:17-78
+	android:name
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:7:25-75
+receiver#expo.modules.makachatpush.RespostaReceiver
+ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:10:9-12:40
+	android:exported
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:12:13-37
+	android:name
+		ADDED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml:11:13-70
+uses-sdk
+INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml
+INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Volumes/HongaWork/Projectos/makachat-js/packages/expo-makachat-push/android/src/main/AndroidManifest.xml

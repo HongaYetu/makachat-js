@@ -35,28 +35,35 @@ export function NotificacoesLocais({ avatarPadrao }: { avatarPadrao?: string } =
                     const remetente = conversa?.participantes.find(
                         (p) => p.identidade_id === mensagem.remetente_identidade_id,
                     );
-                    const nome = remetente?.nome ?? conversa?.titulo ?? 'Nova mensagem';
-                    const avatar = remetente?.foto_url ?? avatarPadrao;
+                    const grupo = conversa?.tipo === 'grupo';
+                    const nomeRemetente = remetente?.nome ?? 'Alguém';
+                    // grupo → título/avatar da conversa; privada → nome/foto do remetente
+                    const titulo = grupo ? (conversa?.titulo ?? 'Grupo') : (nomeRemetente ?? conversa?.titulo ?? 'Nova mensagem');
+                    const avatar = (grupo ? conversa?.foto_url : remetente?.foto_url) ?? avatarPadrao;
 
                     await notifee.createChannel({ id: 'makachat_mensagens', name: 'Mensagens', importance: 4 });
                     await notifee.displayNotification({
                         id: `mkm_${mensagem.conversa_id}`,
-                        title: nome,
-                        body: previewDe(mensagem),
+                        title: titulo,
+                        body: grupo ? `${nomeRemetente}: ${previewDe(mensagem)}` : previewDe(mensagem),
                         data: { makachat: '1', conversa_id: mensagem.conversa_id },
                         android: {
                             channelId: 'makachat_mensagens',
                             smallIcon: 'ic_launcher',
+                            // avatar circular estilo WhatsApp (URL remoto suportado)
                             ...(avatar ? { largeIcon: avatar, circularLargeIcon: true } : {}),
-                            // estilo MESSAGING: avatar redondo por pessoa (URL remoto suportado)
                             style: {
                                 type: 4, // AndroidStyle.MESSAGING
-                                person: { name: nome, ...(avatar ? { icon: avatar } : {}) },
+                                person: { name: nomeRemetente, ...(avatar && !grupo ? { icon: avatar } : {}) },
+                                ...(grupo ? { group: true, title: titulo } : {}),
                                 messages: [
                                     {
                                         text: previewDe(mensagem),
                                         timestamp: Date.parse(mensagem.criada_em) || undefined,
-                                        person: { name: nome, ...(avatar ? { icon: avatar } : {}) },
+                                        person: {
+                                            name: nomeRemetente,
+                                            ...(remetente?.foto_url ? { icon: remetente.foto_url } : {}),
+                                        },
                                     },
                                 ],
                             },
