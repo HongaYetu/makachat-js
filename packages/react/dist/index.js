@@ -73,7 +73,8 @@ var FICHEIROS = {
   recebida: "mensagem_recebida.mp3",
   enviada: "mensagem_enviada.mp3",
   vista: "mensagem_vista.mp3",
-  a_chamar: "a_chamar.mp3"
+  a_chamar: "a_chamar.mp3",
+  toque_receber: "toque_receber.mp3"
 };
 var cache = /* @__PURE__ */ new Map();
 function urlDe(nome) {
@@ -100,10 +101,10 @@ function tocarSom(nome) {
   }
 }
 var toque = null;
-function comecarToque() {
+function comecarToque(tipo = "ligar") {
   if (typeof Audio === "undefined" || toque) return;
   try {
-    const url = urlDe("a_chamar");
+    const url = urlDe(tipo === "receber" ? "toque_receber" : "a_chamar");
     if (!url) return;
     toque = new Audio(url);
     toque.loop = true;
@@ -513,7 +514,8 @@ function ChamadasProvider({ children }) {
   }, []);
   useEffect4(() => {
     faseRef.current = ativa?.fase ?? null;
-    if (ativa?.fase === "a_ligar" || ativa?.fase === "a_receber") comecarToque();
+    if (ativa?.fase === "a_ligar") comecarToque("ligar");
+    else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
@@ -716,7 +718,7 @@ function ChamadasProvider({ children }) {
   const aoLargar = () => {
     arrasto.current.ativo = false;
   };
-  const titulo = ativa?.fase === "a_receber" ? ativa.iniciador?.nome ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
+  const titulo = ativa?.fase === "a_receber" ? ativa.iniciador?.nome ?? conversa?.titulo ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
   const foto = ativa?.fase === "a_receber" ? ativa.iniciador?.foto_url ?? null : conversa?.foto_url ?? null;
   const subtitulo = ativa?.fase === "em_curso" && inicioEm ? /* @__PURE__ */ jsx3(Duracao, { desde: inicioEm }) : ativa?.fase === "falhada" ? "Chamada falhada" : ativa?.fase === "a_ligar" ? "A chamar\u2026" : `Chamada de ${ativa?.chamada.tipo === "video" ? "v\xEDdeo" : "\xE1udio"}`;
   const B = (p) => /* @__PURE__ */ jsx3(

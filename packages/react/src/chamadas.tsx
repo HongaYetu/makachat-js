@@ -81,7 +81,8 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         faseRef.current = ativa?.fase ?? null;
 
         // toque em loop enquanto liga/recebe; para assim que entra em curso ou fecha
-        if (ativa?.fase === 'a_ligar' || ativa?.fase === 'a_receber') comecarToque();
+        if (ativa?.fase === 'a_ligar') comecarToque('ligar');
+        else if (ativa?.fase === 'a_receber') comecarToque('receber');
         else pararToque();
 
         return pararToque;
@@ -364,7 +365,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         arrasto.current.ativo = false;
     };
 
-    const titulo = ativa?.fase === 'a_receber' ? (ativa.iniciador?.nome ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
+    const titulo = ativa?.fase === 'a_receber' ? (ativa.iniciador?.nome ?? conversa?.titulo ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
     const foto = ativa?.fase === 'a_receber' ? (ativa.iniciador?.foto_url ?? null) : (conversa?.foto_url ?? null);
     const subtitulo =
         ativa?.fase === 'em_curso' && inicioEm ? (

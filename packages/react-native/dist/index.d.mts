@@ -344,11 +344,13 @@ declare function ligarPushNativo(api: MakaApi, identidade: IdentidadeConfig, tok
  * silêncio). Os mp3 são copiados para dist pelo build (loader copy) e o
  * Metro empacota-os como assets.
  */
-type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar';
+type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar' | 'toque_receber';
+/** a_chamar = ringback de QUEM LIGA; toque_receber = ring de quem recebe. */
+type TipoToque = 'ligar' | 'receber';
 /** Efeito curto (recebida/enviada/vista). Falha em silêncio. */
 declare function tocarSom(nome: NomeSom): void;
-/** Toque de chamada em loop (a ligar / a receber). */
-declare function comecarToque(): void;
+/** Toque de chamada em loop — 'ligar' (ringback de quem liga) ou 'receber' (ring). */
+declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
 export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };

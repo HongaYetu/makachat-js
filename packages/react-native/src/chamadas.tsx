@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -117,7 +118,8 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         faseRef.current = ativa?.fase ?? null;
 
         // toque em loop enquanto liga/recebe; para ao entrar em curso ou fechar
-        if (ativa?.fase === 'a_ligar' || ativa?.fase === 'a_receber') comecarToque();
+        if (ativa?.fase === 'a_ligar') comecarToque('ligar');
+        else if (ativa?.fase === 'a_receber') comecarToque('receber');
         else pararToque();
 
         return pararToque;
@@ -528,8 +530,10 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     tema: { primaria: string };
 }) {
     const { width, height } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const video = ativa.chamada.tipo === 'video';
-    const titulo = ativa.fase === 'a_receber' ? (ativa.iniciador?.nome ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
+    // incoming: nome do iniciador; fallback à contraparte da conversa — nunca o próprio
+    const titulo = ativa.fase === 'a_receber' ? (ativa.iniciador?.nome ?? conversa?.titulo ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
     const foto = ativa.fase === 'a_receber' ? (ativa.iniciador?.foto_url ?? null) : (conversa?.foto_url ?? null);
     const VideoTrack = livekit?.VideoTrack;
     const remotos = tiles.filter((t) => !t.local && t.trackRef);
@@ -587,7 +591,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                 )}
 
                 {/* topo */}
-                <View style={estilos.topo}>
+                <View style={[estilos.topo, { paddingTop: insets.top + 8 }]}>
                     <Pressable onPress={aoMinimizar} style={{ padding: 8 }}>
                         <Ionicons name="chevron-down" size={26} color="#fff" />
                     </Pressable>
@@ -606,7 +610,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                 )}
 
                 {/* controlos */}
-                <View style={estilos.controlos}>
+                <View style={[estilos.controlos, { bottom: insets.bottom + 18 }]}>
                     {ativa.fase === 'falhada' ? (
                         <Botao icone="close" cor="rgba(255,255,255,0.2)" aoTocar={aoDesligar} />
                     ) : ativa.fase === 'a_receber' ? (
@@ -633,7 +637,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
 }
 
 function Botao({ icone, cor, aoTocar, grande, rodado }: { icone: string; cor: string; aoTocar(): void; grande?: boolean; rodado?: boolean }) {
-    const lado = grande ? 64 : 54;
+    const lado = grande ? 58 : 48;
 
     return (
         <Pressable onPress={aoTocar} style={{ width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: 'center', justifyContent: 'center' }}>
@@ -661,6 +665,6 @@ const estilos = StyleSheet.create({
     pip: { position: 'absolute', right: 14, bottom: 150, width: 108, height: 158, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     nomeTile: { position: 'absolute', left: 10, bottom: 10, color: '#fff', fontWeight: '700', fontSize: 12, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
     erro: { position: 'absolute', bottom: 150, left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-    controlos: { position: 'absolute', bottom: 46, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 18 },
+    controlos: { position: 'absolute', bottom: 46, left: 0, right: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 16 },
     pill: { position: 'absolute', top: 58, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0f172a', borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
 });

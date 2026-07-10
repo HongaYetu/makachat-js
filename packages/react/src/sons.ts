@@ -4,13 +4,17 @@
  * import.meta.url (bundlers ESM tratam o asset).
  */
 
-export type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar';
+export type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar' | 'toque_receber';
+
+/** a_chamar = ringback de QUEM LIGA; toque_receber = ring de quem recebe. */
+export type TipoToque = 'ligar' | 'receber';
 
 const FICHEIROS: Record<NomeSom, string> = {
     recebida: 'mensagem_recebida.mp3',
     enviada: 'mensagem_enviada.mp3',
     vista: 'mensagem_vista.mp3',
     a_chamar: 'a_chamar.mp3',
+    toque_receber: 'toque_receber.mp3',
 };
 
 const cache = new Map<NomeSom, HTMLAudioElement>();
@@ -49,12 +53,12 @@ export function tocarSom(nome: NomeSom): void {
 
 let toque: HTMLAudioElement | null = null;
 
-/** Toque de chamada em loop (a ligar / a receber). */
-export function comecarToque(): void {
+/** Toque de chamada em loop — 'ligar' (ringback de quem liga) ou 'receber' (ring). */
+export function comecarToque(tipo: TipoToque = 'ligar'): void {
     if (typeof Audio === 'undefined' || toque) return;
 
     try {
-        const url = urlDe('a_chamar');
+        const url = urlDe(tipo === 'receber' ? 'toque_receber' : 'a_chamar');
 
         if (!url) return;
 

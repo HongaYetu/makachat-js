@@ -6,7 +6,10 @@ import { obterAudio } from './opcionais';
  * Metro empacota-os como assets.
  */
 
-export type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar';
+export type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar' | 'toque_receber';
+
+/** a_chamar = ringback de QUEM LIGA; toque_receber = ring de quem recebe. */
+export type TipoToque = 'ligar' | 'receber';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 declare const require: (m: string) => unknown;
@@ -16,6 +19,7 @@ const FONTES: Record<NomeSom, unknown> = {
     enviada: require('../sons/mensagem_enviada.mp3'),
     vista: require('../sons/mensagem_vista.mp3'),
     a_chamar: require('../sons/a_chamar.mp3'),
+    toque_receber: require('../sons/toque_receber.mp3'),
 };
 
 const cache = new Map<NomeSom, { seekTo(s: number): void; play(): void }>();
@@ -43,14 +47,14 @@ export function tocarSom(nome: NomeSom): void {
 
 let toque: { play(): void; pause(): void; remove?(): void; loop?: boolean } | null = null;
 
-/** Toque de chamada em loop (a ligar / a receber). */
-export function comecarToque(): void {
+/** Toque de chamada em loop — 'ligar' (ringback de quem liga) ou 'receber' (ring). */
+export function comecarToque(tipo: TipoToque = 'ligar'): void {
     const audio = obterAudio();
 
     if (!audio?.createAudioPlayer || toque) return;
 
     try {
-        toque = audio.createAudioPlayer(FONTES.a_chamar);
+        toque = audio.createAudioPlayer(tipo === 'receber' ? FONTES.toque_receber : FONTES.a_chamar);
         (toque as { loop?: boolean }).loop = true;
         toque!.play();
     } catch {

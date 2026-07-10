@@ -299,7 +299,8 @@ var FONTES = {
   recebida: __require("./mensagem_recebida-MZY2YITP.mp3"),
   enviada: __require("./mensagem_enviada-DDE7GUQI.mp3"),
   vista: __require("./mensagem_vista-UJR4F6F5.mp3"),
-  a_chamar: __require("./a_chamar-DLXA46AB.mp3")
+  a_chamar: __require("./a_chamar-DLXA46AB.mp3"),
+  toque_receber: __require("./toque_receber-LUIEOINS.mp3")
 };
 var cache = /* @__PURE__ */ new Map();
 function tocarSom(nome) {
@@ -317,11 +318,11 @@ function tocarSom(nome) {
   }
 }
 var toque = null;
-function comecarToque() {
+function comecarToque(tipo = "ligar") {
   const audio = obterAudio();
   if (!audio?.createAudioPlayer || toque) return;
   try {
-    toque = audio.createAudioPlayer(FONTES.a_chamar);
+    toque = audio.createAudioPlayer(tipo === "receber" ? FONTES.toque_receber : FONTES.a_chamar);
     toque.loop = true;
     toque.play();
   } catch {
@@ -2708,6 +2709,7 @@ var estilos7 = StyleSheet7.create({
 
 // src/chamadas.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
+import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
 import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
 import { Fragment, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
@@ -2771,7 +2773,8 @@ function ChamadasProvider({ children }) {
   const facing = useRef8("user");
   useEffect8(() => {
     faseRef.current = ativa?.fase ?? null;
-    if (ativa?.fase === "a_ligar" || ativa?.fase === "a_receber") comecarToque();
+    if (ativa?.fase === "a_ligar") comecarToque("ligar");
+    else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
@@ -3067,8 +3070,9 @@ function ChamadasProvider({ children }) {
 }
 function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }) {
   const { width, height } = useWindowDimensions2();
+  const insets = useSafeAreaInsets3();
   const video = ativa.chamada.tipo === "video";
-  const titulo = ativa.fase === "a_receber" ? ativa.iniciador?.nome ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
+  const titulo = ativa.fase === "a_receber" ? ativa.iniciador?.nome ?? conversa?.titulo ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
   const foto = ativa.fase === "a_receber" ? ativa.iniciador?.foto_url ?? null : conversa?.foto_url ?? null;
   const VideoTrack = livekit?.VideoTrack;
   const remotos = tiles.filter((t) => !t.local && t.trackRef);
@@ -3086,13 +3090,13 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
       /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 16 }, children: titulo }),
       /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 15, marginTop: 5 }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) })
     ] }),
-    /* @__PURE__ */ jsxs8(View8, { style: estilos8.topo, children: [
+    /* @__PURE__ */ jsxs8(View8, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ jsx9(Pressable8, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "chevron-down", size: 26, color: "#fff" }) }),
       emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) }),
       /* @__PURE__ */ jsx9(View8, { style: { width: 42 } })
     ] }),
     erro && /* @__PURE__ */ jsx9(View8, { style: estilos8.erro, children: /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
-    /* @__PURE__ */ jsx9(View8, { style: estilos8.controlos, children: ativa.fase === "falhada" ? /* @__PURE__ */ jsx9(Botao, { icone: "close", cor: "rgba(255,255,255,0.2)", aoTocar: aoDesligar }) : ativa.fase === "a_receber" ? /* @__PURE__ */ jsxs8(Fragment, { children: [
+    /* @__PURE__ */ jsx9(View8, { style: [estilos8.controlos, { bottom: insets.bottom + 18 }], children: ativa.fase === "falhada" ? /* @__PURE__ */ jsx9(Botao, { icone: "close", cor: "rgba(255,255,255,0.2)", aoTocar: aoDesligar }) : ativa.fase === "a_receber" ? /* @__PURE__ */ jsxs8(Fragment, { children: [
       /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true }) }),
       /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true })
     ] }) : /* @__PURE__ */ jsxs8(Fragment, { children: [
@@ -3106,7 +3110,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   ] }) });
 }
 function Botao({ icone, cor, aoTocar, grande, rodado }) {
-  const lado = grande ? 64 : 54;
+  const lado = grande ? 58 : 48;
   return /* @__PURE__ */ jsx9(Pressable8, { onPress: aoTocar, style: { width: lado, height: lado, borderRadius: lado / 2, backgroundColor: cor, alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: icone, size: grande ? 28 : 24, color: "#fff", style: rodado ? { transform: [{ rotate: "135deg" }] } : void 0 }) });
 }
 function Duracao({ desde }) {
@@ -3123,7 +3127,7 @@ var estilos8 = StyleSheet8.create({
   pip: { position: "absolute", right: 14, bottom: 150, width: 108, height: 158, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   erro: { position: "absolute", bottom: 150, left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  controlos: { position: "absolute", bottom: 46, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 18 },
+  controlos: { position: "absolute", bottom: 46, left: 0, right: 0, flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16 },
   pill: { position: "absolute", top: 58, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0f172a", borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }
 });
 

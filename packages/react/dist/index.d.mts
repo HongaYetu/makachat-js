@@ -183,11 +183,13 @@ declare function mostrarNotificacao(titulo: string, opcoes: {
  * de chamada. Os ficheiros são publicados em dist/sons e resolvidos via
  * import.meta.url (bundlers ESM tratam o asset).
  */
-type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar';
+type NomeSom = 'recebida' | 'enviada' | 'vista' | 'a_chamar' | 'toque_receber';
+/** a_chamar = ringback de QUEM LIGA; toque_receber = ring de quem recebe. */
+type TipoToque = 'ligar' | 'receber';
 /** Efeito curto (recebida/enviada/vista). Falha em silêncio (autoplay/ambiente). */
 declare function tocarSom(nome: NomeSom): void;
-/** Toque de chamada em loop (a ligar / a receber). */
-declare function comecarToque(): void;
+/** Toque de chamada em loop — 'ligar' (ringback de quem liga) ou 'receber' (ring). */
+declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
 export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useChamadas, useChamadasOpcional, useConversas, useDock, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useTotalNaoLidas, useTypingConversa, useVersaoChat };
