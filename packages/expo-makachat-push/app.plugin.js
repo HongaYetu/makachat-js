@@ -51,7 +51,12 @@ module.exports = function withMakachatPush(config, opcoes = {}) {
         // ---- permissões (só as exigidas pelas flags ligadas) ----
         const permissoes = new Set(['android.permission.FOREGROUND_SERVICE', 'android.permission.VIBRATE', 'android.permission.WAKE_LOCK', 'android.permission.USE_FULL_SCREEN_INTENT']);
 
-        if (toqueContinuo || servicoChamadaAtiva) permissoes.add('android.permission.FOREGROUND_SERVICE_PHONE_CALL');
+        if (toqueContinuo || servicoChamadaAtiva) {
+            permissoes.add('android.permission.FOREGROUND_SERVICE_PHONE_CALL');
+            // API 34+: o tipo phoneCall exige MANAGE_OWN_CALLS (permissão normal,
+            // concedida na instalação) — sem ela o startForeground rebenta
+            permissoes.add('android.permission.MANAGE_OWN_CALLS');
+        }
         if (servicoChamadaAtiva) permissoes.add('android.permission.FOREGROUND_SERVICE_MICROPHONE');
 
         manifesto.manifest['uses-permission'] = manifesto.manifest['uses-permission'] ?? [];

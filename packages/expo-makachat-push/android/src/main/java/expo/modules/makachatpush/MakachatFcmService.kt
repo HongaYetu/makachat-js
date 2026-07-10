@@ -59,9 +59,16 @@ class MakachatFcmService : FirebaseMessagingService() {
         ): android.app.Notification {
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val toqueNoServico = Opcoes.toqueContinuo(context)
-            val canalId = if (toqueNoServico) "${CANAL_CHAMADAS}_silencioso" else CANAL_CHAMADAS
+            // _v2: o canal antigo foi criado historicamente com som "default" (beep)
+            // pelo handler JS e canais são IMUTÁVEIS — id novo garante o ringtone
+            val canalId = if (toqueNoServico) "${CANAL_CHAMADAS}_silencioso" else "${CANAL_CHAMADAS}_v2"
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    gestor.deleteNotificationChannel(CANAL_CHAMADAS)
+                } catch (_: Exception) {
+                    // canal antigo inexistente
+                }
                 val canal = NotificationChannel(canalId, "Chamadas", NotificationManager.IMPORTANCE_HIGH).apply {
                     if (toqueNoServico) {
                         setSound(null, null) // o MediaPlayer do serviço toca em loop
