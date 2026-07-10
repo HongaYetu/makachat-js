@@ -1156,6 +1156,7 @@ import {
   Linking as Linking2,
   Platform,
   Pressable as Pressable6,
+  StatusBar,
   StyleSheet as StyleSheet6,
   Text as Text6,
   TextInput as TextInput3,
@@ -1797,7 +1798,7 @@ import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
 var KC = obterKeyboardController();
 var CampoTeclado = KC?.KeyboardAvoidingView ?? KeyboardAvoidingView;
-function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true }) {
+function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = "escura" }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = useSafeAreaInsets2();
@@ -2029,6 +2030,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   };
   const banner = conversa?.chamada_ativa && chamadas && !fechada && conversa.tipo === "grupo";
   return /* @__PURE__ */ jsxs6(View6, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    emFoco && barraEstado != null && /* @__PURE__ */ jsx7(StatusBar, { animated: true, barStyle: barraEstado === "clara" ? "light-content" : "dark-content" }),
     /* @__PURE__ */ jsxs6(View6, { style: [estilos6.header, { backgroundColor: tema.superficie }], children: [
       onVoltar && /* @__PURE__ */ jsx7(Pressable6, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ jsxs6(Pressable6, { style: estilos6.headerCentro, onPress: () => conversa && onAbrirInfo?.(conversa), children: [
@@ -2748,7 +2750,7 @@ var estilos7 = StyleSheet7.create({
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
+import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StatusBar as StatusBar2, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
 import { Fragment, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
@@ -3216,41 +3218,44 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const local = tiles.find((t) => t.local && t.trackRef);
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
-  return /* @__PURE__ */ jsx9(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-    emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx9(View8, { style: { ...StyleSheet8.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs8(View8, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
-      /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover" }),
-      /* @__PURE__ */ jsx9(Text8, { style: estilos8.nomeTile, children: t.nome })
-    ] }, t.chave)) }),
-    emCurso && video && VideoTrack && local && /* @__PURE__ */ jsx9(View8, { style: estilos8.pip, children: /* @__PURE__ */ jsx9(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
-    (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs8(View8, { style: estilos8.centro, children: [
-      ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
-      /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
-      /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) })
-    ] }),
-    /* @__PURE__ */ jsxs8(View8, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
-      /* @__PURE__ */ jsx9(Pressable8, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "chevron-down", size: 26, color: "#fff" }) }),
-      emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) }),
-      /* @__PURE__ */ jsx9(View8, { style: { width: 42 } })
-    ] }),
-    erro && /* @__PURE__ */ jsx9(View8, { style: estilos8.erro, children: /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
-    ativa.fase === "a_receber" ? (
-      // incoming: dois botões grandes com rótulo, afastados
-      /* @__PURE__ */ jsxs8(View8, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: [
-        /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
-        /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
-      ] })
-    ) : ativa.fase === "falhada" ? /* @__PURE__ */ jsx9(View8, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ jsx9(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
-      // em curso: bandeja arredondada com o desligar integrado
-      /* @__PURE__ */ jsxs8(View8, { style: [estilos8.bandeja, { bottom: insets.bottom + 24 }], children: [
-        /* @__PURE__ */ jsx9(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
-        video && /* @__PURE__ */ jsx9(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
-        video && camara && /* @__PURE__ */ jsx9(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
-        /* @__PURE__ */ jsx9(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
-        aoEcra && /* @__PURE__ */ jsx9(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
-        /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
-      ] })
-    )
-  ] }) });
+  return /* @__PURE__ */ jsxs8(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
+    /* @__PURE__ */ jsx9(StatusBar2, { animated: true, barStyle: "light-content" }),
+    /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+      emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx9(View8, { style: { ...StyleSheet8.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs8(View8, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
+        /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover" }),
+        /* @__PURE__ */ jsx9(Text8, { style: estilos8.nomeTile, children: t.nome })
+      ] }, t.chave)) }),
+      emCurso && video && VideoTrack && local && /* @__PURE__ */ jsx9(View8, { style: estilos8.pip, children: /* @__PURE__ */ jsx9(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
+      (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs8(View8, { style: estilos8.centro, children: [
+        ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
+        /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
+        /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) })
+      ] }),
+      /* @__PURE__ */ jsxs8(View8, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
+        /* @__PURE__ */ jsx9(Pressable8, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "chevron-down", size: 26, color: "#fff" }) }),
+        emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) }),
+        /* @__PURE__ */ jsx9(View8, { style: { width: 42 } })
+      ] }),
+      erro && /* @__PURE__ */ jsx9(View8, { style: estilos8.erro, children: /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
+      ativa.fase === "a_receber" ? (
+        // incoming: dois botões grandes com rótulo, afastados
+        /* @__PURE__ */ jsxs8(View8, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: [
+          /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
+          /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
+        ] })
+      ) : ativa.fase === "falhada" ? /* @__PURE__ */ jsx9(View8, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ jsx9(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
+        // em curso: bandeja arredondada com o desligar integrado
+        /* @__PURE__ */ jsxs8(View8, { style: [estilos8.bandeja, { bottom: insets.bottom + 24 }], children: [
+          /* @__PURE__ */ jsx9(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
+          video && /* @__PURE__ */ jsx9(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
+          video && camara && /* @__PURE__ */ jsx9(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
+          /* @__PURE__ */ jsx9(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
+          aoEcra && /* @__PURE__ */ jsx9(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
+          /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
+        ] })
+      )
+    ] })
+  ] });
 }
 function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
   const lado = grande ? 76 : 60;

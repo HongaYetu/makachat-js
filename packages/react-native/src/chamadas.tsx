@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Modal, Platform, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { obterLiveKit, obterLiveKitClient, obterNotifee, obterPushMakaChat } from './opcionais';
 import { useFuncionalidadeAtiva } from './hooks';
 import { useMakaChat, useTema } from './provider';
@@ -717,6 +717,8 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
 
     return (
         <Modal visible animationType="slide" onRequestClose={aoMinimizar}>
+            {/* ecrã sempre escuro → ícones claros enquanto a chamada está visível */}
+            <StatusBar animated barStyle="light-content" />
             <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
                 {/* vídeos remotos */}
                 {emCurso && video && VideoTrack && remotos.length > 0 && (

@@ -9,6 +9,7 @@ import {
     Linking,
     Platform,
     Pressable,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
@@ -50,6 +51,12 @@ export interface ChatScreenProps {
      * Ecrãs montados em stacks/tabs inativos não devem marcar mensagens como lidas.
      */
     emFoco?: boolean;
+    /**
+     * Ícones da status bar enquanto o chat está em foco: 'escura' (ícones
+     * escuros — default, o chat tem fundo claro), 'clara' (ícones claros,
+     * para temas escuros) ou null para a app gerir sozinha.
+     */
+    barraEstado?: 'escura' | 'clara' | null;
 }
 
 interface ItemLista {
@@ -67,7 +74,7 @@ interface ItemLista {
 const KC = obterKeyboardController();
 const CampoTeclado = (KC?.KeyboardAvoidingView ?? KeyboardAvoidingView) as typeof KeyboardAvoidingView;
 
-export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true }: ChatScreenProps) {
+export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = 'escura' }: ChatScreenProps) {
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
     const insets = useSafeAreaInsets();
@@ -379,6 +386,11 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
     return (
         <View style={{ flex: 1, backgroundColor: tema.fundo }}>
+            {/* status bar do chat (o header claro precisa de ícones escuros);
+                configurável pela app via barraEstado, null desliga */}
+            {emFoco && barraEstado != null && (
+                <StatusBar animated barStyle={barraEstado === 'clara' ? 'light-content' : 'dark-content'} />
+            )}
             {/* header */}
             <View style={[estilos.header, { backgroundColor: tema.superficie }]}>
                 {onVoltar && (
