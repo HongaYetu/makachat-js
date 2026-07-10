@@ -484,8 +484,7 @@ function MakaChatProvider({
     const sub = import_react_native.AppState.addEventListener("change", (estado) => {
       if (estado !== "active") return;
       if (valor.socket.ligado) {
-        void valor.engine.sincronizarDelta().catch(() => void 0);
-        void valor.engine.flushOutbox().catch(() => void 0);
+        void valor.engine.aoLigar().catch(() => void 0);
       } else {
         valor.socket.garantirLigado();
       }

@@ -192,8 +192,9 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
             if (document.visibilityState !== 'visible') return;
 
             if (valor.socket.ligado) {
-                void valor.engine.sincronizarDelta().catch(() => undefined);
-                void valor.engine.flushOutbox().catch(() => undefined);
+                // aoLigar completo: rejoin + conversas/não-lidas + delta + outbox —
+                // as recuperadas seguem o fluxo normal de mensagem nova
+                void valor.engine.aoLigar().catch(() => undefined);
             } else {
                 valor.socket.garantirLigado();
             }

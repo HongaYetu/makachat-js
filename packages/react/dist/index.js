@@ -219,8 +219,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     const aoVisibilidade = () => {
       if (document.visibilityState !== "visible") return;
       if (valor.socket.ligado) {
-        void valor.engine.sincronizarDelta().catch(() => void 0);
-        void valor.engine.flushOutbox().catch(() => void 0);
+        void valor.engine.aoLigar().catch(() => void 0);
       } else {
         valor.socket.garantirLigado();
       }

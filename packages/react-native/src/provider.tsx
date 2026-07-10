@@ -175,15 +175,15 @@ export function MakaChatProvider({
     }, [valor]);
 
     // App volta do background: o Android mata websockets com o ecrã desligado.
-    // Reconecta já (sem esperar o backoff) — o aoLigar trata do delta+outbox; se
-    // o socket "sobreviveu", faz na mesma um delta leve (eventos podem ter-se perdido).
+    // Desligado → reconecta já (o 'connect' dispara o aoLigar). Se o socket
+    // "sobreviveu", corre na mesma o aoLigar completo (rejoin + conversas/não-lidas
+    // + delta + outbox) — as recuperadas seguem o fluxo normal de mensagem nova.
     useEffect(() => {
         const sub = AppState.addEventListener('change', (estado: string) => {
             if (estado !== 'active') return;
 
             if (valor.socket.ligado) {
-                void valor.engine.sincronizarDelta().catch(() => undefined);
-                void valor.engine.flushOutbox().catch(() => undefined);
+                void valor.engine.aoLigar().catch(() => undefined);
             } else {
                 valor.socket.garantirLigado();
             }
