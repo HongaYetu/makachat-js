@@ -11,6 +11,7 @@ declare module 'react-native' {
     export const TouchableOpacity: any;
     export const Pressable: any;
     export const Modal: any;
+    export const StatusBar: any;
     export const Image: any;
     export const ScrollView: any;
     export const KeyboardAvoidingView: any;
