@@ -212,9 +212,11 @@ interface InfoConversaScreenProps {
     /** depois de sair/eliminar — voltar à lista */
     onSaiu?(): void;
     onAbrirOutraConversa?(conversaId: string): void;
+    /** ícones da status bar (o header é claro): 'escura' default, 'clara' ou null p/ a app gerir */
+    barraEstado?: 'escura' | 'clara' | null;
 }
 /** Info da conversa/grupo estilo WhatsApp: membros, papéis, foto, renomear, sair. */
-declare function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa }: InfoConversaScreenProps): React.JSX.Element;
+declare function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado }: InfoConversaScreenProps): React.JSX.Element;
 
 interface EstadoChamada {
     chamada: Chamada;

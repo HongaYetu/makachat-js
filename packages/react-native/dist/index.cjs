@@ -2516,7 +2516,7 @@ var import_vector_icons7 = require("@expo/vector-icons");
 var import_react10 = require("react");
 var import_react_native8 = require("react-native");
 var import_jsx_runtime8 = require("react/jsx-runtime");
-function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa }) {
+function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
   const versao = useVersaoChat();
@@ -2588,6 +2588,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   };
   if (!conversa) return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: { flex: 1, backgroundColor: tema.fundo } });
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    barraEstado != null && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.StatusBar, { animated: true, barStyle: barraEstado === "clara" ? "light-content" : "dark-content" }),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.header, { backgroundColor: tema.superficie }], children: [
       onVoltar && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Pressable, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })

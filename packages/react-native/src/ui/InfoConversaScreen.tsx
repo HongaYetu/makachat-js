@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { AlvoParticipante, Conversa, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFuncionalidadeAtiva, useVersaoChat } from '../hooks';
 import { useMakaChat, useTema } from '../provider';
 import { Avatar, ListaPerformante, NomeComBadge, Sheet } from './comum';
@@ -13,10 +13,12 @@ export interface InfoConversaScreenProps {
     /** depois de sair/eliminar — voltar à lista */
     onSaiu?(): void;
     onAbrirOutraConversa?(conversaId: string): void;
+    /** ícones da status bar (o header é claro): 'escura' default, 'clara' ou null p/ a app gerir */
+    barraEstado?: 'escura' | 'clara' | null;
 }
 
 /** Info da conversa/grupo estilo WhatsApp: membros, papéis, foto, renomear, sair. */
-export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa }: InfoConversaScreenProps) {
+export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = 'escura' }: InfoConversaScreenProps) {
     const { engine, api, identidade, contactos } = useMakaChat();
     const tema = useTema();
     const versao = useVersaoChat();
@@ -105,6 +107,9 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
 
     return (
         <View style={{ flex: 1, backgroundColor: tema.fundo }}>
+            {barraEstado != null && (
+                <StatusBar animated barStyle={barraEstado === 'clara' ? 'light-content' : 'dark-content'} />
+            )}
             <View style={[estilos.header, { backgroundColor: tema.superficie }]}>
                 {onVoltar && (
                     <Pressable onPress={onVoltar} style={{ padding: 6 }}>

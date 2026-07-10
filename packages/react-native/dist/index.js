@@ -2505,9 +2505,9 @@ var estilos6 = StyleSheet6.create({
 // src/ui/InfoConversaScreen.tsx
 import { Ionicons as Ionicons7 } from "@expo/vector-icons";
 import { useEffect as useEffect7, useMemo as useMemo6, useState as useState8 } from "react";
-import { Alert as Alert3, Pressable as Pressable7, ScrollView, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, View as View7 } from "react-native";
+import { Alert as Alert3, Pressable as Pressable7, ScrollView, StatusBar as StatusBar2, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, View as View7 } from "react-native";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
-function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa }) {
+function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
   const versao = useVersaoChat();
@@ -2579,6 +2579,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   };
   if (!conversa) return /* @__PURE__ */ jsx8(View7, { style: { flex: 1, backgroundColor: tema.fundo } });
   return /* @__PURE__ */ jsxs7(View7, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    barraEstado != null && /* @__PURE__ */ jsx8(StatusBar2, { animated: true, barStyle: barraEstado === "clara" ? "light-content" : "dark-content" }),
     /* @__PURE__ */ jsxs7(View7, { style: [estilos7.header, { backgroundColor: tema.superficie }], children: [
       onVoltar && /* @__PURE__ */ jsx8(Pressable7, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ jsx8(Ionicons7, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ jsx8(Text7, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })
@@ -2753,7 +2754,7 @@ var estilos7 = StyleSheet7.create({
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StatusBar as StatusBar2, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
+import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StatusBar as StatusBar3, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
 import { Fragment, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
@@ -3226,7 +3227,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
   return /* @__PURE__ */ jsxs8(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
-    /* @__PURE__ */ jsx9(StatusBar2, { animated: true, barStyle: "light-content" }),
+    /* @__PURE__ */ jsx9(StatusBar3, { animated: true, barStyle: "light-content" }),
     /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
       emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx9(View8, { style: { ...StyleSheet8.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs8(View8, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
         /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover" }),
