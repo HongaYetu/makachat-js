@@ -31,6 +31,119 @@ class MakachatFcmService : FirebaseMessagingService() {
         var emissor: ((Map<String, String?>) -> Unit)? = null
         var emissorChamada: ((Map<String, String?>) -> Unit)? = null
 
+        /** broadcast interno para fechar o EcraChamadaActivity (atendeu/terminou noutro lado) */
+        const val ACAO_FECHAR_ECRA = "expo.modules.makachatpush.FECHAR_ECRA_CHAMADA"
+
+        /** Guarda a chamada pendente (lida pelo JS via obterChamadaPendente). */
+        fun persistirChamadaPendente(context: Context, acao: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(
+                "chamada_pendente",
+                """{"chamada_id":"$chamadaId","chamada_tipo":"$chamadaTipo","conversa_id":"$conversaId","chave_servico":"$chaveServico","acao":"$acao","recebida_em":"${Instant.now()}"}""",
+            ).apply()
+        }
+
+        /**
+         * Notificação de chamada recebida (CallStyle) — partilhada entre o caminho
+         * base (notify) e o ToqueChamadaService (startForeground). Com o toque
+         * contínuo ligado o canal é silencioso (o serviço toca via MediaPlayer);
+         * com o ecrã nativo ligado o full-screen intent aponta à activity.
+         */
+        fun construirNotificacaoChamada(
+            context: Context,
+            titulo: String,
+            chamadaId: String,
+            chamadaTipo: String,
+            conversaId: String,
+            chaveServico: String,
+            fotoUrl: String?,
+        ): android.app.Notification {
+            val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val toqueNoServico = Opcoes.toqueContinuo(context)
+            val canalId = if (toqueNoServico) "${CANAL_CHAMADAS}_silencioso" else CANAL_CHAMADAS
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val canal = NotificationChannel(canalId, "Chamadas", NotificationManager.IMPORTANCE_HIGH).apply {
+                    if (toqueNoServico) {
+                        setSound(null, null) // o MediaPlayer do serviço toca em loop
+                        enableVibration(false)
+                    } else {
+                        setSound(
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build(),
+                        )
+                        enableVibration(true)
+                        vibrationPattern = longArrayOf(0, 900, 700, 900)
+                    }
+                }
+                gestor.createNotificationChannel(canal)
+            }
+
+            val avatar = ImagemHelper.avatarCircular(fotoUrl, titulo)
+
+            fun pendenteActivity(acao: String): PendingIntent {
+                val intent = if (Opcoes.ecraNativo(context) && acao == "tocar") {
+                    Intent(context, EcraChamadaActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                } else {
+                    context.packageManager.getLaunchIntentForPackage(context.packageName)!!.apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                }
+
+                intent.putExtra("makachat_chamada_id", chamadaId)
+                intent.putExtra("makachat_chamada_tipo", chamadaTipo)
+                intent.putExtra("makachat_conversa_id", conversaId)
+                intent.putExtra("makachat_chave_servico", chaveServico)
+                intent.putExtra("makachat_acao", acao)
+                intent.putExtra("makachat_titulo", titulo)
+                intent.putExtra("makachat_foto", fotoUrl ?: "")
+
+                return PendingIntent.getActivity(
+                    context,
+                    (chamadaId + acao).hashCode(),
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+            }
+
+            // ordem importa no modo legado: 'tocar' persistido por último no tratarChamada
+            val rejeitar = pendenteActivity("rejeitar")
+            val atender = pendenteActivity("atender")
+            val abrir = pendenteActivity("tocar")
+
+            val construtor = NotificationCompat.Builder(context, canalId)
+                .setSmallIcon(context.applicationInfo.icon)
+                .setLargeIcon(avatar)
+                .setContentTitle(titulo)
+                .setContentText(if (chamadaTipo == "video") "Chamada de vídeo" else "Chamada de voz")
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(45_000)
+                .setFullScreenIntent(abrir, true)
+                .setContentIntent(abrir)
+
+            if (Build.VERSION.SDK_INT >= 31) {
+                val pessoa = Person.Builder()
+                    .setName(titulo)
+                    .setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(avatar))
+                    .setImportant(true)
+                    .build()
+                construtor.setStyle(NotificationCompat.CallStyle.forIncomingCall(pessoa, rejeitar, atender))
+            } else {
+                construtor
+                    .addAction(0, "Rejeitar", rejeitar)
+                    .addAction(0, "Atender", atender)
+            }
+
+            return construtor.build()
+        }
+
         fun cancelarChamada(context: Context, chamadaId: String) {
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             gestor.cancel(chamadaId.hashCode())
@@ -231,6 +344,11 @@ class MakachatFcmService : FirebaseMessagingService() {
         if (dados["acao"] == "parar") {
             cancelarChamada(applicationContext, chamadaId)
             prefs().edit().remove("chamada_pendente").apply()
+            ToqueChamadaService.parar(applicationContext)
+            // fecha o ecrã nativo se estiver aberto (atenderam/terminou noutro lado)
+            applicationContext.sendBroadcast(
+                Intent(ACAO_FECHAR_ECRA).setPackage(applicationContext.packageName),
+            )
 
             return
         }
@@ -260,86 +378,16 @@ class MakachatFcmService : FirebaseMessagingService() {
             """{"chamada_id":"$chamadaId","chamada_tipo":"$chamadaTipo","conversa_id":"$conversaId","chave_servico":"$chaveServico","acao":"tocar","recebida_em":"${Instant.now()}"}""",
         ).apply()
 
-        mostrarChamada(titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
-    }
-
-    private fun intentAbrir(acao: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String): PendingIntent {
-        val launch = packageManager.getLaunchIntentForPackage(packageName)!!.apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("makachat_chamada_id", chamadaId)
-            putExtra("makachat_chamada_tipo", chamadaTipo)
-            putExtra("makachat_conversa_id", conversaId)
-            putExtra("makachat_chave_servico", chaveServico)
-            putExtra("makachat_acao", acao)
-        }
-
-        // persiste também a ação — extras de launch intents nem sempre sobrevivem
-        prefs().edit().putString(
-            "chamada_pendente",
-            """{"chamada_id":"$chamadaId","chamada_tipo":"$chamadaTipo","conversa_id":"$conversaId","chave_servico":"$chaveServico","acao":"$acao","recebida_em":"${Instant.now()}"}""",
-        ).apply()
-
-        return PendingIntent.getActivity(
-            this,
-            (chamadaId + acao).hashCode(),
-            launch,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-    }
-
-    private fun mostrarChamada(titulo: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String, fotoUrl: String? = null) {
-        val gestor = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        // avatar circular do iniciador (foto ou placeholder com a inicial)
-        val avatar = ImagemHelper.avatarCircular(fotoUrl, titulo)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val som = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            val canal = NotificationChannel(CANAL_CHAMADAS, "Chamadas", NotificationManager.IMPORTANCE_HIGH).apply {
-                setSound(
-                    som,
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                )
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 900, 700, 900)
-            }
-            gestor.createNotificationChannel(canal)
-        }
-
-        val abrir = intentAbrir("tocar", chamadaId, chamadaTipo, conversaId, chaveServico)
-        val atender = intentAbrir("atender", chamadaId, chamadaTipo, conversaId, chaveServico)
-        val rejeitar = intentAbrir("rejeitar", chamadaId, chamadaTipo, conversaId, chaveServico)
-
-        val construtor = NotificationCompat.Builder(this, CANAL_CHAMADAS)
-            .setSmallIcon(applicationInfo.icon)
-            .setLargeIcon(avatar)
-            .setContentTitle(titulo)
-            .setContentText(if (chamadaTipo == "video") "Chamada de vídeo" else "Chamada de voz")
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setTimeoutAfter(45_000)
-            .setFullScreenIntent(abrir, true)
-            .setContentIntent(abrir)
-
-        if (Build.VERSION.SDK_INT >= 31) {
-            val pessoa = Person.Builder()
-                .setName(titulo)
-                .setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(avatar))
-                .setImportant(true)
-                .build()
-            construtor.setStyle(NotificationCompat.CallStyle.forIncomingCall(pessoa, rejeitar, atender))
+        if (Opcoes.toqueContinuo(applicationContext)) {
+            // o serviço mostra a notificação (foreground) e toca em loop até resolver
+            ToqueChamadaService.iniciar(applicationContext, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
         } else {
-            construtor
-                .addAction(0, "Rejeitar", rejeitar)
-                .addAction(0, "Atender", atender)
+            val gestor = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            gestor.notify(
+                chamadaId.hashCode(),
+                construirNotificacaoChamada(applicationContext, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"]),
+            )
         }
-
-        gestor.notify(chamadaId.hashCode(), construtor.build())
     }
 
     private fun prefs() = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

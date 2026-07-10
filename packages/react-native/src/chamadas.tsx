@@ -125,6 +125,30 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         return pararToque;
     }, [ativa?.fase]);
 
+    // serviço nativo da chamada em curso (opt-in do config plugin): mantém
+    // mic/LiveKit vivos em background + notificação persistente com cronómetro
+    useEffect(() => {
+        const push = obterPushMakaChat();
+
+        if (!push?.configChamadas) return;
+
+        try {
+            if (!push.configChamadas()?.servicoChamadaAtiva) return;
+
+            if (ativa?.fase === 'em_curso') {
+                const nome = ativa.iniciador?.nome ?? conversa?.titulo ?? 'Chamada';
+                const foto = ativa.iniciador?.foto_url ?? conversa?.foto_url ?? null;
+
+                push.iniciarChamadaAtiva({ nome, foto, tipo: ativa.chamada.tipo });
+            } else {
+                push.pararChamadaAtiva();
+            }
+        } catch {
+            // versão antiga do módulo sem estas funções
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ativa?.fase]);
+
     const limpar = useCallback(() => {
         void room.current?.disconnect?.();
         room.current = null;

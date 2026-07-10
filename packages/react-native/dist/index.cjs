@@ -2812,6 +2812,21 @@ function ChamadasProvider({ children }) {
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
+  (0, import_react11.useEffect)(() => {
+    const push = obterPushMakaChat();
+    if (!push?.configChamadas) return;
+    try {
+      if (!push.configChamadas()?.servicoChamadaAtiva) return;
+      if (ativa?.fase === "em_curso") {
+        const nome = ativa.iniciador?.nome ?? conversa?.titulo ?? "Chamada";
+        const foto = ativa.iniciador?.foto_url ?? conversa?.foto_url ?? null;
+        push.iniciarChamadaAtiva({ nome, foto, tipo: ativa.chamada.tipo });
+      } else {
+        push.pararChamadaAtiva();
+      }
+    } catch {
+    }
+  }, [ativa?.fase]);
   const limpar = (0, import_react11.useCallback)(() => {
     void room.current?.disconnect?.();
     room.current = null;

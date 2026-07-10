@@ -18,6 +18,15 @@ export interface ChamadaPush {
     recebida_em?: string;
 }
 
+export interface ConfigChamadas {
+    /** toque em loop contínuo até atender (opt-in do config plugin) */
+    toqueContinuo: boolean;
+    /** ecrã nativo de chamada sobre o lockscreen */
+    ecraNativo: boolean;
+    /** foreground service da chamada em curso (mic vivo em background) */
+    servicoChamadaAtiva: boolean;
+}
+
 interface ModuloNativo {
     drenarInbox(): Promise<string>;
     contagemInbox(): Promise<number>;
@@ -28,6 +37,9 @@ interface ModuloNativo {
     cancelarNotificacaoChamada(chamadaId: string): void;
     cancelarNotificacaoMensagens(conversaId: string): void;
     configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
+    configChamadas(): ConfigChamadas;
+    iniciarChamadaAtiva(nome: string, foto: string | null, tipo: string): void;
+    pararChamadaAtiva(): void;
 }
 
 const nativo = requireNativeModule<ModuloNativo>('ExpoMakachatPush');
@@ -77,6 +89,25 @@ export function cancelarNotificacaoChamada(chamadaId: string): void {
  */
 export async function obterConversaPendente(): Promise<string | null> {
     return nativo.obterConversaPendente();
+}
+
+/** Flags dos serviços opcionais de chamada (injetadas pelo config plugin). */
+export function configChamadas(): ConfigChamadas {
+    try {
+        return nativo.configChamadas();
+    } catch {
+        return { toqueContinuo: false, ecraNativo: false, servicoChamadaAtiva: false };
+    }
+}
+
+/** Foreground service da chamada em curso — chamar quando a fase passa a em_curso. */
+export function iniciarChamadaAtiva(dados: { nome: string; foto?: string | null; tipo: 'audio' | 'video' }): void {
+    nativo.iniciarChamadaAtiva(dados.nome, dados.foto ?? null, dados.tipo);
+}
+
+/** Para o serviço da chamada em curso — chamar ao terminar/limpar. */
+export function pararChamadaAtiva(): void {
+    nativo.pararChamadaAtiva();
 }
 
 /** Cancela a notificação nativa de mensagens da conversa (ao abrir o chat na app). */

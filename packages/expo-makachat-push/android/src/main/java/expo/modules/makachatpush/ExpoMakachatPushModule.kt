@@ -59,6 +59,29 @@ class ExpoMakachatPushModule : Module() {
             MakachatFcmService.cancelarNotificacaoMensagens(appContext.reactContext!!, conversaId)
         }
 
+        /** Flags dos serviços opcionais de chamada (injetadas pelo config plugin). */
+        Function("configChamadas") {
+            val ctx = appContext.reactContext!!
+            mapOf(
+                "toqueContinuo" to Opcoes.toqueContinuo(ctx),
+                "ecraNativo" to Opcoes.ecraNativo(ctx),
+                "servicoChamadaAtiva" to Opcoes.servicoChamadaAtiva(ctx),
+            )
+        }
+
+        /** Foreground service da chamada em curso (JS chama quando fase → em_curso). */
+        Function("iniciarChamadaAtiva") { nome: String, foto: String?, tipo: String ->
+            val ctx = appContext.reactContext!!
+
+            if (Opcoes.servicoChamadaAtiva(ctx)) {
+                ChamadaAtivaService.iniciar(ctx, nome, foto, tipo)
+            }
+        }
+
+        Function("pararChamadaAtiva") {
+            ChamadaAtivaService.parar(appContext.reactContext!!)
+        }
+
         OnCreate {
             // permite ao FCM service emitir para o JS quando a app está viva
             MakachatFcmService.emissor = { payload -> sendEvent("onMensagemPush", payload) }
