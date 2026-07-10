@@ -260,7 +260,7 @@ class MakachatFcmService : FirebaseMessagingService() {
             """{"chamada_id":"$chamadaId","chamada_tipo":"$chamadaTipo","conversa_id":"$conversaId","chave_servico":"$chaveServico","acao":"tocar","recebida_em":"${Instant.now()}"}""",
         ).apply()
 
-        mostrarChamada(titulo, chamadaId, chamadaTipo, conversaId, chaveServico)
+        mostrarChamada(titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
     }
 
     private fun intentAbrir(acao: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String): PendingIntent {
@@ -287,8 +287,11 @@ class MakachatFcmService : FirebaseMessagingService() {
         )
     }
 
-    private fun mostrarChamada(titulo: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String) {
+    private fun mostrarChamada(titulo: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String, fotoUrl: String? = null) {
         val gestor = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // avatar circular do iniciador (foto ou placeholder com a inicial)
+        val avatar = ImagemHelper.avatarCircular(fotoUrl, titulo)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val som = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -312,6 +315,7 @@ class MakachatFcmService : FirebaseMessagingService() {
 
         val construtor = NotificationCompat.Builder(this, CANAL_CHAMADAS)
             .setSmallIcon(applicationInfo.icon)
+            .setLargeIcon(avatar)
             .setContentTitle(titulo)
             .setContentText(if (chamadaTipo == "video") "Chamada de vídeo" else "Chamada de voz")
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -323,7 +327,11 @@ class MakachatFcmService : FirebaseMessagingService() {
             .setContentIntent(abrir)
 
         if (Build.VERSION.SDK_INT >= 31) {
-            val pessoa = Person.Builder().setName(titulo).setImportant(true).build()
+            val pessoa = Person.Builder()
+                .setName(titulo)
+                .setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(avatar))
+                .setImportant(true)
+                .build()
             construtor.setStyle(NotificationCompat.CallStyle.forIncomingCall(pessoa, rejeitar, atender))
         } else {
             construtor
