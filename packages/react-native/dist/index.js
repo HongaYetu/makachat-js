@@ -1109,7 +1109,6 @@ import { useCallback as useCallback3, useEffect as useEffect6, useMemo as useMem
 import {
   Alert as Alert2,
   AppState,
-  Keyboard,
   KeyboardAvoidingView,
   Linking as Linking2,
   Platform,
@@ -1758,16 +1757,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = useSafeAreaInsets2();
-  const [tecladoAberto, setTecladoAberto] = useState7(false);
-  useEffect6(() => {
-    const mostrar = Keyboard.addListener("keyboardDidShow", () => setTecladoAberto(true));
-    const esconder = Keyboard.addListener("keyboardDidHide", () => setTecladoAberto(false));
-    return () => {
-      mostrar.remove();
-      esconder.remove();
-    };
-  }, []);
-  const padFundoInput = tecladoAberto ? 8 : Math.max(insets.bottom, 8);
+  const padFundoInput = Math.max(insets.bottom, 8);
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);
@@ -2143,21 +2133,28 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ jsx7(CampoTeclado, { behavior: KC ? "padding" : Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
-      (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),
-      /* @__PURE__ */ jsx7(
-        TextInput3,
-        {
-          value: texto,
-          onChangeText: aoEscrever,
-          placeholder: "Mensagem",
-          placeholderTextColor: tema.textoSuave,
-          multiline: true,
-          style: [estilos6.input, { backgroundColor: tema.fundo, color: tema.texto }]
-        }
-      ),
-      texto.trim() ? /* @__PURE__ */ jsx7(Pressable6, { onPress: () => void aoEnviar(), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx7(Ionicons6, { name: editar ? "checkmark" : "send", size: 19, color: tema.primariaContraste }) }) : podeAudioMsg ? /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAGravar(true), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx7(Ionicons6, { name: "mic", size: 20, color: tema.primariaContraste }) }) : /* @__PURE__ */ jsx7(View6, { style: { width: 42 } })
-    ] }) }),
+    ) : /* @__PURE__ */ jsx7(
+      CampoTeclado,
+      {
+        behavior: KC ? "padding" : Platform.OS === "ios" ? "padding" : void 0,
+        keyboardVerticalOffset: -(Math.max(insets.bottom, 8) - 8),
+        children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
+          (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),
+          /* @__PURE__ */ jsx7(
+            TextInput3,
+            {
+              value: texto,
+              onChangeText: aoEscrever,
+              placeholder: "Mensagem",
+              placeholderTextColor: tema.textoSuave,
+              multiline: true,
+              style: [estilos6.input, { backgroundColor: tema.fundo, color: tema.texto }]
+            }
+          ),
+          texto.trim() ? /* @__PURE__ */ jsx7(Pressable6, { onPress: () => void aoEnviar(), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx7(Ionicons6, { name: editar ? "checkmark" : "send", size: 19, color: tema.primariaContraste }) }) : podeAudioMsg ? /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAGravar(true), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx7(Ionicons6, { name: "mic", size: 20, color: tema.primariaContraste }) }) : /* @__PURE__ */ jsx7(View6, { style: { width: 42 } })
+        ] })
+      }
+    ),
     /* @__PURE__ */ jsx7(Sheet, { visivel: acoesDe !== null, aoFechar: () => setAcoesDe(null), itens: acoesDe ? itensAcoes(acoesDe) : [], children: acoesDe && podeReagir && !acoesDe.eliminada && /* @__PURE__ */ jsx7(View6, { style: estilos6.emojis, children: EMOJIS.map((e) => /* @__PURE__ */ jsx7(
       Pressable6,
       {

@@ -1766,16 +1766,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = (0, import_react_native_safe_area_context2.useSafeAreaInsets)();
-  const [tecladoAberto, setTecladoAberto] = (0, import_react9.useState)(false);
-  (0, import_react9.useEffect)(() => {
-    const mostrar = import_react_native6.Keyboard.addListener("keyboardDidShow", () => setTecladoAberto(true));
-    const esconder = import_react_native6.Keyboard.addListener("keyboardDidHide", () => setTecladoAberto(false));
-    return () => {
-      mostrar.remove();
-      esconder.remove();
-    };
-  }, []);
-  const padFundoInput = tecladoAberto ? 8 : Math.max(insets.bottom, 8);
+  const padFundoInput = Math.max(insets.bottom, 8);
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);
@@ -2151,21 +2142,28 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CampoTeclado, { behavior: KC ? "padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
-      (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-        import_react_native6.TextInput,
-        {
-          value: texto,
-          onChangeText: aoEscrever,
-          placeholder: "Mensagem",
-          placeholderTextColor: tema.textoSuave,
-          multiline: true,
-          style: [estilos6.input, { backgroundColor: tema.fundo, color: tema.texto }]
-        }
-      ),
-      texto.trim() ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => void aoEnviar(), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: editar ? "checkmark" : "send", size: 19, color: tema.primariaContraste }) }) : podeAudioMsg ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAGravar(true), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "mic", size: 20, color: tema.primariaContraste }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { width: 42 } })
-    ] }) }),
+    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+      CampoTeclado,
+      {
+        behavior: KC ? "padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0,
+        keyboardVerticalOffset: -(Math.max(insets.bottom, 8) - 8),
+        children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
+          (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            import_react_native6.TextInput,
+            {
+              value: texto,
+              onChangeText: aoEscrever,
+              placeholder: "Mensagem",
+              placeholderTextColor: tema.textoSuave,
+              multiline: true,
+              style: [estilos6.input, { backgroundColor: tema.fundo, color: tema.texto }]
+            }
+          ),
+          texto.trim() ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => void aoEnviar(), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: editar ? "checkmark" : "send", size: 19, color: tema.primariaContraste }) }) : podeAudioMsg ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAGravar(true), style: [estilos6.enviar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "mic", size: 20, color: tema.primariaContraste }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: { width: 42 } })
+        ] })
+      }
+    ),
     /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Sheet, { visivel: acoesDe !== null, aoFechar: () => setAcoesDe(null), itens: acoesDe ? itensAcoes(acoesDe) : [], children: acoesDe && podeReagir && !acoesDe.eliminada && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.View, { style: estilos6.emojis, children: EMOJIS.map((e) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       import_react_native6.Pressable,
       {

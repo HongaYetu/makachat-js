@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     Alert,
     AppState,
-    Keyboard,
     KeyboardAvoidingView,
     Linking,
     Platform,
@@ -67,22 +66,11 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
     const insets = useSafeAreaInsets();
-    // Padding do composer conforme o teclado (evita dupla compensação): fechado →
-    // insets.bottom (folga da barra de navegação); aberto → 8 (o teclado já cobre
-    // essa zona — mantê-lo criava uma folga enorme entre o input e o teclado).
-    const [tecladoAberto, setTecladoAberto] = useState(false);
-
-    useEffect(() => {
-        const mostrar = Keyboard.addListener('keyboardDidShow', () => setTecladoAberto(true));
-        const esconder = Keyboard.addListener('keyboardDidHide', () => setTecladoAberto(false));
-
-        return () => {
-            mostrar.remove();
-            esconder.remove();
-        };
-    }, []);
-
-    const padFundoInput = tecladoAberto ? 8 : Math.max(insets.bottom, 8);
+    // Folga do composer: paddingBottom CONSTANTE (insets da nav bar) e a dupla
+    // compensação anulada por keyboardVerticalOffset negativo no CampoTeclado —
+    // o offset entra no interpolate do animador do keyboard-controller, por isso
+    // a compensação é contínua durante toda a animação (sem trocas → sem saltos).
+    const padFundoInput = Math.max(insets.bottom, 8);
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 500);
     const typing = useTypingConversa(conversaId);
@@ -568,7 +556,10 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     }}
                 />
             ) : (
-                <CampoTeclado behavior={KC ? 'padding' : Platform.OS === 'ios' ? 'padding' : undefined}>
+                <CampoTeclado
+                    behavior={KC ? 'padding' : Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={-(Math.max(insets.bottom, 8) - 8)}
+                >
                     <View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }]}>
                         {(podeFoto || podeFicheiro) && (
                             <Pressable onPress={() => setAnexoMenu(true)} style={{ padding: 7 }}>
