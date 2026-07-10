@@ -14,6 +14,9 @@ declare module 'react-native' {
     export const Image: any;
     export const ScrollView: any;
     export const KeyboardAvoidingView: any;
+    export const Keyboard: {
+        addListener(evento: string, handler: () => void): { remove(): void };
+    };
     export const SafeAreaView: any;
     export const ActivityIndicator: any;
     export const Alert: { alert(titulo: string, mensagem?: string, botoes?: any[], opcoes?: any): void };

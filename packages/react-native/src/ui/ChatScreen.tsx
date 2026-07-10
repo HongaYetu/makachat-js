@@ -4,8 +4,8 @@ import { Anexo, Conversa, Mensagem, ParticipanteConversa } from '@hongayetu/maka
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
-    Animated,
     AppState,
+    Keyboard,
     KeyboardAvoidingView,
     Linking,
     Platform,
@@ -67,33 +67,22 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
     const insets = useSafeAreaInsets();
-    // Padding do composer sincronizado com o teclado (evita dupla compensação):
-    // fechado → insets.bottom (folga da barra de navegação); aberto → 8 (o teclado
-    // já cobre essa zona — mantê-lo criava uma folga enorme entre input e teclado).
-    // O progress do keyboard-controller é NATIVE-driven (não anima padding);
-    // espelhamo-lo num Animated.Value JS via listener — esse pode animar layout.
-    // KC é constante de módulo → a ordem de hooks é estável.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const animTeclado = KC?.useKeyboardAnimation
-        ? (KC.useKeyboardAnimation() as {
-              progress: { addListener(cb: (e: { value: number }) => void): string; removeListener(id: string): void };
-          })
-        : null;
-    const progressoJs = useRef(new Animated.Value(0)).current;
+    // Padding do composer conforme o teclado (evita dupla compensação): fechado →
+    // insets.bottom (folga da barra de navegação); aberto → 8 (o teclado já cobre
+    // essa zona — mantê-lo criava uma folga enorme entre o input e o teclado).
+    const [tecladoAberto, setTecladoAberto] = useState(false);
 
     useEffect(() => {
-        if (!animTeclado?.progress?.addListener) return;
+        const mostrar = Keyboard.addListener('keyboardDidShow', () => setTecladoAberto(true));
+        const esconder = Keyboard.addListener('keyboardDidHide', () => setTecladoAberto(false));
 
-        const id = animTeclado.progress.addListener(({ value }) => progressoJs.setValue(value));
+        return () => {
+            mostrar.remove();
+            esconder.remove();
+        };
+    }, []);
 
-        return () => animTeclado.progress.removeListener(id);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [animTeclado?.progress]);
-
-    const padFundoBase = Math.max(insets.bottom, 8);
-    const padFundoInput = animTeclado
-        ? progressoJs.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] })
-        : padFundoBase;
+    const padFundoInput = tecladoAberto ? 8 : Math.max(insets.bottom, 8);
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 500);
     const typing = useTypingConversa(conversaId);
@@ -580,7 +569,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 />
             ) : (
                 <CampoTeclado behavior={KC ? 'padding' : Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <Animated.View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }]}>
+                    <View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }]}>
                         {(podeFoto || podeFicheiro) && (
                             <Pressable onPress={() => setAnexoMenu(true)} style={{ padding: 7 }}>
                                 <Ionicons name="attach" size={24} color={tema.textoSuave} />
@@ -605,7 +594,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                         ) : (
                             <View style={{ width: 42 }} />
                         )}
-                    </Animated.View>
+                    </View>
                 </CampoTeclado>
             )}
 
