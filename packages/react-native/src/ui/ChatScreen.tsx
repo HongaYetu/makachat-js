@@ -183,15 +183,27 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
         setNovas(0);
     }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
 
-    // contagem de novas quando o scroll está recuado
+    // contagem de novas quando o scroll está recuado — pelo ID da última (como a
+    // web): paginar antigas não conta, janela cheia (500) conta na mesma, e as
+    // próprias mensagens não contam. O diff de comprimento cobre lotes do delta.
     const totalAnterior = useRef(mensagens.length);
+    const ultimaContada = useRef<string | null>(null);
     useEffect(() => {
-        if (mensagens.length > totalAnterior.current && !noFundo) {
-            setNovas((n) => n + (mensagens.length - totalAnterior.current));
-        }
+        const ultima = mensagens.at(-1);
+        const anterior = ultimaContada.current;
+        const totalAntes = totalAnterior.current;
 
         totalAnterior.current = mensagens.length;
-    }, [mensagens.length, noFundo]);
+        ultimaContada.current = ultima?.id ?? null;
+
+        if (!ultima || anterior === null || ultima.id === anterior) return; // 1ª carga / sem nova
+
+        const minha = ultima.remetente_identidade_id === eu?.identidade_id || ultima.estado_envio === 'a_enviar';
+
+        if (!noFundo && !minha) {
+            setNovas((n) => n + Math.max(1, mensagens.length - totalAntes));
+        }
+    }, [mensagens, noFundo, eu?.identidade_id]);
 
     // typing do próprio
     const ultimoTyping = useRef(0);

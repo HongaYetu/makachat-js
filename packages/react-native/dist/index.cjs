@@ -1862,12 +1862,19 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     setNovas(0);
   }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
   const totalAnterior = (0, import_react9.useRef)(mensagens.length);
+  const ultimaContada = (0, import_react9.useRef)(null);
   (0, import_react9.useEffect)(() => {
-    if (mensagens.length > totalAnterior.current && !noFundo) {
-      setNovas((n) => n + (mensagens.length - totalAnterior.current));
-    }
+    const ultima = mensagens.at(-1);
+    const anterior = ultimaContada.current;
+    const totalAntes = totalAnterior.current;
     totalAnterior.current = mensagens.length;
-  }, [mensagens.length, noFundo]);
+    ultimaContada.current = ultima?.id ?? null;
+    if (!ultima || anterior === null || ultima.id === anterior) return;
+    const minha = ultima.remetente_identidade_id === eu?.identidade_id || ultima.estado_envio === "a_enviar";
+    if (!noFundo && !minha) {
+      setNovas((n) => n + Math.max(1, mensagens.length - totalAntes));
+    }
+  }, [mensagens, noFundo, eu?.identidade_id]);
   const ultimoTyping = (0, import_react9.useRef)(0);
   const aoEscrever = (valor) => {
     setTexto(valor);
