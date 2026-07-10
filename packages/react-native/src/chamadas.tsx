@@ -118,6 +118,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const conversaRef = useRef<Conversa | null>(null);
     const desligarRef = useRef<() => Promise<void>>(async () => undefined);
     const sozinhoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const chamadaIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        chamadaIdRef.current = ativa?.chamada.id ?? null;
+    }, [ativa]);
 
     useEffect(() => {
         faseRef.current = ativa?.fase ?? null;
@@ -331,6 +336,13 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         () =>
             subscreverChamadas((evento: EventoChamada) => {
                 if (evento.evento === 'iniciada') {
+                    // o push chegou primeiro (esqueleto): enriquece SEM regredir a fase
+                    if (chamadaIdRef.current === evento.chamada.id) {
+                        setAtiva((a) => (a?.fase === 'a_receber' ? { ...a, chamada: evento.chamada, iniciador: evento.iniciador } : a));
+
+                        return;
+                    }
+
                     // eco da PRÓPRIA chamada (outra sessão/dispositivo desta identidade)
                     // nunca vira UI de receção nem toque
                     void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
@@ -402,6 +414,33 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         [suportado, api, engine, ligarSala, falhar, comecarTimer],
     );
 
+    // ringing em-app com esqueleto local (arranque frio ou push em foreground);
+    // o evento `iniciada` do socket enriquece depois com o iniciador
+    const tocarEmApp = useCallback(
+        async (chamadaId: string, chamadaTipo: 'audio' | 'video', conversaId: string) => {
+            // já está a tocar/em curso (o socket chegou primeiro) — não sobrepor
+            if (chamadaIdRef.current === chamadaId) return;
+
+            const conversaLocal = await engine.storage.obterConversa(conversaId);
+            setConversa(conversaLocal);
+            setAtiva({
+                chamada: {
+                    id: chamadaId,
+                    conversa_id: conversaId,
+                    iniciador_identidade_id: '',
+                    tipo: chamadaTipo,
+                    estado: 'a_tocar',
+                    iniciada_em: new Date().toISOString(),
+                    atendida_em: null,
+                    terminada_em: null,
+                    duracao_segundos: null,
+                },
+                fase: 'a_receber',
+            });
+        },
+        [engine],
+    );
+
     const retomarPendente = useCallback(async () => {
         const push = obterPushMakaChat();
 
@@ -426,23 +465,8 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         }
 
         // 'tocar': mostra o ringing normal com os dados que temos
-        const conversaLocal = await engine.storage.obterConversa(pendente.conversa_id);
-        setConversa(conversaLocal);
-        setAtiva({
-            chamada: {
-                id: pendente.chamada_id,
-                conversa_id: pendente.conversa_id,
-                iniciador_identidade_id: '',
-                tipo: pendente.chamada_tipo,
-                estado: 'a_tocar',
-                iniciada_em: new Date().toISOString(),
-                atendida_em: null,
-                terminada_em: null,
-                duracao_segundos: null,
-            },
-            fase: 'a_receber',
-        });
-    }, [api, engine, entrar]);
+        await tocarEmApp(pendente.chamada_id, pendente.chamada_tipo, pendente.conversa_id);
+    }, [api, entrar, tocarEmApp]);
 
     // app aberta por uma notificação de chamada (arranque frio ou background)
     useEffect(() => {
@@ -454,6 +478,48 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
         return () => sub.remove();
     }, [retomarPendente]);
+
+    // push de chamada com a app VIVA (Android): em foreground toca em-app (cobre
+    // o socket dormente); em background apresenta a notificação nativa completa
+    useEffect(() => {
+        const push = obterPushMakaChat();
+
+        if (!push?.aoChamadaPush) return;
+
+        const sub = push.aoChamadaPush((chamada: { acao: string; chamada_id: string; chamada_tipo: 'audio' | 'video'; conversa_id: string; chave_servico: string; titulo?: string; foto?: string }) => {
+            if (chamada.acao === 'parar') {
+                // atenderam/terminou noutro lado — cala o ringing em-app
+                if (chamadaIdRef.current === chamada.chamada_id && faseRef.current === 'a_receber') limpar();
+
+                return;
+            }
+
+            if (chamada.acao !== 'tocar') return;
+
+            // o socket chegou primeiro — já está a tocar
+            if (chamadaIdRef.current === chamada.chamada_id) return;
+
+            if (AppState.currentState === 'active') {
+                void tocarEmApp(chamada.chamada_id, chamada.chamada_tipo, chamada.conversa_id);
+            } else {
+                // app viva mas em background: mesmo caminho do app-morto
+                try {
+                    push.apresentarChamada?.({
+                        titulo: chamada.titulo || 'Chamada',
+                        chamada_id: chamada.chamada_id,
+                        chamada_tipo: chamada.chamada_tipo,
+                        conversa_id: chamada.conversa_id,
+                        chave_servico: chamada.chave_servico,
+                        foto: chamada.foto || null,
+                    });
+                } catch {
+                    // versão antiga do módulo nativo sem apresentarChamada
+                }
+            }
+        });
+
+        return () => sub.remove();
+    }, [limpar, tocarEmApp]);
 
     const atender = async () => {
         if (!ativa) return;

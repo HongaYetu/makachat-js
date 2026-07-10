@@ -2808,6 +2808,10 @@ function ChamadasProvider({ children }) {
   const conversaRef = (0, import_react11.useRef)(null);
   const desligarRef = (0, import_react11.useRef)(async () => void 0);
   const sozinhoTimer = (0, import_react11.useRef)(null);
+  const chamadaIdRef = (0, import_react11.useRef)(null);
+  (0, import_react11.useEffect)(() => {
+    chamadaIdRef.current = ativa?.chamada.id ?? null;
+  }, [ativa]);
   (0, import_react11.useEffect)(() => {
     faseRef.current = ativa?.fase ?? null;
     if (ativa?.fase === "a_ligar") comecarToque("ligar");
@@ -2963,6 +2967,10 @@ function ChamadasProvider({ children }) {
   (0, import_react11.useEffect)(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
+        if (chamadaIdRef.current === evento.chamada.id) {
+          setAtiva((a) => a?.fase === "a_receber" ? { ...a, chamada: evento.chamada, iniciador: evento.iniciador } : a);
+          return;
+        }
         void engine.minhaIdentidadeId(evento.chamada.conversa_id).then((minha) => {
           if (minha && evento.chamada.iniciador_identidade_id === minha) return;
           setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
@@ -3018,6 +3026,28 @@ function ChamadasProvider({ children }) {
     },
     [suportado, api, engine, ligarSala, falhar, comecarTimer]
   );
+  const tocarEmApp = (0, import_react11.useCallback)(
+    async (chamadaId, chamadaTipo, conversaId) => {
+      if (chamadaIdRef.current === chamadaId) return;
+      const conversaLocal = await engine.storage.obterConversa(conversaId);
+      setConversa(conversaLocal);
+      setAtiva({
+        chamada: {
+          id: chamadaId,
+          conversa_id: conversaId,
+          iniciador_identidade_id: "",
+          tipo: chamadaTipo,
+          estado: "a_tocar",
+          iniciada_em: (/* @__PURE__ */ new Date()).toISOString(),
+          atendida_em: null,
+          terminada_em: null,
+          duracao_segundos: null
+        },
+        fase: "a_receber"
+      });
+    },
+    [engine]
+  );
   const retomarPendente = (0, import_react11.useCallback)(async () => {
     const push = obterPushMakaChat();
     if (!push?.obterChamadaPendente) return;
@@ -3032,23 +3062,8 @@ function ChamadasProvider({ children }) {
       await entrar(pendente.chamada_id, pendente.chamada_tipo).catch(() => void 0);
       return;
     }
-    const conversaLocal = await engine.storage.obterConversa(pendente.conversa_id);
-    setConversa(conversaLocal);
-    setAtiva({
-      chamada: {
-        id: pendente.chamada_id,
-        conversa_id: pendente.conversa_id,
-        iniciador_identidade_id: "",
-        tipo: pendente.chamada_tipo,
-        estado: "a_tocar",
-        iniciada_em: (/* @__PURE__ */ new Date()).toISOString(),
-        atendida_em: null,
-        terminada_em: null,
-        duracao_segundos: null
-      },
-      fase: "a_receber"
-    });
-  }, [api, engine, entrar]);
+    await tocarEmApp(pendente.chamada_id, pendente.chamada_tipo, pendente.conversa_id);
+  }, [api, entrar, tocarEmApp]);
   (0, import_react11.useEffect)(() => {
     void retomarPendente();
     const sub = import_react_native9.AppState.addEventListener("change", (estado) => {
@@ -3056,6 +3071,34 @@ function ChamadasProvider({ children }) {
     });
     return () => sub.remove();
   }, [retomarPendente]);
+  (0, import_react11.useEffect)(() => {
+    const push = obterPushMakaChat();
+    if (!push?.aoChamadaPush) return;
+    const sub = push.aoChamadaPush((chamada) => {
+      if (chamada.acao === "parar") {
+        if (chamadaIdRef.current === chamada.chamada_id && faseRef.current === "a_receber") limpar();
+        return;
+      }
+      if (chamada.acao !== "tocar") return;
+      if (chamadaIdRef.current === chamada.chamada_id) return;
+      if (import_react_native9.AppState.currentState === "active") {
+        void tocarEmApp(chamada.chamada_id, chamada.chamada_tipo, chamada.conversa_id);
+      } else {
+        try {
+          push.apresentarChamada?.({
+            titulo: chamada.titulo || "Chamada",
+            chamada_id: chamada.chamada_id,
+            chamada_tipo: chamada.chamada_tipo,
+            conversa_id: chamada.conversa_id,
+            chave_servico: chamada.chave_servico,
+            foto: chamada.foto || null
+          });
+        } catch {
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [limpar, tocarEmApp]);
   const atender = async () => {
     if (!ativa) return;
     const r = await api.atenderChamada(ativa.chamada.id);
@@ -3346,6 +3389,8 @@ function previewDe(mensagem) {
       return "\u{1F3A4} Mensagem de voz";
     case "ficheiro":
       return "\u{1F4CE} Ficheiro";
+    case "chamada":
+      return `\u{1F4DE} ${mensagem.conteudo ?? "Chamada"}`;
     default:
       return mensagem.conteudo ?? "Nova mensagem";
   }

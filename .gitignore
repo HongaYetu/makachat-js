@@ -5,3 +5,7 @@ apps/*/dist/
 .env
 *.log
 .DS_Store
+
+# intermediates do gradle do módulo nativo (compilados localmente; nunca versionar)
+packages/*/android/build/
+packages/*/android/.cxx/

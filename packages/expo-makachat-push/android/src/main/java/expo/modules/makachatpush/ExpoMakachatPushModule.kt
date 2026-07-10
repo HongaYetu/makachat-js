@@ -46,6 +46,23 @@ class ExpoMakachatPushModule : Module() {
             MakachatFcmService.cancelarChamada(appContext.reactContext!!, chamadaId)
         }
 
+        /**
+         * Apresenta a chamada como no app-morto (toque contínuo/notificação
+         * CallStyle) — o JS chama quando recebe onChamadaPush com a app viva
+         * mas em background.
+         */
+        Function("apresentarChamada") { titulo: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String, foto: String? ->
+            MakachatFcmService.apresentarChamada(
+                appContext.reactContext!!,
+                titulo,
+                chamadaId,
+                chamadaTipo,
+                conversaId,
+                chaveServico,
+                foto?.takeIf { it.isNotBlank() },
+            )
+        }
+
         /** Conversa do tap numa notificação nativa de mensagem (lê e limpa). */
         AsyncFunction("obterConversaPendente") {
             val prefs = appContext.reactContext!!.getSharedPreferences(MakachatFcmService.PREFS, Context.MODE_PRIVATE)

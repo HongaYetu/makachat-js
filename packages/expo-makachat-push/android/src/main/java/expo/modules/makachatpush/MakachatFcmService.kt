@@ -34,6 +34,34 @@ class MakachatFcmService : FirebaseMessagingService() {
         /** broadcast interno para fechar o EcraChamadaActivity (atendeu/terminou noutro lado) */
         const val ACAO_FECHAR_ECRA = "expo.modules.makachatpush.FECHAR_ECRA_CHAMADA"
 
+        /**
+         * Apresenta a chamada recebida (toque contínuo ou notificação CallStyle)
+         * — caminho do app-morto, também invocável pelo JS quando a app está
+         * viva mas em background (apresentarChamada no módulo).
+         */
+        fun apresentarChamada(
+            context: Context,
+            titulo: String,
+            chamadaId: String,
+            chamadaTipo: String,
+            conversaId: String,
+            chaveServico: String,
+            fotoUrl: String?,
+        ) {
+            // guarda a chamada pendente para a app ler no arranque frio/foreground
+            persistirChamadaPendente(context, "tocar", chamadaId, chamadaTipo, conversaId, chaveServico)
+
+            if (Opcoes.toqueContinuo(context)) {
+                ToqueChamadaService.iniciar(context, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, fotoUrl)
+            } else {
+                val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                gestor.notify(
+                    chamadaId.hashCode(),
+                    construirNotificacaoChamada(context, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, fotoUrl),
+                )
+            }
+        }
+
         /** Guarda a chamada pendente (lida pelo JS via obterChamadaPendente). */
         fun persistirChamadaPendente(context: Context, acao: String, chamadaId: String, chamadaTipo: String, conversaId: String, chaveServico: String) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(
@@ -356,6 +384,8 @@ class MakachatFcmService : FirebaseMessagingService() {
             applicationContext.sendBroadcast(
                 Intent(ACAO_FECHAR_ECRA).setPackage(applicationContext.packageName),
             )
+            // app viva: o JS pode estar a tocar em-app — manda calar
+            emissorChamada?.invoke(mapOf("chamada_id" to chamadaId, "acao" to "parar"))
 
             return
         }
@@ -365,7 +395,8 @@ class MakachatFcmService : FirebaseMessagingService() {
         val conversaId = dados["conversa_id"] ?: ""
         val chaveServico = dados["chave_servico"] ?: ""
 
-        // app viva: o socket já faz tocar a UI — só emitimos o evento
+        // app viva: o JS decide — toca em-app (foreground) ou pede a notificação
+        // nativa completa via apresentarChamada (background com processo vivo)
         if (emissorChamada != null) {
             emissorChamada?.invoke(
                 mapOf(
@@ -373,28 +404,16 @@ class MakachatFcmService : FirebaseMessagingService() {
                     "chamada_tipo" to chamadaTipo,
                     "conversa_id" to conversaId,
                     "chave_servico" to chaveServico,
+                    "acao" to "tocar",
+                    "titulo" to titulo,
+                    "foto" to (dados["foto"] ?: ""),
                 )
             )
 
             return
         }
 
-        // guarda a chamada pendente para a app ler no arranque frio
-        prefs().edit().putString(
-            "chamada_pendente",
-            """{"chamada_id":"$chamadaId","chamada_tipo":"$chamadaTipo","conversa_id":"$conversaId","chave_servico":"$chaveServico","acao":"tocar","recebida_em":"${Instant.now()}"}""",
-        ).apply()
-
-        if (Opcoes.toqueContinuo(applicationContext)) {
-            // o serviço mostra a notificação (foreground) e toca em loop até resolver
-            ToqueChamadaService.iniciar(applicationContext, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
-        } else {
-            val gestor = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            gestor.notify(
-                chamadaId.hashCode(),
-                construirNotificacaoChamada(applicationContext, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"]),
-            )
-        }
+        apresentarChamada(applicationContext, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
     }
 
     private fun prefs() = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

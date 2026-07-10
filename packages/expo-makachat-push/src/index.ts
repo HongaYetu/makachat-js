@@ -13,8 +13,12 @@ export interface ChamadaPush {
     chamada_tipo: 'audio' | 'video';
     conversa_id: string;
     chave_servico: string;
-    /** tocar (abriu pela notificação) | atender | rejeitar (ações) */
-    acao: 'tocar' | 'atender' | 'rejeitar';
+    /** tocar (a receber) | atender | rejeitar (ações) | parar (atenderam/terminou noutro lado) */
+    acao: 'tocar' | 'atender' | 'rejeitar' | 'parar';
+    /** nome de quem liga (só em aoChamadaPush com acao 'tocar') */
+    titulo?: string;
+    /** avatar de quem liga (idem) */
+    foto?: string;
     recebida_em?: string;
 }
 
@@ -38,6 +42,7 @@ interface ModuloNativo {
     cancelarNotificacaoMensagens(conversaId: string): void;
     configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
     configChamadas(): ConfigChamadas;
+    apresentarChamada(titulo: string, chamadaId: string, chamadaTipo: string, conversaId: string, chaveServico: string, foto: string | null): void;
     iniciarChamadaAtiva(nome: string, foto: string | null, tipo: string): void;
     pararChamadaAtiva(): void;
 }
@@ -89,6 +94,21 @@ export function cancelarNotificacaoChamada(chamadaId: string): void {
  */
 export async function obterConversaPendente(): Promise<string | null> {
     return nativo.obterConversaPendente();
+}
+
+/**
+ * Apresenta a chamada como no app-morto (toque contínuo/notificação CallStyle) —
+ * chamar quando aoChamadaPush chega com a app viva mas em BACKGROUND.
+ */
+export function apresentarChamada(dados: {
+    titulo: string;
+    chamada_id: string;
+    chamada_tipo: 'audio' | 'video';
+    conversa_id: string;
+    chave_servico: string;
+    foto?: string | null;
+}): void {
+    nativo.apresentarChamada(dados.titulo, dados.chamada_id, dados.chamada_tipo, dados.conversa_id, dados.chave_servico, dados.foto ?? null);
 }
 
 /** Flags dos serviços opcionais de chamada (injetadas pelo config plugin). */

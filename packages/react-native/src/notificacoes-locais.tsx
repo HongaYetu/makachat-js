@@ -96,6 +96,9 @@ function previewDe(mensagem: Mensagem): string {
             return '🎤 Mensagem de voz';
         case 'ficheiro':
             return '📎 Ficheiro';
+        case 'chamada':
+            // registo de chamada (ex.: "Chamada de voz não atendida") — sem toque, é o correto
+            return `📞 ${mensagem.conteudo ?? 'Chamada'}`;
         default:
             return mensagem.conteudo ?? 'Nova mensagem';
     }
