@@ -27,7 +27,8 @@ const { withAndroidManifest, AndroidConfig } = carregarConfigPlugins();
  *   ["@hongayetu/expo-makachat-push", { "chamadas": {
  *       "toqueContinuo": true,       // toque em loop até atender (ToqueChamadaService)
  *       "ecraNativo": true,          // ecrã de chamada sobre o lockscreen (EcraChamadaActivity)
- *       "servicoChamadaAtiva": true  // chamada em curso viva em background (ChamadaAtivaService)
+ *       "servicoChamadaAtiva": true, // chamada em curso viva em background (ChamadaAtivaService)
+ *       "partilhaEcra": true         // partilha de ecrã (FGS mediaProjection do react-native-webrtc, API 34+)
  *   } }]
  *
  * Por omissão TUDO desligado: sem opções, nenhuma permissão/serviço novo entra
@@ -39,8 +40,9 @@ module.exports = function withMakachatPush(config, opcoes = {}) {
     const toqueContinuo = chamadas.toqueContinuo === true;
     const ecraNativo = chamadas.ecraNativo === true;
     const servicoChamadaAtiva = chamadas.servicoChamadaAtiva === true;
+    const partilhaEcra = chamadas.partilhaEcra === true;
 
-    if (!toqueContinuo && !ecraNativo && !servicoChamadaAtiva) {
+    if (!toqueContinuo && !ecraNativo && !servicoChamadaAtiva && !partilhaEcra) {
         return config; // opt-in: sem opções, manifest intocado
     }
 
@@ -58,6 +60,9 @@ module.exports = function withMakachatPush(config, opcoes = {}) {
             permissoes.add('android.permission.MANAGE_OWN_CALLS');
         }
         if (servicoChamadaAtiva) permissoes.add('android.permission.FOREGROUND_SERVICE_MICROPHONE');
+        // API 34+ (targetSDK 34+): o MediaProjectionService do react-native-webrtc
+        // rebenta com SecurityException sem esta permissão ao partilhar o ecrã
+        if (partilhaEcra) permissoes.add('android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION');
 
         manifesto.manifest['uses-permission'] = manifesto.manifest['uses-permission'] ?? [];
 
