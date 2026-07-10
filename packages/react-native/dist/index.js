@@ -2764,6 +2764,10 @@ function useChamadasOpcional() {
 var globalsRegistados = false;
 async function iniciarServicoChamada(titulo) {
   if (Platform2.OS !== "android") return;
+  try {
+    if (obterPushMakaChat()?.configChamadas?.()?.servicoChamadaAtiva) return;
+  } catch {
+  }
   const notifee = obterNotifee();
   if (!notifee?.displayNotification) return;
   try {

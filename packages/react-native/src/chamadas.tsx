@@ -52,6 +52,14 @@ let globalsRegistados = false;
 async function iniciarServicoChamada(titulo: string): Promise<void> {
     if (Platform.OS !== 'android') return;
 
+    // com o serviço NATIVO de chamada ativa ligado (config plugin), a
+    // notificação CallStyle com avatar+cronómetro cobre isto — sem duplicar
+    try {
+        if (obterPushMakaChat()?.configChamadas?.()?.servicoChamadaAtiva) return;
+    } catch {
+        // módulo antigo — segue para o fallback notifee
+    }
+
     const notifee = obterNotifee();
 
     if (!notifee?.displayNotification) return;

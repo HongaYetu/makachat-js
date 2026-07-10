@@ -2773,6 +2773,10 @@ function useChamadasOpcional() {
 var globalsRegistados = false;
 async function iniciarServicoChamada(titulo) {
   if (import_react_native9.Platform.OS !== "android") return;
+  try {
+    if (obterPushMakaChat()?.configChamadas?.()?.servicoChamadaAtiva) return;
+  } catch {
+  }
   const notifee = obterNotifee();
   if (!notifee?.displayNotification) return;
   try {
