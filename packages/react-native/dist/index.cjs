@@ -1766,6 +1766,9 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = (0, import_react_native_safe_area_context2.useSafeAreaInsets)();
+  const animTeclado = KC?.useKeyboardAnimation ? KC.useKeyboardAnimation() : null;
+  const padFundoBase = Math.max(insets.bottom, 8);
+  const padFundoInput = animTeclado ? animTeclado.progress.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] }) : padFundoBase;
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);
@@ -2141,7 +2144,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CampoTeclado, { behavior: KC ? "padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
+    ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CampoTeclado, { behavior: KC ? "padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.Animated.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
       (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         import_react_native6.TextInput,

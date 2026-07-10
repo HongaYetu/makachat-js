@@ -4,6 +4,7 @@ import { Anexo, Conversa, Mensagem, ParticipanteConversa } from '@hongayetu/maka
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
+    Animated,
     AppState,
     KeyboardAvoidingView,
     Linking,
@@ -66,6 +67,19 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
     const tema = useTema();
     const insets = useSafeAreaInsets();
+    // Padding do composer sincronizado com o teclado (evita dupla compensação):
+    // fechado → insets.bottom (folga da barra de navegação); aberto → 8 (o teclado
+    // já cobre essa zona — mantê-lo criava uma folga enorme entre input e teclado).
+    // O progress do keyboard-controller anima frame-a-frame COM o teclado.
+    // KC é constante de módulo → a ordem de hooks é estável.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const animTeclado = KC?.useKeyboardAnimation
+        ? (KC.useKeyboardAnimation() as { progress: { interpolate(c: { inputRange: number[]; outputRange: number[] }): unknown } })
+        : null;
+    const padFundoBase = Math.max(insets.bottom, 8);
+    const padFundoInput = animTeclado
+        ? animTeclado.progress.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] })
+        : padFundoBase;
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 500);
     const typing = useTypingConversa(conversaId);
@@ -552,7 +566,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 />
             ) : (
                 <CampoTeclado behavior={KC ? 'padding' : Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }]}>
+                    <Animated.View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }]}>
                         {(podeFoto || podeFicheiro) && (
                             <Pressable onPress={() => setAnexoMenu(true)} style={{ padding: 7 }}>
                                 <Ionicons name="attach" size={24} color={tema.textoSuave} />
@@ -577,7 +591,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                         ) : (
                             <View style={{ width: 42 }} />
                         )}
-                    </View>
+                    </Animated.View>
                 </CampoTeclado>
             )}
 

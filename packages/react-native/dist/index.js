@@ -1108,6 +1108,7 @@ import { useSafeAreaInsets as useSafeAreaInsets2 } from "react-native-safe-area-
 import { useCallback as useCallback3, useEffect as useEffect6, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
 import {
   Alert as Alert2,
+  Animated as Animated3,
   AppState,
   KeyboardAvoidingView,
   Linking as Linking2,
@@ -1757,6 +1758,9 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();
   const insets = useSafeAreaInsets2();
+  const animTeclado = KC?.useKeyboardAnimation ? KC.useKeyboardAnimation() : null;
+  const padFundoBase = Math.max(insets.bottom, 8);
+  const padFundoInput = animTeclado ? animTeclado.progress.interpolate({ inputRange: [0, 1], outputRange: [padFundoBase, 8] }) : padFundoBase;
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
   const typing = useTypingConversa(conversaId);
@@ -2132,7 +2136,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           void enviarFicheiroLocal({ uri, mime: "audio/m4a", nome: `voz_${Date.now()}.m4a`, tipo: "audio", duracao_segundos: duracao });
         }
       }
-    ) : /* @__PURE__ */ jsx7(CampoTeclado, { behavior: KC ? "padding" : Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: Math.max(insets.bottom, 8) }], children: [
+    ) : /* @__PURE__ */ jsx7(CampoTeclado, { behavior: KC ? "padding" : Platform.OS === "ios" ? "padding" : void 0, children: /* @__PURE__ */ jsxs6(Animated3.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
       (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),
       /* @__PURE__ */ jsx7(
         TextInput3,
