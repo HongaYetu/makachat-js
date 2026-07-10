@@ -2014,7 +2014,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     }
     return lista2;
   };
-  const banner = conversa?.chamada_ativa && chamadas && !fechada;
+  const banner = conversa?.chamada_ativa && chamadas && !fechada && conversa.tipo === "grupo";
   return /* @__PURE__ */ jsxs6(View6, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
     /* @__PURE__ */ jsxs6(View6, { style: [estilos6.header, { backgroundColor: tema.superficie }], children: [
       onVoltar && /* @__PURE__ */ jsx7(Pressable6, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "chevron-back", size: 24, color: tema.texto }) }),
@@ -2795,6 +2795,9 @@ function ChamadasProvider({ children }) {
   const falhada = useRef8(false);
   const faseRef = useRef8(null);
   const facing = useRef8("user");
+  const conversaRef = useRef8(null);
+  const desligarRef = useRef8(async () => void 0);
+  const sozinhoTimer = useRef8(null);
   useEffect8(() => {
     faseRef.current = ativa?.fase ?? null;
     if (ativa?.fase === "a_ligar") comecarToque("ligar");
@@ -2818,6 +2821,10 @@ function ChamadasProvider({ children }) {
     }
   }, [ativa?.fase]);
   const limpar = useCallback4(() => {
+    if (sozinhoTimer.current) {
+      clearTimeout(sozinhoTimer.current);
+      sozinhoTimer.current = null;
+    }
     void room.current?.disconnect?.();
     room.current = null;
     falhada.current = false;
@@ -2891,6 +2898,23 @@ function ChamadasProvider({ children }) {
       r.on(RoomEvent.LocalTrackUnpublished, sincronizarTiles);
       r.on(RoomEvent.ParticipantConnected, sincronizarTiles);
       r.on(RoomEvent.ParticipantDisconnected, sincronizarTiles);
+      const verificarSozinho = () => {
+        if (conversaRef.current?.tipo === "grupo" || faseRef.current !== "em_curso") return;
+        const remotosLigados = r.remoteParticipants?.size ?? r.participants?.size ?? 0;
+        if (remotosLigados === 0) {
+          if (!sozinhoTimer.current) {
+            sozinhoTimer.current = setTimeout(() => {
+              sozinhoTimer.current = null;
+              if (faseRef.current === "em_curso") void desligarRef.current();
+            }, 15e3);
+          }
+        } else if (sozinhoTimer.current) {
+          clearTimeout(sozinhoTimer.current);
+          sozinhoTimer.current = null;
+        }
+      };
+      r.on(RoomEvent.ParticipantConnected, verificarSozinho);
+      r.on(RoomEvent.ParticipantDisconnected, verificarSozinho);
       try {
         await r.connect(wsUrl, token);
       } catch (e) {
@@ -3041,6 +3065,8 @@ function ChamadasProvider({ children }) {
     }
     limpar();
   };
+  conversaRef.current = conversa;
+  desligarRef.current = desligar;
   const alternarCamara = async () => {
     const novo = !camara;
     setCamara(novo);

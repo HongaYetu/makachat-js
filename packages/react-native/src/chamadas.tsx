@@ -113,6 +113,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const falhada = useRef(false);
     const faseRef = useRef<EstadoChamada['fase'] | null>(null);
     const facing = useRef<'user' | 'environment'>('user');
+    // 1:1: se o outro desaparecer (rede/app morta) sem desligar, terminamos após
+    // um período de graça (dá tempo à reconexão do LiveKit)
+    const conversaRef = useRef<Conversa | null>(null);
+    const desligarRef = useRef<() => Promise<void>>(async () => undefined);
+    const sozinhoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         faseRef.current = ativa?.fase ?? null;
@@ -150,6 +155,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     }, [ativa?.fase]);
 
     const limpar = useCallback(() => {
+        if (sozinhoTimer.current) {
+            clearTimeout(sozinhoTimer.current);
+            sozinhoTimer.current = null;
+        }
+
         void room.current?.disconnect?.();
         room.current = null;
         falhada.current = false;
@@ -244,6 +254,30 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             r.on(RoomEvent.LocalTrackUnpublished, sincronizarTiles);
             r.on(RoomEvent.ParticipantConnected, sincronizarTiles);
             r.on(RoomEvent.ParticipantDisconnected, sincronizarTiles);
+
+            // 1:1: ficar SOZINHO em curso = o outro desapareceu (app morta/rede) —
+            // termina após 15s de graça (a reconexão do LiveKit cancela o timer)
+            const verificarSozinho = () => {
+                if (conversaRef.current?.tipo === 'grupo' || faseRef.current !== 'em_curso') return;
+
+                const remotosLigados = r.remoteParticipants?.size ?? r.participants?.size ?? 0;
+
+                if (remotosLigados === 0) {
+                    if (!sozinhoTimer.current) {
+                        sozinhoTimer.current = setTimeout(() => {
+                            sozinhoTimer.current = null;
+
+                            if (faseRef.current === 'em_curso') void desligarRef.current();
+                        }, 15_000);
+                    }
+                } else if (sozinhoTimer.current) {
+                    clearTimeout(sozinhoTimer.current);
+                    sozinhoTimer.current = null;
+                }
+            };
+
+            r.on(RoomEvent.ParticipantConnected, verificarSozinho);
+            r.on(RoomEvent.ParticipantDisconnected, verificarSozinho);
 
             try {
                 await r.connect(wsUrl, token);
@@ -450,6 +484,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
         limpar();
     };
+
+    // refs sempre atuais para os handlers da sala (registados uma vez no connect)
+    conversaRef.current = conversa;
+    desligarRef.current = desligar;
 
     const alternarCamara = async () => {
         const novo = !camara;

@@ -491,6 +491,9 @@ function ChamadasProvider({ children }) {
   const [ecra, setEcra] = useState4(false);
   const [pos, setPos] = useState4({ x: 24, y: 24 });
   const room = useRef4(null);
+  const conversaRef = useRef4(null);
+  const desligarRef = useRef4(async () => void 0);
+  const sozinhoTimer = useRef4(null);
   const midia = useRef4(null);
   const elementos = useRef4(/* @__PURE__ */ new Map());
   const falhada = useRef4(false);
@@ -498,6 +501,10 @@ function ChamadasProvider({ children }) {
   const [erroSolto, setErroSolto] = useState4(null);
   const arrasto = useRef4({ ativo: false, dx: 0, dy: 0 });
   const limpar = useCallback2(() => {
+    if (sozinhoTimer.current) {
+      clearTimeout(sozinhoTimer.current);
+      sozinhoTimer.current = null;
+    }
     void room.current?.disconnect();
     room.current = null;
     falhada.current = false;
@@ -573,6 +580,22 @@ function ChamadasProvider({ children }) {
       pub.track?.detach().forEach((e) => e.remove());
       if (pub.trackSid) elementos.current.delete(pub.trackSid);
     });
+    const verificarSozinho = () => {
+      if (conversaRef.current?.tipo === "grupo" || faseRef.current !== "em_curso") return;
+      if (r.remoteParticipants.size === 0) {
+        if (!sozinhoTimer.current) {
+          sozinhoTimer.current = setTimeout(() => {
+            sozinhoTimer.current = null;
+            if (faseRef.current === "em_curso") void desligarRef.current();
+          }, 15e3);
+        }
+      } else if (sozinhoTimer.current) {
+        clearTimeout(sozinhoTimer.current);
+        sozinhoTimer.current = null;
+      }
+    };
+    r.on(RoomEvent.ParticipantConnected, verificarSozinho);
+    r.on(RoomEvent.ParticipantDisconnected, verificarSozinho);
     try {
       await r.connect(wsUrl, token);
     } catch (e) {
@@ -700,6 +723,8 @@ function ChamadasProvider({ children }) {
     }
     limpar();
   };
+  conversaRef.current = conversa;
+  desligarRef.current = desligar;
   useEffect4(() => {
     anexarTodos();
   }, [anexarTodos, modo, ativa?.fase]);
@@ -1666,7 +1691,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
       /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Seguinte", onClick: () => navegarResultado(1), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:chevron-down" }) }),
       /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Fechar", onClick: () => setPesquisaAberta(false), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:x" }) })
     ] }),
-    conversa?.chamada_ativa && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2.5 border-0 border-b border-solid border-black/[.06] bg-emerald-50 px-4 py-2", children: [
+    conversa?.chamada_ativa && conversa.tipo === "grupo" && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2.5 border-0 border-b border-solid border-black/[.06] bg-emerald-50 px-4 py-2", children: [
       /* @__PURE__ */ jsx4("span", { className: "grid h-8 w-8 animate-maka-pulsar place-items-center rounded-full bg-emerald-500 text-white", children: /* @__PURE__ */ jsx4(Icon3, { icon: conversa.chamada_ativa.tipo === "video" ? "tabler:video" : "tabler:phone" }) }),
       /* @__PURE__ */ jsxs3("span", { className: "min-w-0 flex-1 truncate text-sm font-semibold text-emerald-800", children: [
         "Chamada de ",

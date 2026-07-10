@@ -1100,7 +1100,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                     <BotaoIcone titulo="Fechar" onClick={() => setPesquisaAberta(false)}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
             )}
-            {conversa?.chamada_ativa && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && (
+            {/* banner "entrar" só em GRUPOS — numa privada ou toca-te ou já estás nela */}
+            {conversa?.chamada_ativa && conversa.tipo === 'grupo' && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && (
                 <div className="flex items-center gap-2.5 border-0 border-b border-solid border-black/[.06] bg-emerald-50 px-4 py-2">
                     <span className="grid h-8 w-8 animate-maka-pulsar place-items-center rounded-full bg-emerald-500 text-white">
                         <Icon icon={conversa.chamada_ativa.tipo === 'video' ? 'tabler:video' : 'tabler:phone'} />

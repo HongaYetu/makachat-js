@@ -373,7 +373,9 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
         return lista;
     };
 
-    const banner = conversa?.chamada_ativa && chamadas && !fechada;
+    // banner "entrar na chamada" só faz sentido em GRUPOS — numa privada ou a
+    // chamada está a tocar-te (UI de receção) ou já estás nela
+    const banner = conversa?.chamada_ativa && chamadas && !fechada && conversa.tipo === 'grupo';
 
     return (
         <View style={{ flex: 1, backgroundColor: tema.fundo }}>

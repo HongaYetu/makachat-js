@@ -550,6 +550,9 @@ function ChamadasProvider({ children }) {
   const [ecra, setEcra] = (0, import_react6.useState)(false);
   const [pos, setPos] = (0, import_react6.useState)({ x: 24, y: 24 });
   const room = (0, import_react6.useRef)(null);
+  const conversaRef = (0, import_react6.useRef)(null);
+  const desligarRef = (0, import_react6.useRef)(async () => void 0);
+  const sozinhoTimer = (0, import_react6.useRef)(null);
   const midia = (0, import_react6.useRef)(null);
   const elementos = (0, import_react6.useRef)(/* @__PURE__ */ new Map());
   const falhada = (0, import_react6.useRef)(false);
@@ -557,6 +560,10 @@ function ChamadasProvider({ children }) {
   const [erroSolto, setErroSolto] = (0, import_react6.useState)(null);
   const arrasto = (0, import_react6.useRef)({ ativo: false, dx: 0, dy: 0 });
   const limpar = (0, import_react6.useCallback)(() => {
+    if (sozinhoTimer.current) {
+      clearTimeout(sozinhoTimer.current);
+      sozinhoTimer.current = null;
+    }
     void room.current?.disconnect();
     room.current = null;
     falhada.current = false;
@@ -632,6 +639,22 @@ function ChamadasProvider({ children }) {
       pub.track?.detach().forEach((e) => e.remove());
       if (pub.trackSid) elementos.current.delete(pub.trackSid);
     });
+    const verificarSozinho = () => {
+      if (conversaRef.current?.tipo === "grupo" || faseRef.current !== "em_curso") return;
+      if (r.remoteParticipants.size === 0) {
+        if (!sozinhoTimer.current) {
+          sozinhoTimer.current = setTimeout(() => {
+            sozinhoTimer.current = null;
+            if (faseRef.current === "em_curso") void desligarRef.current();
+          }, 15e3);
+        }
+      } else if (sozinhoTimer.current) {
+        clearTimeout(sozinhoTimer.current);
+        sozinhoTimer.current = null;
+      }
+    };
+    r.on(import_livekit_client.RoomEvent.ParticipantConnected, verificarSozinho);
+    r.on(import_livekit_client.RoomEvent.ParticipantDisconnected, verificarSozinho);
     try {
       await r.connect(wsUrl, token);
     } catch (e) {
@@ -759,6 +782,8 @@ function ChamadasProvider({ children }) {
     }
     limpar();
   };
+  conversaRef.current = conversa;
+  desligarRef.current = desligar;
   (0, import_react6.useEffect)(() => {
     anexarTodos();
   }, [anexarTodos, modo, ativa?.fase]);
@@ -1725,7 +1750,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Seguinte", onClick: () => navegarResultado(1), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:chevron-down" }) }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Fechar", onClick: () => setPesquisaAberta(false), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:x" }) })
     ] }),
-    conversa?.chamada_ativa && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2.5 border-0 border-b border-solid border-black/[.06] bg-emerald-50 px-4 py-2", children: [
+    conversa?.chamada_ativa && conversa.tipo === "grupo" && chamadas && chamadas.ativa?.chamada.id !== conversa.chamada_ativa.id && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2.5 border-0 border-b border-solid border-black/[.06] bg-emerald-50 px-4 py-2", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "grid h-8 w-8 animate-maka-pulsar place-items-center rounded-full bg-emerald-500 text-white", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: conversa.chamada_ativa.tipo === "video" ? "tabler:video" : "tabler:phone" }) }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "min-w-0 flex-1 truncate text-sm font-semibold text-emerald-800", children: [
         "Chamada de ",

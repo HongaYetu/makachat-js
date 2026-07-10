@@ -52,6 +52,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const [pos, setPos] = useState({ x: 24, y: 24 });
 
     const room = useRef<Room | null>(null);
+    // 1:1: se o outro desaparecer (rede/tab morta) sem desligar, terminamos após
+    // um período de graça (dá tempo à reconexão do LiveKit)
+    const conversaRef = useRef<Conversa | null>(null);
+    const desligarRef = useRef<() => Promise<void>>(async () => undefined);
+    const sozinhoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const midia = useRef<HTMLDivElement>(null);
     /** elementos de media vivos (por sid) — sobrevivem a desmontagens do contentor (pill ↔ janela) */
     const elementos = useRef(new Map<string, HTMLElement>());
@@ -62,6 +67,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const arrasto = useRef<{ ativo: boolean; dx: number; dy: number }>({ ativo: false, dx: 0, dy: 0 });
 
     const limpar = useCallback(() => {
+        if (sozinhoTimer.current) {
+            clearTimeout(sozinhoTimer.current);
+            sozinhoTimer.current = null;
+        }
+
         void room.current?.disconnect();
         room.current = null;
         falhada.current = false;
@@ -166,6 +176,28 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             if (pub.trackSid) elementos.current.delete(pub.trackSid);
         });
+
+        // 1:1: ficar SOZINHO em curso = o outro desapareceu (tab morta/rede) —
+        // termina após 15s de graça (a reconexão do LiveKit cancela o timer)
+        const verificarSozinho = () => {
+            if (conversaRef.current?.tipo === 'grupo' || faseRef.current !== 'em_curso') return;
+
+            if (r.remoteParticipants.size === 0) {
+                if (!sozinhoTimer.current) {
+                    sozinhoTimer.current = setTimeout(() => {
+                        sozinhoTimer.current = null;
+
+                        if (faseRef.current === 'em_curso') void desligarRef.current();
+                    }, 15_000);
+                }
+            } else if (sozinhoTimer.current) {
+                clearTimeout(sozinhoTimer.current);
+                sozinhoTimer.current = null;
+            }
+        };
+
+        r.on(RoomEvent.ParticipantConnected, verificarSozinho);
+        r.on(RoomEvent.ParticipantDisconnected, verificarSozinho);
 
         try {
             await r.connect(wsUrl, token);
@@ -342,6 +374,10 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
         limpar();
     };
+
+    // refs sempre atuais para os handlers da sala (registados uma vez no connect)
+    conversaRef.current = conversa;
+    desligarRef.current = desligar;
 
     // ao voltar da pill ou quando a janela monta, volta a pendurar os vídeos
     useEffect(() => {
