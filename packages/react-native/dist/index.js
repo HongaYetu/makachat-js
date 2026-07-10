@@ -2136,7 +2136,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     ) : /* @__PURE__ */ jsx7(
       CampoTeclado,
       {
-        behavior: KC ? "padding" : Platform.OS === "ios" ? "padding" : void 0,
+        behavior: KC ? "translate-with-padding" : Platform.OS === "ios" ? "padding" : void 0,
         keyboardVerticalOffset: -(Math.max(insets.bottom, 8) - 8),
         children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
           (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),

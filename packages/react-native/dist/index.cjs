@@ -2145,7 +2145,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       CampoTeclado,
       {
-        behavior: KC ? "padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0,
+        behavior: KC ? "translate-with-padding" : import_react_native6.Platform.OS === "ios" ? "padding" : void 0,
         keyboardVerticalOffset: -(Math.max(insets.bottom, 8) - 8),
         children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native6.View, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
           (podeFoto || podeFicheiro) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native6.Pressable, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "attach", size: 24, color: tema.textoSuave }) }),

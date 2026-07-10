@@ -557,7 +557,10 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 />
             ) : (
                 <CampoTeclado
-                    behavior={KC ? 'padding' : Platform.OS === 'ios' ? 'padding' : undefined}
+                    // translate-with-padding: anima por transform (GPU, sem re-layout
+                    // por frame — "padding" refazia o layout da lista a cada frame e
+                    // engasgava/saltava em dispositivos modestos)
+                    behavior={KC ? ('translate-with-padding' as never) : Platform.OS === 'ios' ? 'padding' : undefined}
                     keyboardVerticalOffset={-(Math.max(insets.bottom, 8) - 8)}
                 >
                     <View style={[estilos.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }]}>
