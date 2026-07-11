@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { Chamada, Conversa, EventoChamada } from '@hongayetu/makachat-core';
-import { LocalTrackPublication, RemoteTrack, Room, RoomEvent, Track, VideoPresets } from 'livekit-client';
+import { LocalTrackPublication, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room, RoomEvent, Track, VideoPresets } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { mostrarNotificacao } from './notificacoes';
 import { comecarToque, pararToque } from './sons';
@@ -11,6 +11,16 @@ interface EstadoChamada {
     chamada: Chamada;
     fase: 'a_receber' | 'a_ligar' | 'em_curso' | 'falhada';
     iniciador?: { nome: string; foto_url: string | null };
+}
+
+/** elemento de media vivo + o contexto para decidir o que mostrar */
+interface MediaInfo {
+    el: HTMLElement;
+    video: boolean;
+    ecra: boolean;
+    local: boolean;
+    participante: string;
+    pub: { isMuted?: boolean } | null;
 }
 
 interface ChamadasApi {
@@ -59,7 +69,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     const sozinhoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const midia = useRef<HTMLDivElement>(null);
     /** elementos de media vivos (por sid) — sobrevivem a desmontagens do contentor (pill ↔ janela) */
-    const elementos = useRef(new Map<string, HTMLElement>());
+    const elementos = useRef(new Map<string, MediaInfo>());
+    /** há vídeo REMOTO visível? (avatar central quando não há) */
+    const [videoRemotoVivo, setVideoRemotoVivo] = useState(false);
+    /** câmara remota publicada mas mutada (pausada em background/desligada) */
+    const [remotoPausado, setRemotoPausado] = useState(false);
     /** true enquanto mostramos o ecrã de falha — os eventos rejeitada/terminada não podem fechá-lo */
     const falhada = useRef(false);
     const faseRef = useRef<EstadoChamada['fase'] | null>(null);
@@ -89,6 +103,8 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         setMudo(false);
         setCamara(false);
         setEcra(false);
+        setVideoRemotoVivo(false);
+        setRemotoPausado(false);
     }, []);
 
     useEffect(() => {
@@ -122,16 +138,52 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         [engine, api],
     );
 
-    /** (Re)anexa todos os elementos de media ao contentor atual — o contentor
-     *  desmonta/remonta ao minimizar para pill e no arranque pode ainda não existir. */
+    /** (Re)anexa a media ao contentor atual com UM vídeo por participante —
+     *  ecrã > câmara, e track MUTADO não conta (renderizá-lo mostraria o último
+     *  frame congelado de uma câmara pausada em background no telemóvel).
+     *  O contentor desmonta/remonta ao minimizar para pill. */
     const anexarTodos = useCallback(() => {
         const alvo = midia.current;
 
         if (!alvo) return;
 
-        for (const el of elementos.current.values()) {
-            if (el.parentElement !== alvo) alvo.appendChild(el);
+        const infos = [...elementos.current.values()];
+        const porParticipante = new Map<string, MediaInfo[]>();
+
+        for (const info of infos) {
+            if (!info.video) continue;
+
+            const lista = porParticipante.get(info.participante) ?? [];
+            lista.push(info);
+            porParticipante.set(info.participante, lista);
         }
+
+        const visiveis = new Set<HTMLElement>();
+        let remotoVivo = false;
+        let pausado = false;
+
+        for (const lista of porParticipante.values()) {
+            const vivo = lista.find((i) => i.ecra && !i.pub?.isMuted) ?? lista.find((i) => !i.ecra && !i.pub?.isMuted);
+
+            if (vivo) {
+                visiveis.add(vivo.el);
+
+                if (!vivo.local) remotoVivo = true;
+            } else if (lista.some((i) => !i.local)) {
+                pausado = true;
+            }
+        }
+
+        for (const info of infos) {
+            if (!info.video || visiveis.has(info.el)) {
+                if (info.el.parentElement !== alvo) alvo.appendChild(info.el);
+            } else {
+                info.el.remove();
+            }
+        }
+
+        setVideoRemotoVivo(remotoVivo);
+        setRemotoPausado(pausado);
     }, []);
 
     /** Pede as permissões ANTES de tocar/atender — sem elas a chamada não avança. */
@@ -168,17 +220,25 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         elementos.current.clear();
 
         // remotos: vídeo e ÁUDIO (o attach do áudio cria o <audio> que toca a voz)
-        r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+        r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication, participante: RemoteParticipant) => {
             const el = track.attach();
 
             if (track.kind === Track.Kind.Video) el.className = 'maka-video-remoto';
-            elementos.current.set(track.sid ?? String(elementos.current.size), el);
+            elementos.current.set(track.sid ?? String(elementos.current.size), {
+                el,
+                video: track.kind === Track.Kind.Video,
+                ecra: track.source === Track.Source.ScreenShare,
+                local: false,
+                participante: participante?.identity ?? '?',
+                pub,
+            });
             anexarTodos();
         });
         r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
             track.detach().forEach((e) => e.remove());
 
             if (track.sid) elementos.current.delete(track.sid);
+            anexarTodos();
         });
 
         // locais: preview da câmara/partilha por evento — cobre o arranque,
@@ -187,7 +247,14 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             if (pub.track && pub.kind === Track.Kind.Video) {
                 const el = pub.track.attach();
                 el.className = 'maka-video-local';
-                elementos.current.set(pub.trackSid ?? `local_${elementos.current.size}`, el);
+                elementos.current.set(pub.trackSid ?? `local_${elementos.current.size}`, {
+                    el,
+                    video: true,
+                    ecra: pub.source === Track.Source.ScreenShare,
+                    local: true,
+                    participante: 'local',
+                    pub,
+                });
                 anexarTodos();
             }
         });
@@ -195,7 +262,13 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             pub.track?.detach().forEach((e) => e.remove());
 
             if (pub.trackSid) elementos.current.delete(pub.trackSid);
+            anexarTodos();
         });
+
+        // mute/unmute não (des)subscreve — reavalia o que fica visível (câmara
+        // pausada em background do outro lado entra/sai daqui)
+        r.on(RoomEvent.TrackMuted, anexarTodos);
+        r.on(RoomEvent.TrackUnmuted, anexarTodos);
 
         // 1:1: ficar SOZINHO em curso = o outro desapareceu (tab morta/rede) —
         // termina após 15s de graça (a reconexão do LiveKit cancela o timer)
@@ -528,10 +601,13 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                     {/* área de media */}
                     <div className={`relative flex items-center justify-center bg-black/40 ${modo === 'cheio' ? 'flex-1' : 'h-[300px]'}`}>
                         <div ref={midia} className="absolute inset-0 flex items-center justify-center gap-2 p-2" />
-                        {(ativa.chamada.tipo === 'audio' || ativa.fase !== 'em_curso') && (
+                        {(ativa.chamada.tipo === 'audio' || ativa.fase !== 'em_curso' || !videoRemotoVivo) && (
                             <div className={`z-[1] flex flex-col items-center gap-3 ${ativa.fase !== 'em_curso' ? 'animate-maka-pulsar' : ''}`}>
                                 <AvatarWeb nome={titulo} url={foto} tamanho={modo === 'cheio' ? 110 : 76} />
                                 <span className="text-sm text-white/70">{subtitulo}</span>
+                                {ativa.fase === 'em_curso' && remotoPausado && (
+                                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/75">Câmara em pausa</span>
+                                )}
                             </div>
                         )}
                         {erro && (

@@ -569,6 +569,8 @@ function ChamadasProvider({ children }) {
   const sozinhoTimer = (0, import_react6.useRef)(null);
   const midia = (0, import_react6.useRef)(null);
   const elementos = (0, import_react6.useRef)(/* @__PURE__ */ new Map());
+  const [videoRemotoVivo, setVideoRemotoVivo] = (0, import_react6.useState)(false);
+  const [remotoPausado, setRemotoPausado] = (0, import_react6.useState)(false);
   const falhada = (0, import_react6.useRef)(false);
   const faseRef = (0, import_react6.useRef)(null);
   const atendendoRef = (0, import_react6.useRef)(null);
@@ -592,6 +594,8 @@ function ChamadasProvider({ children }) {
     setMudo(false);
     setCamara(false);
     setEcra(false);
+    setVideoRemotoVivo(false);
+    setRemotoPausado(false);
   }, []);
   (0, import_react6.useEffect)(() => {
     faseRef.current = ativa?.fase ?? null;
@@ -616,9 +620,35 @@ function ChamadasProvider({ children }) {
   const anexarTodos = (0, import_react6.useCallback)(() => {
     const alvo = midia.current;
     if (!alvo) return;
-    for (const el of elementos.current.values()) {
-      if (el.parentElement !== alvo) alvo.appendChild(el);
+    const infos = [...elementos.current.values()];
+    const porParticipante = /* @__PURE__ */ new Map();
+    for (const info of infos) {
+      if (!info.video) continue;
+      const lista = porParticipante.get(info.participante) ?? [];
+      lista.push(info);
+      porParticipante.set(info.participante, lista);
     }
+    const visiveis = /* @__PURE__ */ new Set();
+    let remotoVivo = false;
+    let pausado = false;
+    for (const lista of porParticipante.values()) {
+      const vivo = lista.find((i) => i.ecra && !i.pub?.isMuted) ?? lista.find((i) => !i.ecra && !i.pub?.isMuted);
+      if (vivo) {
+        visiveis.add(vivo.el);
+        if (!vivo.local) remotoVivo = true;
+      } else if (lista.some((i) => !i.local)) {
+        pausado = true;
+      }
+    }
+    for (const info of infos) {
+      if (!info.video || visiveis.has(info.el)) {
+        if (info.el.parentElement !== alvo) alvo.appendChild(info.el);
+      } else {
+        info.el.remove();
+      }
+    }
+    setVideoRemotoVivo(remotoVivo);
+    setRemotoPausado(pausado);
   }, []);
   const verificarMedia = (0, import_react6.useCallback)(async (video) => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -643,28 +673,46 @@ function ChamadasProvider({ children }) {
     });
     room.current = r;
     elementos.current.clear();
-    r.on(import_livekit_client.RoomEvent.TrackSubscribed, (track) => {
+    r.on(import_livekit_client.RoomEvent.TrackSubscribed, (track, pub, participante) => {
       const el = track.attach();
       if (track.kind === import_livekit_client.Track.Kind.Video) el.className = "maka-video-remoto";
-      elementos.current.set(track.sid ?? String(elementos.current.size), el);
+      elementos.current.set(track.sid ?? String(elementos.current.size), {
+        el,
+        video: track.kind === import_livekit_client.Track.Kind.Video,
+        ecra: track.source === import_livekit_client.Track.Source.ScreenShare,
+        local: false,
+        participante: participante?.identity ?? "?",
+        pub
+      });
       anexarTodos();
     });
     r.on(import_livekit_client.RoomEvent.TrackUnsubscribed, (track) => {
       track.detach().forEach((e) => e.remove());
       if (track.sid) elementos.current.delete(track.sid);
+      anexarTodos();
     });
     r.on(import_livekit_client.RoomEvent.LocalTrackPublished, (pub) => {
       if (pub.track && pub.kind === import_livekit_client.Track.Kind.Video) {
         const el = pub.track.attach();
         el.className = "maka-video-local";
-        elementos.current.set(pub.trackSid ?? `local_${elementos.current.size}`, el);
+        elementos.current.set(pub.trackSid ?? `local_${elementos.current.size}`, {
+          el,
+          video: true,
+          ecra: pub.source === import_livekit_client.Track.Source.ScreenShare,
+          local: true,
+          participante: "local",
+          pub
+        });
         anexarTodos();
       }
     });
     r.on(import_livekit_client.RoomEvent.LocalTrackUnpublished, (pub) => {
       pub.track?.detach().forEach((e) => e.remove());
       if (pub.trackSid) elementos.current.delete(pub.trackSid);
+      anexarTodos();
     });
+    r.on(import_livekit_client.RoomEvent.TrackMuted, anexarTodos);
+    r.on(import_livekit_client.RoomEvent.TrackUnmuted, anexarTodos);
     const verificarSozinho = () => {
       if (conversaRef.current?.tipo === "grupo" || faseRef.current !== "em_curso") return;
       if (r.remoteParticipants.size === 0) {
@@ -898,9 +946,10 @@ function ChamadasProvider({ children }) {
           ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: `relative flex items-center justify-center bg-black/40 ${modo === "cheio" ? "flex-1" : "h-[300px]"}`, children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { ref: midia, className: "absolute inset-0 flex items-center justify-center gap-2 p-2" }),
-            (ativa.chamada.tipo === "audio" || ativa.fase !== "em_curso") && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: `z-[1] flex flex-col items-center gap-3 ${ativa.fase !== "em_curso" ? "animate-maka-pulsar" : ""}`, children: [
+            (ativa.chamada.tipo === "audio" || ativa.fase !== "em_curso" || !videoRemotoVivo) && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: `z-[1] flex flex-col items-center gap-3 ${ativa.fase !== "em_curso" ? "animate-maka-pulsar" : ""}`, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(AvatarWeb, { nome: titulo, url: foto, tamanho: modo === "cheio" ? 110 : 76 }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-sm text-white/70", children: subtitulo })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-sm text-white/70", children: subtitulo }),
+              ativa.fase === "em_curso" && remotoPausado && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/75", children: "C\xE2mara em pausa" })
             ] }),
             erro && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "absolute inset-x-3 bottom-3 z-[2] rounded-xl bg-red-500/90 px-3 py-2 text-center text-xs font-semibold text-white", children: erro })
           ] }),

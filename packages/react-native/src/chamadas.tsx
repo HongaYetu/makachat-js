@@ -22,6 +22,9 @@ interface Tile {
     trackRef: unknown | null;
     /** largura/altura real do vídeo — dimensiona o PiP sem crop nem esticar */
     proporcao: number | null;
+    /** remoto com câmara publicada mas MUTADA (em background/desligada) —
+     *  mostramos "Câmara em pausa" em vez do último frame congelado */
+    pausado?: boolean;
 }
 
 export interface ChamadasApi {
@@ -251,15 +254,21 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         for (const participante of r.remoteParticipants?.values?.() ?? []) {
             const cam = participante.getTrackPublication?.(Track.Source.Camera);
             const ecra = participante.getTrackPublication?.(Track.Source.ScreenShare);
-            const pub = ecra?.isSubscribed ? ecra : cam;
+            // um vídeo por participante: ecrã > câmara; track MUTADO não conta —
+            // renderizá-lo mostraria o último frame congelado (câmara pausada
+            // em background no telefone do outro lado)
+            const ecraVivo = ecra?.isSubscribed && ecra.track && !ecra.isMuted ? ecra : null;
+            const camViva = cam?.track && !cam.isMuted ? cam : null;
+            const pub = ecraVivo ?? camViva;
             novos.push({
                 chave: participante.identity,
                 local: false,
                 nome: participante.name || 'Participante',
-                trackRef: pub?.track
-                    ? { participant: participante, publication: pub, source: pub === ecra ? Track.Source.ScreenShare : Track.Source.Camera }
+                trackRef: pub
+                    ? { participant: participante, publication: pub, source: pub === ecraVivo ? Track.Source.ScreenShare : Track.Source.Camera }
                     : null,
                 proporcao: proporcaoDe(pub),
+                pausado: !pub && !!cam?.track && !!cam.isMuted,
             });
         }
 
@@ -616,6 +625,14 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const alternarCamara = async () => {
         const novo = !camara;
+
+        // no telemóvel câmara e partilha de ecrã são exclusivas: partilhar
+        // implica sair da app e a câmara pausa em background (frame congelado)
+        if (novo && ecra) {
+            setEcra(false);
+            await room.current?.localParticipant?.setScreenShareEnabled?.(false).catch?.(() => undefined);
+        }
+
         setCamara(novo);
         await room.current?.localParticipant?.setCameraEnabled?.(novo).catch(() => undefined);
     };
@@ -633,6 +650,13 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
     const alternarEcra = async () => {
         const novo = !ecra;
+
+        // exclusivo com a câmara (ver alternarCamara)
+        if (novo && camara) {
+            setCamara(false);
+            await room.current?.localParticipant?.setCameraEnabled?.(false).catch(() => undefined);
+        }
+
         setEcra(novo);
         await room.current?.localParticipant?.setScreenShareEnabled?.(novo).catch?.(() => {
             setEcra(!novo);
@@ -729,6 +753,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     const VideoTrack = livekit?.VideoTrack;
     const remotos = tiles.filter((t) => !t.local && t.trackRef);
     const local = tiles.find((t) => t.local && t.trackRef);
+    const remotoPausado = tiles.some((t) => !t.local && t.pausado);
     // caixa do PiP na proporção real da câmara → cover/contain coincidem (sem crop)
     const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
     const emCurso = ativa.fase === 'em_curso';
@@ -792,6 +817,12 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                         <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginTop: 8, textAlign: 'center' }}>
                             {subtitulo ?? (inicioEm ? <Duracao desde={inicioEm} /> : null)}
                         </Text>
+                        {emCurso && remotoPausado && (
+                            <View style={estilos.pausaPill}>
+                                <Ionicons name="videocam-off" size={14} color="rgba(255,255,255,0.75)" />
+                                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '600' }}>Câmara em pausa</Text>
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -915,6 +946,7 @@ const estilos = StyleSheet.create({
     pip: { position: 'absolute', right: 14, width: 112, height: 168, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     // câmara desligada: tapa o último frame SEM desmontar a SurfaceView
     pipOff: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' },
+    pausaPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
     nomeTile: { position: 'absolute', left: 10, bottom: 10, color: '#fff', fontWeight: '700', fontSize: 12, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
     erro: { position: 'absolute', left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
     // bandeja de controlos em curso (pill escura, estilo WhatsApp)

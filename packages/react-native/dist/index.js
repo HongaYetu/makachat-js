@@ -2946,13 +2946,16 @@ function ChamadasProvider({ children }) {
     for (const participante of r.remoteParticipants?.values?.() ?? []) {
       const cam = participante.getTrackPublication?.(Track.Source.Camera);
       const ecra2 = participante.getTrackPublication?.(Track.Source.ScreenShare);
-      const pub = ecra2?.isSubscribed ? ecra2 : cam;
+      const ecraVivo = ecra2?.isSubscribed && ecra2.track && !ecra2.isMuted ? ecra2 : null;
+      const camViva = cam?.track && !cam.isMuted ? cam : null;
+      const pub = ecraVivo ?? camViva;
       novos.push({
         chave: participante.identity,
         local: false,
         nome: participante.name || "Participante",
-        trackRef: pub?.track ? { participant: participante, publication: pub, source: pub === ecra2 ? Track.Source.ScreenShare : Track.Source.Camera } : null,
-        proporcao: proporcaoDe(pub)
+        trackRef: pub ? { participant: participante, publication: pub, source: pub === ecraVivo ? Track.Source.ScreenShare : Track.Source.Camera } : null,
+        proporcao: proporcaoDe(pub),
+        pausado: !pub && !!cam?.track && !!cam.isMuted
       });
     }
     setTiles(novos);
@@ -3201,6 +3204,10 @@ function ChamadasProvider({ children }) {
   desligarRef.current = desligar;
   const alternarCamara = async () => {
     const novo = !camara;
+    if (novo && ecra) {
+      setEcra(false);
+      await room.current?.localParticipant?.setScreenShareEnabled?.(false).catch?.(() => void 0);
+    }
     setCamara(novo);
     await room.current?.localParticipant?.setCameraEnabled?.(novo).catch(() => void 0);
   };
@@ -3214,6 +3221,10 @@ function ChamadasProvider({ children }) {
   };
   const alternarEcra = async () => {
     const novo = !ecra;
+    if (novo && camara) {
+      setCamara(false);
+      await room.current?.localParticipant?.setCameraEnabled?.(false).catch(() => void 0);
+    }
     setEcra(novo);
     await room.current?.localParticipant?.setScreenShareEnabled?.(novo).catch?.(() => {
       setEcra(!novo);
@@ -3276,6 +3287,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const VideoTrack = livekit?.VideoTrack;
   const remotos = tiles.filter((t) => !t.local && t.trackRef);
   const local = tiles.find((t) => t.local && t.trackRef);
+  const remotoPausado = tiles.some((t) => !t.local && t.pausado);
   const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
@@ -3293,7 +3305,11 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
       (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs8(View8, { style: estilos8.centro, children: [
         ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
         /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
-        /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) })
+        /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) }),
+        emCurso && remotoPausado && /* @__PURE__ */ jsxs8(View8, { style: estilos8.pausaPill, children: [
+          /* @__PURE__ */ jsx9(Ionicons8, { name: "videocam-off", size: 14, color: "rgba(255,255,255,0.75)" }),
+          /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }, children: "C\xE2mara em pausa" })
+        ] })
       ] }),
       /* @__PURE__ */ jsxs8(View8, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
         /* @__PURE__ */ jsx9(Pressable8, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "chevron-down", size: 26, color: "#fff" }) }),
@@ -3376,6 +3392,7 @@ var estilos8 = StyleSheet8.create({
   pip: { position: "absolute", right: 14, width: 112, height: 168, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   // câmara desligada: tapa o último frame SEM desmontar a SurfaceView
   pipOff: { ...StyleSheet8.absoluteFillObject, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
+  pausaPill: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   erro: { position: "absolute", left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
   // bandeja de controlos em curso (pill escura, estilo WhatsApp)
