@@ -703,6 +703,10 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
 }) {
     const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
+    // a bandeja quebra em 2 linhas quando há muitos botões (vídeo+partilha) —
+    // medir a altura real para o PiP/erro ficarem SEMPRE acima dos controlos
+    const [alturaBandeja, setAlturaBandeja] = useState(0);
+    const acimaControlos = insets.bottom + 24 + (alturaBandeja || 84) + 14;
     const video = ativa.chamada.tipo === 'video';
     // incoming: nome do iniciador; fallback à contraparte da conversa — nunca o próprio
     const titulo = ativa.fase === 'a_receber' ? (ativa.iniciador?.nome ?? conversa?.titulo ?? 'Alguém') : (conversa?.titulo ?? 'Chamada');
@@ -740,9 +744,10 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     </View>
                 )}
 
-                {/* preview local */}
-                {emCurso && video && VideoTrack && local && (
-                    <View style={estilos.pip}>
+                {/* preview local — só com a câmara ligada (o track mutado ainda
+                    existe e mostraria o último frame congelado) */}
+                {emCurso && video && VideoTrack && local && camara && (
+                    <View style={[estilos.pip, { bottom: acimaControlos }]}>
                         <VideoTrack trackRef={local.trackRef} style={{ flex: 1 }} objectFit="cover" mirror />
                     </View>
                 )}
@@ -778,7 +783,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                 </View>
 
                 {erro && (
-                    <View style={estilos.erro}>
+                    <View style={[estilos.erro, { bottom: acimaControlos }]}>
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13, textAlign: 'center' }}>{erro}</Text>
                     </View>
                 )}
@@ -798,7 +803,10 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     </View>
                 ) : (
                     // em curso: bandeja arredondada com o desligar integrado
-                    <View style={[estilos.bandeja, { bottom: insets.bottom + 24 }]}>
+                    <View
+                        style={[estilos.bandeja, { bottom: insets.bottom + 24 }]}
+                        onLayout={(e: { nativeEvent: { layout: { height: number } } }) => setAlturaBandeja(e.nativeEvent.layout.height)}
+                    >
                         <Botao icone={mudo ? 'mic-off' : 'mic'} ativo={mudo} aoTocar={aoMudo} />
                         {video && <Botao icone={camara ? 'videocam' : 'videocam-off'} ativo={!camara} aoTocar={aoCamara} />}
                         {video && camara && <Botao icone="camera-reverse-outline" aoTocar={aoTrocarCamara} />}
@@ -878,9 +886,9 @@ function Duracao({ desde }: { desde: number }) {
 const estilos = StyleSheet.create({
     centro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: 10 },
-    pip: { position: 'absolute', right: 14, bottom: 160, width: 112, height: 168, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+    pip: { position: 'absolute', right: 14, width: 112, height: 168, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     nomeTile: { position: 'absolute', left: 10, bottom: 10, color: '#fff', fontWeight: '700', fontSize: 12, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
-    erro: { position: 'absolute', bottom: 160, left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+    erro: { position: 'absolute', left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
     // bandeja de controlos em curso (pill escura, estilo WhatsApp)
     bandeja: {
         position: 'absolute',
