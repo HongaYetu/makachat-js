@@ -522,15 +522,26 @@ declare class SyncEngine {
     private versao;
     private ouvintes;
     private aFazerFlush;
+    /** fila de mutações locais da conversa — ver patchConversa */
+    private filaConversa;
     /** salas de conversa a (re)entrar em cada ligação — typing/presença chegam por aqui */
     private salas;
     constructor(storage: StorageAdapter, api: MakaApi, socket: MakaSocket, opcoes: SyncEngineOpcoes);
     get versaoAtual(): number;
     subscrever(ouvinte: Ouvinte): () => void;
     private notificar;
+    /**
+     * Mutação local da conversa SERIALIZADA: lê a versão fresca e escreve sem
+     * intercalar com outros writers. Sem isto, o upsert pós-ack do marcarLidas
+     * do emissor podia gravar um snapshot lido ANTES do recibo do recetor e
+     * regredir os ticks (lida → entregue) até reabrir a conversa.
+     */
+    private patchConversa;
     iniciar(): Promise<void>;
     /** Chamado pelo MakaSocket em cada (re)ligação. */
     aoLigar(): Promise<void>;
+    /** Marca como entregues as mensagens mais novas do que a minha última entrega, por conversa. */
+    private marcarEntreguesPendentes;
     /** Entra na sala da conversa (typing/presença), garante rejoin e a conversa no storage. */
     entrarConversa(conversaId: string): Promise<void>;
     atualizarConversas(): Promise<void>;

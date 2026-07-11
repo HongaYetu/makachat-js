@@ -520,6 +520,18 @@ function maiorId(atual, novo) {
   if (!atual) return novo;
   return novo > atual ? novo : atual;
 }
+function aplicarReciboAConversa(conversa, recibo) {
+  return {
+    ...conversa,
+    participantes: conversa.participantes.map(
+      (p) => p.identidade_id === recibo.identidade_id ? {
+        ...p,
+        ultima_entrega_mensagem_id: maiorId(p.ultima_entrega_mensagem_id, recibo.entregue_ate),
+        ultima_leitura_mensagem_id: maiorId(p.ultima_leitura_mensagem_id, recibo.lido_ate)
+      } : p
+    )
+  };
+}
 
 // src/sync.ts
 var SyncEngine = class {
@@ -537,6 +549,8 @@ var SyncEngine = class {
   versao = 0;
   ouvintes = /* @__PURE__ */ new Set();
   aFazerFlush = false;
+  /** fila de mutações locais da conversa — ver patchConversa */
+  filaConversa = Promise.resolve();
   /** salas de conversa a (re)entrar em cada ligação — typing/presença chegam por aqui */
   salas = /* @__PURE__ */ new Set();
   // ---- subscrição (usada pelos hooks) ----
@@ -553,6 +567,22 @@ var SyncEngine = class {
       ouvinte(this.versao);
     }
   }
+  /**
+   * Mutação local da conversa SERIALIZADA: lê a versão fresca e escreve sem
+   * intercalar com outros writers. Sem isto, o upsert pós-ack do marcarLidas
+   * do emissor podia gravar um snapshot lido ANTES do recibo do recetor e
+   * regredir os ticks (lida → entregue) até reabrir a conversa.
+   */
+  patchConversa(conversaId, patch) {
+    const passo = this.filaConversa.then(async () => {
+      const fresca = await this.storage.obterConversa(conversaId);
+      if (fresca) {
+        await this.storage.upsertConversas([patch(fresca)]);
+      }
+    });
+    this.filaConversa = passo.catch(() => void 0);
+    return passo;
+  }
   // ---- arranque / reconexão ----
   async iniciar() {
     await this.storage.init();
@@ -566,6 +596,21 @@ var SyncEngine = class {
     await this.atualizarConversas();
     await this.sincronizarDelta();
     await this.flushOutbox();
+    await this.marcarEntreguesPendentes();
+  }
+  /** Marca como entregues as mensagens mais novas do que a minha última entrega, por conversa. */
+  async marcarEntreguesPendentes() {
+    const todas = [...await this.storage.listarConversas(false), ...await this.storage.listarConversas(true)];
+    for (const c of todas) {
+      const ultima = c.ultima_mensagem;
+      if (!ultima) continue;
+      const eu = c.participantes.find(
+        (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo
+      );
+      if (!idMaiorOuIgual(eu?.ultima_entrega_mensagem_id ?? null, ultima.id)) {
+        await this.socket.marcarEntregues(c.id, ultima.id).catch(() => void 0);
+      }
+    }
   }
   /** Entra na sala da conversa (typing/presença), garante rejoin e a conversa no storage. */
   async entrarConversa(conversaId) {
@@ -644,26 +689,22 @@ var SyncEngine = class {
   }
   /** Mantém a lista viva: preview, ordem (topo) e contador sem esperar pelo REST. */
   async atualizarPreviewLocal(mensagem, recebida) {
-    const conversa = await this.storage.obterConversa(mensagem.conversa_id);
-    if (!conversa) return;
-    await this.storage.upsertConversas([
-      {
-        ...conversa,
-        ultima_atividade_em: mensagem.criada_em,
-        ultima_mensagem: {
-          id: mensagem.id,
-          tipo: mensagem.tipo,
-          conteudo: mensagem.eliminada ? null : mensagem.conteudo,
-          eliminada: mensagem.eliminada,
-          remetente_identidade_id: mensagem.remetente_identidade_id,
-          criada_em: mensagem.criada_em
-        },
-        participante: conversa.participante ? {
-          ...conversa.participante,
-          mensagens_nao_lidas: recebida ? conversa.participante.mensagens_nao_lidas + 1 : conversa.participante.mensagens_nao_lidas
-        } : conversa.participante
-      }
-    ]);
+    await this.patchConversa(mensagem.conversa_id, (conversa) => ({
+      ...conversa,
+      ultima_atividade_em: mensagem.criada_em,
+      ultima_mensagem: {
+        id: mensagem.id,
+        tipo: mensagem.tipo,
+        conteudo: mensagem.eliminada ? null : mensagem.conteudo,
+        eliminada: mensagem.eliminada,
+        remetente_identidade_id: mensagem.remetente_identidade_id,
+        criada_em: mensagem.criada_em
+      },
+      participante: conversa.participante ? {
+        ...conversa.participante,
+        mensagens_nao_lidas: recebida ? conversa.participante.mensagens_nao_lidas + 1 : conversa.participante.mensagens_nao_lidas
+      } : conversa.participante
+    }));
   }
   /** Mensagens vindas do push nativo (inbox offline) — upsert idempotente por id + refresh da UI. */
   async ingerirMensagensPush(mensagens) {
@@ -797,23 +838,19 @@ var SyncEngine = class {
   /** Silencia (ISO ou '9999-12-31T00:00:00Z' para sempre) ou reativa (null) as notificações da conversa. */
   async silenciarConversa(conversaId, ate) {
     await this.api.atualizarPreferencias(conversaId, { silenciada_ate: ate });
-    const conversa = await this.storage.obterConversa(conversaId);
-    if (conversa?.participante) {
-      await this.storage.upsertConversas([
-        { ...conversa, participante: { ...conversa.participante, silenciada_ate: ate } }
-      ]);
-      this.notificar();
-    }
+    await this.patchConversa(
+      conversaId,
+      (c) => c.participante ? { ...c, participante: { ...c.participante, silenciada_ate: ate } } : c
+    );
+    this.notificar();
   }
   async marcarNaoLida(conversaId) {
     const r = await this.api.marcarNaoLida(conversaId);
-    const conversa = await this.storage.obterConversa(conversaId);
-    if (conversa?.participante) {
-      await this.storage.upsertConversas([
-        { ...conversa, participante: { ...conversa.participante, mensagens_nao_lidas: r.mensagens_nao_lidas } }
-      ]);
-      this.notificar();
-    }
+    await this.patchConversa(
+      conversaId,
+      (c) => c.participante ? { ...c, participante: { ...c.participante, mensagens_nao_lidas: r.mensagens_nao_lidas } } : c
+    );
+    this.notificar();
   }
   // ---- leituras ----
   async marcarLidas(conversaId) {
@@ -823,13 +860,11 @@ var SyncEngine = class {
       return;
     }
     await this.socket.marcarLidas(conversaId, ultima.id).catch(() => void 0);
-    const conversa = await this.storage.obterConversa(conversaId);
-    if (conversa?.participante) {
-      await this.storage.upsertConversas([
-        { ...conversa, participante: { ...conversa.participante, mensagens_nao_lidas: 0 } }
-      ]);
-      this.notificar();
-    }
+    await this.patchConversa(
+      conversaId,
+      (c) => c.participante ? { ...c, participante: { ...c.participante, mensagens_nao_lidas: 0 } } : c
+    );
+    this.notificar();
   }
   // ---- eventos do servidor ----
   registarEventos() {
@@ -882,18 +917,16 @@ var SyncEngine = class {
         if (!await this.storage.obterConversa(recibo.conversa_id)) {
           await this.api.obterConversa(recibo.conversa_id).then(({ conversa }) => this.storage.upsertConversas([conversa])).catch(() => void 0);
         }
-        await this.storage.aplicarRecibo(recibo);
-        if (recibo.lido_ate) {
-          const conversa = await this.storage.obterConversa(recibo.conversa_id);
-          const eu = conversa?.participantes.find(
+        await this.patchConversa(recibo.conversa_id, (c) => {
+          const atualizada = aplicarReciboAConversa(c, recibo);
+          const eu = atualizada.participantes.find(
             (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo
           );
-          if (conversa?.participante && eu && recibo.identidade_id === eu.identidade_id && conversa.participante.mensagens_nao_lidas > 0) {
-            await this.storage.upsertConversas([
-              { ...conversa, participante: { ...conversa.participante, mensagens_nao_lidas: 0 } }
-            ]);
+          if (recibo.lido_ate && atualizada.participante && eu && recibo.identidade_id === eu.identidade_id && atualizada.participante.mensagens_nao_lidas > 0) {
+            return { ...atualizada, participante: { ...atualizada.participante, mensagens_nao_lidas: 0 } };
           }
-        }
+          return atualizada;
+        });
         this.notificar();
       })();
     });

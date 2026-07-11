@@ -185,3 +185,23 @@ function maiorId(atual: string | null, novo: string | null): string | null {
 
     return novo > atual ? novo : atual;
 }
+
+/**
+ * Aplica um recibo a uma conversa de forma PURA e monotónica (os watermarks
+ * nunca recuam) — usado pelo SyncEngine dentro da fila de mutações para os
+ * recibos nunca serem clobberados por escritas concorrentes.
+ */
+export function aplicarReciboAConversa(conversa: Conversa, recibo: Recibo): Conversa {
+    return {
+        ...conversa,
+        participantes: conversa.participantes.map((p) =>
+            p.identidade_id === recibo.identidade_id
+                ? {
+                      ...p,
+                      ultima_entrega_mensagem_id: maiorId(p.ultima_entrega_mensagem_id, recibo.entregue_ate),
+                      ultima_leitura_mensagem_id: maiorId(p.ultima_leitura_mensagem_id, recibo.lido_ate),
+                  }
+                : p,
+        ),
+    };
+}
