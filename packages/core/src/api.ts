@@ -23,6 +23,23 @@ export class ErroApi extends Error {
  * Cliente REST do makachat-server. Obtém/renova o token através do callback
  * `obterToken` fornecido pela app (que fala com o backend do próprio serviço).
  */
+/**
+ * O hub valida os alvos com rigor (`nome` não-vazio, `foto` URL absoluto) —
+ * as apps alimentam alvos com avatares relativos/vazios e nomes em branco,
+ * por isso limpamos aqui em vez de rebentar com "Payload inválido".
+ */
+function limparAlvo(alvo: AlvoParticipante): AlvoParticipante {
+    const nome = alvo.nome?.trim();
+    const foto = alvo.foto?.trim();
+
+    return {
+        id_externo: String(alvo.id_externo),
+        tipo: alvo.tipo,
+        ...(nome ? { nome } : {}),
+        ...(foto && /^https?:\/\//i.test(foto) ? { foto } : {}),
+    };
+}
+
 export class MakaApi {
     private credenciais: CredenciaisSessao | null = null;
 
@@ -85,14 +102,14 @@ export class MakaApi {
     criarPrivada(participante: AlvoParticipante) {
         return this.pedir<{ conversa: Conversa }>('/v1/chat/conversas', {
             method: 'POST',
-            body: JSON.stringify({ tipo: 'privada', participante }),
+            body: JSON.stringify({ tipo: 'privada', participante: limparAlvo(participante) }),
         });
     }
 
     criarGrupo(titulo: string, participantes: AlvoParticipante[]) {
         return this.pedir<{ conversa: Conversa }>('/v1/chat/conversas', {
             method: 'POST',
-            body: JSON.stringify({ tipo: 'grupo', titulo, participantes }),
+            body: JSON.stringify({ tipo: 'grupo', titulo, participantes: participantes.map(limparAlvo) }),
         });
     }
 

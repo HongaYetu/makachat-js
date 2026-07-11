@@ -250,10 +250,6 @@ declare class ErroApi extends Error {
     readonly status: number;
     constructor(message: string, status: number);
 }
-/**
- * Cliente REST do makachat-server. Obtém/renova o token através do callback
- * `obterToken` fornecido pela app (que fala com o backend do próprio serviço).
- */
 declare class MakaApi {
     private readonly obterToken;
     private credenciais;

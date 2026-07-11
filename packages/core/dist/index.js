@@ -77,6 +77,16 @@ var ErroApi = class extends Error {
   }
   status;
 };
+function limparAlvo(alvo) {
+  const nome = alvo.nome?.trim();
+  const foto = alvo.foto?.trim();
+  return {
+    id_externo: String(alvo.id_externo),
+    tipo: alvo.tipo,
+    ...nome ? { nome } : {},
+    ...foto && /^https?:\/\//i.test(foto) ? { foto } : {}
+  };
+}
 var MakaApi = class {
   constructor(obterToken) {
     this.obterToken = obterToken;
@@ -126,13 +136,13 @@ var MakaApi = class {
   criarPrivada(participante) {
     return this.pedir("/v1/chat/conversas", {
       method: "POST",
-      body: JSON.stringify({ tipo: "privada", participante })
+      body: JSON.stringify({ tipo: "privada", participante: limparAlvo(participante) })
     });
   }
   criarGrupo(titulo, participantes) {
     return this.pedir("/v1/chat/conversas", {
       method: "POST",
-      body: JSON.stringify({ tipo: "grupo", titulo, participantes })
+      body: JSON.stringify({ tipo: "grupo", titulo, participantes: participantes.map(limparAlvo) })
     });
   }
   listarMensagens(conversaId, opcoes) {
