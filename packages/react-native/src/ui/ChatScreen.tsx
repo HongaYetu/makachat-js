@@ -627,6 +627,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 </View>
             ) : aGravar ? (
                 <GravadorAudio
+                    padFundo={padFundoInput}
                     aoCancelar={() => setAGravar(false)}
                     aoTerminar={(uri, duracao) => {
                         setAGravar(false);

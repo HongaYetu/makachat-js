@@ -303,9 +303,11 @@ declare function ReprodutorAudio({ url, mimha, duracaoSegundos }: {
  * Gravador estilo WhatsApp (expo-audio): timer a andar, cancelar ou enviar.
  * Devolve o URI local + duração ao terminar.
  */
-declare function GravadorAudio({ aoTerminar, aoCancelar }: {
+declare function GravadorAudio({ aoTerminar, aoCancelar, padFundo }: {
     aoTerminar(uri: string, duracaoSegundos: number): void;
     aoCancelar(): void;
+    /** folga inferior (insets da nav bar Android) — o gravador substitui o input e precisa da mesma */
+    padFundo?: number;
 }): React.JSX.Element;
 
 interface FicheiroLocal {

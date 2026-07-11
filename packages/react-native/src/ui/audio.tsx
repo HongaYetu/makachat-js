@@ -148,23 +148,26 @@ function PlayerInterno({ audio, url, mimha, duracaoSegundos }: { audio: any; url
  * Gravador estilo WhatsApp (expo-audio): timer a andar, cancelar ou enviar.
  * Devolve o URI local + duração ao terminar.
  */
-export function GravadorAudio({ aoTerminar, aoCancelar }: {
+export function GravadorAudio({ aoTerminar, aoCancelar, padFundo }: {
     aoTerminar(uri: string, duracaoSegundos: number): void;
     aoCancelar(): void;
+    /** folga inferior (insets da nav bar Android) — o gravador substitui o input e precisa da mesma */
+    padFundo?: number;
 }) {
     const audio = useMemo(() => obterAudio(), []);
 
     if (!audio?.useAudioRecorder) {
-        return <GravadorErro aoCancelar={aoCancelar} texto="Instala expo-audio para gravar mensagens de voz." />;
+        return <GravadorErro aoCancelar={aoCancelar} texto="Instala expo-audio para gravar mensagens de voz." padFundo={padFundo} />;
     }
 
-    return <GravadorInterno audio={audio} aoTerminar={aoTerminar} aoCancelar={aoCancelar} />;
+    return <GravadorInterno audio={audio} aoTerminar={aoTerminar} aoCancelar={aoCancelar} padFundo={padFundo} />;
 }
 
-function GravadorInterno({ audio, aoTerminar, aoCancelar }: {
+function GravadorInterno({ audio, aoTerminar, aoCancelar, padFundo }: {
     audio: any;
     aoTerminar(uri: string, duracaoSegundos: number): void;
     aoCancelar(): void;
+    padFundo?: number;
 }) {
     const tema = useTema();
     // hook do expo-audio — este componente só monta quando o módulo existe
@@ -223,11 +226,11 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }: {
     };
 
     if (erro) {
-        return <GravadorErro aoCancelar={aoCancelar} texto="Sem acesso ao microfone." />;
+        return <GravadorErro aoCancelar={aoCancelar} texto="Sem acesso ao microfone." padFundo={padFundo} />;
     }
 
     return (
-        <View style={[estilos.gravador, { backgroundColor: tema.superficie }]}>
+        <View style={[estilos.gravador, { backgroundColor: tema.superficie, paddingBottom: Math.max(padFundo ?? 0, 8) }]}>
             <View style={estilos.pontoVermelho} />
             <Text style={{ fontVariant: ['tabular-nums'], fontSize: 15, color: tema.texto, fontWeight: '600' }}>
                 {duracaoMmSs(segundos)}
@@ -243,11 +246,11 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }: {
     );
 }
 
-function GravadorErro({ texto, aoCancelar }: { texto: string; aoCancelar(): void }) {
+function GravadorErro({ texto, aoCancelar, padFundo }: { texto: string; aoCancelar(): void; padFundo?: number }) {
     const tema = useTema();
 
     return (
-        <View style={[estilos.gravador, { backgroundColor: tema.superficie }]}>
+        <View style={[estilos.gravador, { backgroundColor: tema.superficie, paddingBottom: Math.max(padFundo ?? 0, 8) }]}>
             <Text style={{ flex: 1, color: '#ef4444', fontSize: 13 }}>{texto}</Text>
             <Pressable onPress={aoCancelar}>
                 <Ionicons name="close-circle" size={26} color={tema.textoSuave} />

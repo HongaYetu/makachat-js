@@ -1316,14 +1316,14 @@ function PlayerInterno({ audio, url, mimha, duracaoSegundos }) {
     ] }) })
   ] });
 }
-function GravadorAudio({ aoTerminar, aoCancelar }) {
+function GravadorAudio({ aoTerminar, aoCancelar, padFundo }) {
   const audio = (0, import_react6.useMemo)(() => obterAudio(), []);
   if (!audio?.useAudioRecorder) {
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorErro, { aoCancelar, texto: "Instala expo-audio para gravar mensagens de voz." });
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorErro, { aoCancelar, texto: "Instala expo-audio para gravar mensagens de voz.", padFundo });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorInterno, { audio, aoTerminar, aoCancelar });
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorInterno, { audio, aoTerminar, aoCancelar, padFundo });
 }
-function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
+function GravadorInterno({ audio, aoTerminar, aoCancelar, padFundo }) {
   const tema = useTema();
   const recorder = audio.useAudioRecorder(audio.RecordingPresets.HIGH_QUALITY);
   const inicio = (0, import_react6.useRef)(Date.now());
@@ -1365,9 +1365,9 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
     else aoCancelar();
   };
   if (erro) {
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorErro, { aoCancelar, texto: "Sem acesso ao microfone." });
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(GravadorErro, { aoCancelar, texto: "Sem acesso ao microfone.", padFundo });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie, paddingBottom: Math.max(padFundo ?? 0, 8) }], children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.View, { style: estilos3.pontoVermelho }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { fontVariant: ["tabular-nums"], fontSize: 15, color: tema.texto, fontWeight: "600" }, children: duracaoMmSs(segundos) }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { flex: 1, textAlign: "center", color: tema.textoSuave, fontSize: 13 }, children: "A gravar\u2026" }),
@@ -1375,9 +1375,9 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: () => void parar(true), style: [estilos3.enviarGravacao, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "send", size: 19, color: tema.primariaContraste }) })
   ] });
 }
-function GravadorErro({ texto, aoCancelar }) {
+function GravadorErro({ texto, aoCancelar, padFundo }) {
   const tema = useTema();
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_react_native4.View, { style: [estilos3.gravador, { backgroundColor: tema.superficie, paddingBottom: Math.max(padFundo ?? 0, 8) }], children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Text, { style: { flex: 1, color: "#ef4444", fontSize: 13 }, children: texto }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react_native4.Pressable, { onPress: aoCancelar, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_vector_icons3.Ionicons, { name: "close-circle", size: 26, color: tema.textoSuave }) })
   ] });
@@ -2230,6 +2230,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     ] }) : aGravar ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       GravadorAudio,
       {
+        padFundo: padFundoInput,
         aoCancelar: () => setAGravar(false),
         aoTerminar: (uri, duracao) => {
           setAGravar(false);

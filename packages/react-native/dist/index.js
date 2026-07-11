@@ -1287,14 +1287,14 @@ function PlayerInterno({ audio, url, mimha, duracaoSegundos }) {
     ] }) })
   ] });
 }
-function GravadorAudio({ aoTerminar, aoCancelar }) {
+function GravadorAudio({ aoTerminar, aoCancelar, padFundo }) {
   const audio = useMemo3(() => obterAudio(), []);
   if (!audio?.useAudioRecorder) {
-    return /* @__PURE__ */ jsx4(GravadorErro, { aoCancelar, texto: "Instala expo-audio para gravar mensagens de voz." });
+    return /* @__PURE__ */ jsx4(GravadorErro, { aoCancelar, texto: "Instala expo-audio para gravar mensagens de voz.", padFundo });
   }
-  return /* @__PURE__ */ jsx4(GravadorInterno, { audio, aoTerminar, aoCancelar });
+  return /* @__PURE__ */ jsx4(GravadorInterno, { audio, aoTerminar, aoCancelar, padFundo });
 }
-function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
+function GravadorInterno({ audio, aoTerminar, aoCancelar, padFundo }) {
   const tema = useTema();
   const recorder = audio.useAudioRecorder(audio.RecordingPresets.HIGH_QUALITY);
   const inicio = useRef5(Date.now());
@@ -1336,9 +1336,9 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
     else aoCancelar();
   };
   if (erro) {
-    return /* @__PURE__ */ jsx4(GravadorErro, { aoCancelar, texto: "Sem acesso ao microfone." });
+    return /* @__PURE__ */ jsx4(GravadorErro, { aoCancelar, texto: "Sem acesso ao microfone.", padFundo });
   }
-  return /* @__PURE__ */ jsxs3(View3, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
+  return /* @__PURE__ */ jsxs3(View3, { style: [estilos3.gravador, { backgroundColor: tema.superficie, paddingBottom: Math.max(padFundo ?? 0, 8) }], children: [
     /* @__PURE__ */ jsx4(View3, { style: estilos3.pontoVermelho }),
     /* @__PURE__ */ jsx4(Text3, { style: { fontVariant: ["tabular-nums"], fontSize: 15, color: tema.texto, fontWeight: "600" }, children: duracaoMmSs(segundos) }),
     /* @__PURE__ */ jsx4(Text3, { style: { flex: 1, textAlign: "center", color: tema.textoSuave, fontSize: 13 }, children: "A gravar\u2026" }),
@@ -1346,9 +1346,9 @@ function GravadorInterno({ audio, aoTerminar, aoCancelar }) {
     /* @__PURE__ */ jsx4(Pressable3, { onPress: () => void parar(true), style: [estilos3.enviarGravacao, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx4(Ionicons3, { name: "send", size: 19, color: tema.primariaContraste }) })
   ] });
 }
-function GravadorErro({ texto, aoCancelar }) {
+function GravadorErro({ texto, aoCancelar, padFundo }) {
   const tema = useTema();
-  return /* @__PURE__ */ jsxs3(View3, { style: [estilos3.gravador, { backgroundColor: tema.superficie }], children: [
+  return /* @__PURE__ */ jsxs3(View3, { style: [estilos3.gravador, { backgroundColor: tema.superficie, paddingBottom: Math.max(padFundo ?? 0, 8) }], children: [
     /* @__PURE__ */ jsx4(Text3, { style: { flex: 1, color: "#ef4444", fontSize: 13 }, children: texto }),
     /* @__PURE__ */ jsx4(Pressable3, { onPress: aoCancelar, children: /* @__PURE__ */ jsx4(Ionicons3, { name: "close-circle", size: 26, color: tema.textoSuave }) })
   ] });
@@ -2220,6 +2220,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     ] }) : aGravar ? /* @__PURE__ */ jsx7(
       GravadorAudio,
       {
+        padFundo: padFundoInput,
         aoCancelar: () => setAGravar(false),
         aoTerminar: (uri, duracao) => {
           setAGravar(false);
