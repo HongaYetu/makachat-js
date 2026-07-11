@@ -328,26 +328,39 @@ class MakachatFcmService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        val dados = remoteMessage.data
+        MakachatPushProcessor.processar(applicationContext, remoteMessage.data)
+    }
+}
 
+/**
+ * Processamento dos pushes MakaChat FORA do service: apps com o seu próprio
+ * FirebaseMessagingService (o Android entrega FCM a UM só service) delegam
+ * para aqui — `MakachatPushProcessor.processar(context, data)` devolve true
+ * se o push era do MakaChat (e foi tratado) e false caso contrário.
+ */
+object MakachatPushProcessor {
+
+    /** Trata um data push. true = era MakaChat; false = não é nosso. */
+    @JvmStatic
+    fun processar(context: Context, dados: Map<String, String>): Boolean {
         if (dados["makachat"] != "1") {
-            return
+            return false
         }
 
         if (dados["makachat_chamada"] == "1") {
-            tratarChamada(dados)
+            tratarChamada(context, dados)
 
-            return
+            return true
         }
 
-        val chaveServico = dados["chave_servico"] ?: return
-        val conversaId = dados["conversa_id"] ?: return
+        val chaveServico = dados["chave_servico"] ?: return true
+        val conversaId = dados["conversa_id"] ?: return true
         val mensagemJson = dados["mensagem"] ?: "{}"
         val recebidaEm = Instant.now().toString()
 
-        InboxDatabase.get(applicationContext).inserir(chaveServico, conversaId, mensagemJson, recebidaEm)
+        InboxDatabase.get(context).inserir(chaveServico, conversaId, mensagemJson, recebidaEm)
 
-        emissor?.invoke(
+        MakachatFcmService.emissor?.invoke(
             mapOf(
                 "chave_servico" to chaveServico,
                 "conversa_id" to conversaId,
@@ -359,14 +372,14 @@ class MakachatFcmService : FirebaseMessagingService() {
         val titulo = dados["titulo"] ?: "Nova mensagem"
 
         // metadados para a notificação estilo WhatsApp (avatar + grupo), por conversa
-        prefs().edit().apply {
+        prefs(context).edit().apply {
             dados["foto"]?.takeIf { it.isNotEmpty() }?.let { putString("foto_$conversaId", it) }
             dados["conversa_tipo"]?.takeIf { it.isNotEmpty() }?.let { putString("tipo_$conversaId", it) }
             dados["conversa_titulo"]?.takeIf { it.isNotEmpty() }?.let { putString("titulo_$conversaId", it) }
             dados["conversa_foto"]?.takeIf { it.isNotEmpty() }?.let { putString("foto_conversa_$conversaId", it) }
         }.apply()
 
-        InboxDatabase.get(applicationContext).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
+        InboxDatabase.get(context).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
 
         // flag do hub na própria mensagem: silenciosa (não conta no badge) → canal sem som
         val semSom = try {
@@ -375,15 +388,17 @@ class MakachatFcmService : FirebaseMessagingService() {
             false
         }
 
-        mostrarMensagens(applicationContext, conversaId, titulo, semSom = semSom)
+        MakachatFcmService.mostrarMensagens(context, conversaId, titulo, semSom = semSom)
 
         // recibo de ENTREGA (✓✓ cinzento) assim que o push chega ao dispositivo —
         // best-effort, autenticado pelo token+segredo do registo do dispositivo
-        dados["mensagem_id"]?.let { reportarEntrega(conversaId, it) }
+        dados["mensagem_id"]?.let { reportarEntrega(context, conversaId, it) }
+
+        return true
     }
 
-    private fun reportarEntrega(conversaId: String, mensagemId: String) {
-        val db = InboxDatabase.get(applicationContext)
+    private fun reportarEntrega(context: Context, conversaId: String, mensagemId: String) {
+        val db = InboxDatabase.get(context)
         val apiUrl = db.obterConfig("api_url") ?: return
         val token = db.obterConfig("token_dispositivo") ?: return
         val segredo = db.obterConfig("segredo_resposta") ?: return
@@ -421,18 +436,18 @@ class MakachatFcmService : FirebaseMessagingService() {
 
     // ------------------------------------------------------------ chamadas
 
-    private fun tratarChamada(dados: Map<String, String>) {
+    private fun tratarChamada(context: Context, dados: Map<String, String>) {
         val chamadaId = dados["chamada_id"] ?: return
 
         if (dados["acao"] == "parar") {
-            cancelarChamada(applicationContext, chamadaId) // também para o ToqueChamadaService
-            prefs().edit().remove("chamada_pendente").apply()
+            MakachatFcmService.cancelarChamada(context, chamadaId) // também para o ToqueChamadaService
+            prefs(context).edit().remove("chamada_pendente").apply()
             // fecha o ecrã nativo se estiver aberto (atenderam/terminou noutro lado)
-            applicationContext.sendBroadcast(
-                Intent(ACAO_FECHAR_ECRA).setPackage(applicationContext.packageName),
+            context.sendBroadcast(
+                Intent(MakachatFcmService.ACAO_FECHAR_ECRA).setPackage(context.packageName),
             )
             // app viva: o JS pode estar a tocar em-app — manda calar
-            emissorChamada?.invoke(mapOf("chamada_id" to chamadaId, "acao" to "parar"))
+            MakachatFcmService.emissorChamada?.invoke(mapOf("chamada_id" to chamadaId, "acao" to "parar"))
 
             return
         }
@@ -444,8 +459,8 @@ class MakachatFcmService : FirebaseMessagingService() {
 
         // app VISÍVEL com o handler JS subscrito → toca só em-app (sem notificação);
         // qualquer outro caso (minimizada, killed, JS não pronto) → notificação nativa
-        if (processoEmForeground() && ouvinteChamadasPronto && emissorChamada != null) {
-            emissorChamada?.invoke(
+        if (MakachatFcmService.processoEmForeground() && MakachatFcmService.ouvinteChamadasPronto && MakachatFcmService.emissorChamada != null) {
+            MakachatFcmService.emissorChamada?.invoke(
                 mapOf(
                     "chamada_id" to chamadaId,
                     "chamada_tipo" to chamadaTipo,
@@ -460,9 +475,8 @@ class MakachatFcmService : FirebaseMessagingService() {
             return
         }
 
-        apresentarChamada(applicationContext, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
+        MakachatFcmService.apresentarChamada(context, titulo, chamadaId, chamadaTipo, conversaId, chaveServico, dados["foto"])
     }
 
-    private fun prefs() = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-
+    private fun prefs(context: Context) = context.getSharedPreferences(MakachatFcmService.PREFS, Context.MODE_PRIVATE)
 }

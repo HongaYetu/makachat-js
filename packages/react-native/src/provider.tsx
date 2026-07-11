@@ -247,6 +247,11 @@ export function useMakaChat(): MakaChatContexto {
     return contexto;
 }
 
+/** Como useMakaChat, mas devolve null fora do provider (layouts que montam antes do login). */
+export function useMakaChatOpcional(): MakaChatContexto | null {
+    return useContext(Contexto);
+}
+
 /** Tema resolvido (cores) — todos os componentes MakaChat leem daqui. */
 export function useTema(): TemaResolvido {
     return useMakaChat().tema;

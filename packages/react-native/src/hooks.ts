@@ -1,6 +1,6 @@
 import { Anexo, Conversa, DadosEnvioMensagem, Funcionalidade, Mensagem, Presenca, Typing } from '@hongayetu/makachat-core';
 import { useCallback, useEffect, useState } from 'react';
-import { useMakaChat } from './provider';
+import { useMakaChat, useMakaChatOpcional } from './provider';
 import { useRef } from 'react';
 
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
@@ -193,6 +193,35 @@ export function useTotalNaoLidas(): number {
             .listarConversas(false)
             .then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
     }, [engine, versao]);
+
+    return total;
+}
+
+/**
+ * Total de não lidas SEM exigir o provider — devolve 0 fora dele. Para badges
+ * em layouts (tab bar) que montam antes do login/do provider.
+ */
+export function useTotalNaoLidasOpcional(): number {
+    const contexto = useMakaChatOpcional();
+    const engine = contexto?.engine ?? null;
+    const [total, setTotal] = useState(0);
+
+    useEffect(() => {
+        if (!engine) {
+            setTotal(0);
+
+            return;
+        }
+
+        const atualizar = () =>
+            void engine.storage
+                .listarConversas(false)
+                .then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
+
+        atualizar();
+
+        return engine.subscrever(atualizar);
+    }, [engine]);
 
     return total;
 }

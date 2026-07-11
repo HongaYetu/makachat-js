@@ -501,6 +501,9 @@ function useMakaChat() {
   }
   return contexto;
 }
+function useMakaChatOpcional() {
+  return useContext(Contexto);
+}
 function useTema() {
   return useMakaChat().tema;
 }
@@ -636,6 +639,21 @@ function useTotalNaoLidas() {
   useEffect2(() => {
     void engine.storage.listarConversas(false).then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
   }, [engine, versao]);
+  return total;
+}
+function useTotalNaoLidasOpcional() {
+  const contexto = useMakaChatOpcional();
+  const engine = contexto?.engine ?? null;
+  const [total, setTotal] = useState2(0);
+  useEffect2(() => {
+    if (!engine) {
+      setTotal(0);
+      return;
+    }
+    const atualizar = () => void engine.storage.listarConversas(false).then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
+    atualizar();
+    return engine.subscrever(atualizar);
+  }, [engine]);
   return total;
 }
 
@@ -3668,12 +3686,14 @@ export {
   useFuncionalidadeAtiva,
   useLigacao,
   useMakaChat,
+  useMakaChatOpcional,
   useMensagemRecebida,
   useMensagens,
   usePresenca,
   useSemLigacao,
   useTema,
   useTotalNaoLidas,
+  useTotalNaoLidasOpcional,
   useTypingConversa,
   useVersaoChat
 };

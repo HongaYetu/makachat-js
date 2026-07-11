@@ -103,6 +103,8 @@ interface MakaChatProviderProps {
 }
 declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, children, }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
+/** Como useMakaChat, mas devolve null fora do provider (layouts que montam antes do login). */
+declare function useMakaChatOpcional(): MakaChatContexto | null;
 /** Tema resolvido (cores) — todos os componentes MakaChat leem daqui. */
 declare function useTema(): TemaResolvido;
 
@@ -130,6 +132,11 @@ declare function useSemLigacao(atrasoMs?: number): boolean;
 declare function useMensagemRecebida(handler: (mensagem: Mensagem) => void): void;
 /** Total de não lidas em todas as conversas — badge global (tab bar, título...). */
 declare function useTotalNaoLidas(): number;
+/**
+ * Total de não lidas SEM exigir o provider — devolve 0 fora dele. Para badges
+ * em layouts (tab bar) que montam antes do login/do provider.
+ */
+declare function useTotalNaoLidasOpcional(): number;
 
 /**
  * Lista da UI em FlatList — ordem e `inverted` fiáveis. O FlashList v2
@@ -424,4 +431,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };
