@@ -43,6 +43,14 @@ export const obterVideo = (): any => {
 };
 
 export const obterFileSystem = (): any => {
+    // SDK 54+: o entry principal exporta a API nova + stubs deprecados que
+    // LANÇAM em runtime; uploadAsync e afins vivem em expo-file-system/legacy.
+    try {
+        return require('expo-file-system/legacy');
+    } catch {
+        // SDKs antigos não têm o subpath — o entry principal É a API antiga
+    }
+
     try {
         return require('expo-file-system');
     } catch {

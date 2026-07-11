@@ -78,7 +78,9 @@ export async function enviarAnexoLocal(api: MakaApi, ficheiro: FicheiroLocal, op
     const { token } = await api.sessao();
     const fs = obterFileSystem();
 
-    if (fs?.uploadAsync) {
+    // FileSystemUploadType só existe na API legacy REAL — os stubs deprecados
+    // do entry principal (SDK 54+) têm uploadAsync mas lançam ao chamar
+    if (fs?.uploadAsync && fs.FileSystemUploadType) {
         // caminho recomendado: streaming direto do ficheiro local
         await fs.uploadAsync(criado.upload.url, ficheiro.uri, {
             httpMethod: 'PUT',

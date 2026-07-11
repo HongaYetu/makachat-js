@@ -235,6 +235,10 @@ var obterVideo = () => {
 };
 var obterFileSystem = () => {
   try {
+    return __require("expo-file-system/legacy");
+  } catch {
+  }
+  try {
     return __require("expo-file-system");
   } catch {
     return null;
@@ -1429,7 +1433,7 @@ async function enviarAnexoLocal(api, ficheiro, opcoes) {
   const criado = await api.criarMedia({ tipo: ficheiro.tipo, mime: ficheiro.mime, nome_ficheiro: ficheiro.nome });
   const { token } = await api.sessao();
   const fs = obterFileSystem();
-  if (fs?.uploadAsync) {
+  if (fs?.uploadAsync && fs.FileSystemUploadType) {
     await fs.uploadAsync(criado.upload.url, ficheiro.uri, {
       httpMethod: "PUT",
       uploadType: fs.FileSystemUploadType?.BINARY_CONTENT ?? 1,

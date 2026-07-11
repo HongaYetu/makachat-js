@@ -20,6 +20,7 @@ export default defineConfig({
         'expo-image-picker',
         'expo-document-picker',
         'expo-file-system',
+        'expo-file-system/legacy',
         '@notifee/react-native',
         '@hongayetu/expo-makachat-push',
         '@gorhom/bottom-sheet',
