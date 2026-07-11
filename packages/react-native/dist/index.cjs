@@ -870,7 +870,7 @@ var import_react5 = require("react");
 var import_react_native3 = require("react-native");
 var import_jsx_runtime3 = require("react/jsx-runtime");
 var SEMPRE = "9999-12-31T00:00:00.000Z";
-function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }) {
+function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
   const semLigacao = useSemLigacao();
@@ -1047,7 +1047,36 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         onEndReachedThreshold: 0.4,
         extraData: versao,
         estimatedItemSize: 72,
-        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { textAlign: "center", marginTop: 48, color: tema.textoSuave }, children: textoVazio ?? (arquivadas ? "Sem conversas arquivadas." : "Sem conversas \u2014 come\xE7a uma nova.") })
+        ListEmptyComponent: busca.trim() ? (
+          // pesquisa ativa sem resultados: mensagem discreta, sem CTA
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { textAlign: "center", marginTop: 48, color: tema.textoSuave }, children: "Sem resultados." })
+        ) : renderVazio ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_jsx_runtime3.Fragment, { children: renderVazio() }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: estilos2.vazio, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.View, { style: [estilos2.vazioIcone, { backgroundColor: `${tema.primaria}1A` }], children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            import_vector_icons2.Ionicons,
+            {
+              name: arquivadas ? "archive-outline" : "chatbubbles-outline",
+              size: 40,
+              color: tema.primaria
+            }
+          ) }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: [estilos2.vazioTitulo, { color: tema.texto }], children: tituloVazio ?? (arquivadas ? "Nada arquivado" : "Ainda sem conversas") }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: [estilos2.vazioTexto, { color: tema.textoSuave }], children: textoVazio ?? (arquivadas ? "As conversas que arquivares aparecem aqui." : "Quando come\xE7ares a falar com algu\xE9m, as conversas aparecem aqui.") }),
+          !arquivadas && podeCriar && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+            import_react_native3.Pressable,
+            {
+              onPress: () => onNovaConversa ? onNovaConversa() : setNovaAberta(true),
+              style: ({ pressed }) => [
+                estilos2.vazioBotao,
+                { backgroundColor: tema.primaria },
+                pressed && { opacity: 0.85 }
+              ],
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "add", size: 18, color: tema.primariaContraste }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 14.5 }, children: "Come\xE7ar conversa" })
+              ]
+            }
+          )
+        ] })
       }
     ),
     !arquivadas && podeCriar && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -1197,6 +1226,11 @@ function previewConversa(c) {
   return u.tipo === "texto" || u.tipo === "sistema" || u.tipo === "chamada" ? u.conteudo ?? "" : p[u.tipo] ?? "";
 }
 var estilos2 = import_react_native3.StyleSheet.create({
+  vazio: { alignItems: "center", paddingHorizontal: 36, paddingTop: 72 },
+  vazioIcone: { width: 88, height: 88, borderRadius: 44, alignItems: "center", justifyContent: "center", marginBottom: 18 },
+  vazioTitulo: { fontSize: 17, fontWeight: "800", marginBottom: 6, textAlign: "center" },
+  vazioTexto: { fontSize: 13.5, lineHeight: 19, textAlign: "center" },
+  vazioBotao: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11, marginTop: 20 },
   offline: { backgroundColor: "#fef3c7", paddingVertical: 5, alignItems: "center" },
   offlineTexto: { color: "#92400e", fontSize: 12, fontWeight: "600" },
   pesquisa: {

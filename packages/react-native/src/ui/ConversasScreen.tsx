@@ -39,7 +39,12 @@ export interface ConversasScreenProps {
     conversaInicial?: string | null;
     /** navegar para o modo arquivadas (a app decide: outro ecrã ou estado local) */
     onAbrirArquivadas?(): void;
+    /** subtítulo do estado vazio (o título/ícone são do SDK) */
     textoVazio?: string;
+    /** título do estado vazio (padrão: "Ainda sem conversas") */
+    tituloVazio?: string;
+    /** estado vazio COMPLETAMENTE custom da app — substitui o do SDK */
+    renderVazio?(): React.ReactNode;
     /**
      * Topo CUSTOM da app (pesquisa/arquivadas ao estilo dela): recebe a busca
      * controlada e a ação de arquivadas. Sem isto, o topo interno padrão é usado.
@@ -55,7 +60,7 @@ export interface ConversasScreenProps {
 const SEMPRE = '9999-12-31T00:00:00.000Z';
 
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }: ConversasScreenProps) {
+export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }: ConversasScreenProps) {
     const { engine, api, identidade, contactos } = useMakaChat();
     const tema = useTema();
     const semLigacao = useSemLigacao();
@@ -283,9 +288,46 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
                 extraData={versao}
                 estimatedItemSize={72}
                 ListEmptyComponent={
-                    <Text style={{ textAlign: 'center', marginTop: 48, color: tema.textoSuave }}>
-                        {textoVazio ?? (arquivadas ? 'Sem conversas arquivadas.' : 'Sem conversas — começa uma nova.')}
-                    </Text>
+                    busca.trim() ? (
+                        // pesquisa ativa sem resultados: mensagem discreta, sem CTA
+                        <Text style={{ textAlign: 'center', marginTop: 48, color: tema.textoSuave }}>Sem resultados.</Text>
+                    ) : renderVazio ? (
+                        <>{renderVazio()}</>
+                    ) : (
+                        <View style={estilos.vazio}>
+                            <View style={[estilos.vazioIcone, { backgroundColor: `${tema.primaria}1A` }]}>
+                                <Ionicons
+                                    name={arquivadas ? 'archive-outline' : 'chatbubbles-outline'}
+                                    size={40}
+                                    color={tema.primaria}
+                                />
+                            </View>
+                            <Text style={[estilos.vazioTitulo, { color: tema.texto }]}>
+                                {tituloVazio ?? (arquivadas ? 'Nada arquivado' : 'Ainda sem conversas')}
+                            </Text>
+                            <Text style={[estilos.vazioTexto, { color: tema.textoSuave }]}>
+                                {textoVazio ??
+                                    (arquivadas
+                                        ? 'As conversas que arquivares aparecem aqui.'
+                                        : 'Quando começares a falar com alguém, as conversas aparecem aqui.')}
+                            </Text>
+                            {!arquivadas && podeCriar && (
+                                <Pressable
+                                    onPress={() => (onNovaConversa ? onNovaConversa() : setNovaAberta(true))}
+                                    style={({ pressed }: { pressed: boolean }) => [
+                                        estilos.vazioBotao,
+                                        { backgroundColor: tema.primaria },
+                                        pressed && { opacity: 0.85 },
+                                    ]}
+                                >
+                                    <Ionicons name="add" size={18} color={tema.primariaContraste} />
+                                    <Text style={{ color: tema.primariaContraste, fontWeight: '700', fontSize: 14.5 }}>
+                                        Começar conversa
+                                    </Text>
+                                </Pressable>
+                            )}
+                        </View>
+                    )
                 }
             />
 
@@ -476,6 +518,11 @@ export function previewConversa(c: Conversa): string {
 }
 
 const estilos = StyleSheet.create({
+    vazio: { alignItems: 'center', paddingHorizontal: 36, paddingTop: 72 },
+    vazioIcone: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+    vazioTitulo: { fontSize: 17, fontWeight: '800', marginBottom: 6, textAlign: 'center' },
+    vazioTexto: { fontSize: 13.5, lineHeight: 19, textAlign: 'center' },
+    vazioBotao: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11, marginTop: 20 },
     offline: { backgroundColor: '#fef3c7', paddingVertical: 5, alignItems: 'center' },
     offlineTexto: { color: '#92400e', fontSize: 12, fontWeight: '600' },
     pesquisa: {

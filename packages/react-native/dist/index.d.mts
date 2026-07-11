@@ -192,7 +192,12 @@ interface ConversasScreenProps {
     conversaInicial?: string | null;
     /** navegar para o modo arquivadas (a app decide: outro ecrã ou estado local) */
     onAbrirArquivadas?(): void;
+    /** subtítulo do estado vazio (o título/ícone são do SDK) */
     textoVazio?: string;
+    /** título do estado vazio (padrão: "Ainda sem conversas") */
+    tituloVazio?: string;
+    /** estado vazio COMPLETAMENTE custom da app — substitui o do SDK */
+    renderVazio?(): React.ReactNode;
     /**
      * Topo CUSTOM da app (pesquisa/arquivadas ao estilo dela): recebe a busca
      * controlada e a ação de arquivadas. Sem isto, o topo interno padrão é usado.
@@ -205,7 +210,7 @@ interface ConversasScreenProps {
     onNovaConversa?(): void;
 }
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }: ConversasScreenProps): React.JSX.Element;
+declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }: ConversasScreenProps): React.JSX.Element;
 declare function previewConversa(c: Conversa): string;
 
 /** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
