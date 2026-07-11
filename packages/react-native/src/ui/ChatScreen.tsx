@@ -781,6 +781,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
         if (conversa) {
             itens.push({ icone: 'information-circle-outline', rotulo: grupo ? 'Info do grupo' : 'Ver contacto', acao: () => onAbrirInfo?.(conversa) });
+            itens.push({ icone: 'search-outline', rotulo: 'Pesquisar na conversa', acao: () => { setPesquisaAberta(true); setResultados([]); setPesquisaQ(''); } });
 
             const silenciada = !!conversa.participante?.silenciada_ate && new Date(conversa.participante.silenciada_ate) > new Date();
             itens.push(

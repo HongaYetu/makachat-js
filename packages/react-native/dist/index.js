@@ -2344,6 +2344,11 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     const itens2 = [];
     if (conversa) {
       itens2.push({ icone: "information-circle-outline", rotulo: grupo ? "Info do grupo" : "Ver contacto", acao: () => onAbrirInfo?.(conversa) });
+      itens2.push({ icone: "search-outline", rotulo: "Pesquisar na conversa", acao: () => {
+        setPesquisaAberta(true);
+        setResultados([]);
+        setPesquisaQ("");
+      } });
       const silenciada = !!conversa.participante?.silenciada_ate && new Date(conversa.participante.silenciada_ate) > /* @__PURE__ */ new Date();
       itens2.push(
         silenciada ? { icone: "notifications-outline", rotulo: "Reativar notifica\xE7\xF5es", acao: () => void engine.silenciarConversa(conversaId, null) } : { icone: "notifications-off-outline", rotulo: "Silenciar (sempre)", acao: () => void engine.silenciarConversa(conversaId, "9999-12-31T00:00:00.000Z") }
