@@ -904,14 +904,16 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
     };
 
     /** Upload + envio via engine: aparece já no chat com preview local. */
-    const enviarFicheiro = async (f: File, legenda?: string, forcarTipo?: 'ficheiro') => {
+    const enviarFicheiro = async (f: File, legenda?: string, forcarTipo?: 'ficheiro', duracaoSegundos?: number) => {
         setAEnviarMedia(true);
 
         try {
             const tipo = forcarTipo ?? (f.type.startsWith('image/') ? 'foto' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'ficheiro');
             const criado = await api.criarMedia({ tipo, mime: f.type, nome_ficheiro: f.name });
             await api.carregarMedia(criado.upload, f, f.type);
-            await api.confirmarMedia(criado.anexo_id);
+            // duração medida na gravação — o webm do MediaRecorder não traz
+            // duração no container (duration=Infinity), só nós a sabemos
+            await api.confirmarMedia(criado.anexo_id, duracaoSegundos ? { duracao_segundos: duracaoSegundos } : undefined);
 
             const preview: Anexo = {
                 id: criado.anexo_id,
@@ -921,7 +923,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                 tamanho_bytes: f.size,
                 largura: null,
                 altura: null,
-                duracao_segundos: null,
+                duracao_segundos: duracaoSegundos ?? null,
                 blurhash: null,
                 estado: 'pronto',
                 url: URL.createObjectURL(f),
@@ -1259,7 +1261,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                 podeGravar={podeAudioMedia}
                 aEnviarMedia={aEnviarMedia}
                 aoAnexar={() => setMenuAnexo(!menuAnexo)}
-                aoGravarAudio={(blob) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }))}
+                aoGravarAudio={(blob, duracao) => void enviarFicheiro(new File([blob], 'voz.webm', { type: blob.type || 'audio/webm' }), undefined, undefined, duracao)}
             />
             {menuAnexo && (
                 <div data-maka-pop="menu-anexo" className="absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]">
@@ -1423,7 +1425,7 @@ export function MakaChatConversa({ conversaId }: { conversaId: string }) {
 
 function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio }: {
     compacto: boolean; texto: string; setTexto(v: string): void; placeholder: string; aoEnviar(): void;
-    podeMedia: boolean; podeGravar: boolean; aEnviarMedia: boolean; aoAnexar(): void; aoGravarAudio(blob: Blob): void;
+    podeMedia: boolean; podeGravar: boolean; aEnviarMedia: boolean; aoAnexar(): void; aoGravarAudio(blob: Blob, duracaoSegundos: number): void;
 }) {
     const [aGravar, setAGravar] = useState(false);
     const [segundos, setSegundos] = useState(0);
@@ -1431,6 +1433,8 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
     const pedacos = useRef<Blob[]>([]);
     const cancelado = useRef(false);
     const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+    // duração medida por timestamp (o estado `segundos` estaria stale no onstop)
+    const inicioGravacao = useRef(0);
 
     const pararTimer = () => {
         if (timer.current) clearInterval(timer.current);
@@ -1452,11 +1456,13 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
                 stream.getTracks().forEach((t) => t.stop());
 
                 if (!cancelado.current && pedacos.current.length) {
-                    aoGravarAudio(new Blob(pedacos.current, { type: rec.mimeType || 'audio/webm' }));
+                    const duracao = Math.max(1, Math.round((Date.now() - inicioGravacao.current) / 1000));
+                    aoGravarAudio(new Blob(pedacos.current, { type: rec.mimeType || 'audio/webm' }), duracao);
                 }
             };
             rec.start();
             gravador.current = rec;
+            inicioGravacao.current = Date.now();
             setSegundos(0);
             setAGravar(true);
             timer.current = setInterval(() => setSegundos((s) => s + 1), 1000);
@@ -1855,7 +1861,7 @@ function AnexoView({ anexo: a, aoAbrirFoto }: { anexo: Anexo; aoAbrirFoto(url: s
     if (a.tipo === 'foto')
         return <img src={a.url} className="max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90" alt="" onClick={() => aoAbrirFoto(a.url as string)} />;
     if (a.tipo === 'video') return <video src={a.url} controls className="max-w-[260px] rounded-xl" />;
-    if (a.tipo === 'audio') return <ReprodutorAudio url={a.url} />;
+    if (a.tipo === 'audio') return <ReprodutorAudio url={a.url} duracaoSegundos={a.duracao_segundos} />;
 
     return <CartaoFicheiro anexo={a} />;
 }

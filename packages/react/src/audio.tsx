@@ -56,12 +56,14 @@ async function calcularGanho(url: string): Promise<number | null> {
  * 1x/1.5x/2x e ganho CALCULADO da gravação (Web Audio: gain normaliza para o
  * alvo de voz + compressor como limitador de segurança).
  */
-export function ReprodutorAudio({ url }: { url: string }) {
+export function ReprodutorAudio({ url, duracaoSegundos }: { url: string; duracaoSegundos?: number | null }) {
     const audio = useRef<HTMLAudioElement | null>(null);
     const grafo = useRef<{ ctx: AudioContext; ganho: GainNode } | null>(null);
     const [aTocar, setATocar] = useState(false);
     const [progresso, setProgresso] = useState(0);
-    const [duracao, setDuracao] = useState(0);
+    // duração do servidor (metadados do upload) — o webm do MediaRecorder não
+    // traz duração no container (duration=Infinity) e sem isto ficava 0:00
+    const [duracao, setDuracao] = useState(duracaoSegundos && duracaoSegundos > 0 ? duracaoSegundos : 0);
     const [velocidade, setVelocidade] = useState<(typeof VELOCIDADES)[number]>(1);
 
     useEffect(() => {
@@ -71,7 +73,7 @@ export function ReprodutorAudio({ url }: { url: string }) {
         audio.current = el;
 
         const aoTempo = () => setProgresso(el.currentTime);
-        const aoDuracao = () => Number.isFinite(el.duration) && setDuracao(el.duration);
+        const aoDuracao = () => Number.isFinite(el.duration) && el.duration > 0 && setDuracao(el.duration);
         const aoFim = () => setATocar(false);
 
         el.addEventListener('timeupdate', aoTempo);
@@ -114,6 +116,9 @@ export function ReprodutorAudio({ url }: { url: string }) {
 
             void calcularGanho(url).then((calculado) => {
                 if (calculado && grafo.current) grafo.current.ganho.gain.value = calculado;
+
+                // verificação em DevTools de que o grafo está ativo e com que boost
+                console.info('[makachat] ganho voz:', calculado ? calculado.toFixed(2) : '1.80 (fallback)');
             });
         } catch {
             // CORS sem cabeçalhos → toca sem normalização

@@ -405,12 +405,12 @@ async function calcularGanho(url) {
   ganhosCalculados.set(url, ganho);
   return ganho;
 }
-function ReprodutorAudio({ url }) {
+function ReprodutorAudio({ url, duracaoSegundos }) {
   const audio = useRef3(null);
   const grafo = useRef3(null);
   const [aTocar, setATocar] = useState3(false);
   const [progresso, setProgresso] = useState3(0);
-  const [duracao, setDuracao] = useState3(0);
+  const [duracao, setDuracao] = useState3(duracaoSegundos && duracaoSegundos > 0 ? duracaoSegundos : 0);
   const [velocidade, setVelocidade] = useState3(1);
   useEffect3(() => {
     const el = new Audio(url);
@@ -418,7 +418,7 @@ function ReprodutorAudio({ url }) {
     el.crossOrigin = "anonymous";
     audio.current = el;
     const aoTempo = () => setProgresso(el.currentTime);
-    const aoDuracao = () => Number.isFinite(el.duration) && setDuracao(el.duration);
+    const aoDuracao = () => Number.isFinite(el.duration) && el.duration > 0 && setDuracao(el.duration);
     const aoFim = () => setATocar(false);
     el.addEventListener("timeupdate", aoTempo);
     el.addEventListener("loadedmetadata", aoDuracao);
@@ -449,6 +449,7 @@ function ReprodutorAudio({ url }) {
       grafo.current = { ctx, ganho };
       void calcularGanho(url).then((calculado) => {
         if (calculado && grafo.current) grafo.current.ganho.gain.value = calculado;
+        console.info("[makachat] ganho voz:", calculado ? calculado.toFixed(2) : "1.80 (fallback)");
       });
     } catch {
     }
@@ -1630,13 +1631,13 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
     tocarSom("enviada");
     void enviar({ conversa_id: conversaId, conteudo, resposta_a_id: resposta?.id });
   };
-  const enviarFicheiro = async (f, legenda, forcarTipo) => {
+  const enviarFicheiro = async (f, legenda, forcarTipo, duracaoSegundos) => {
     setAEnviarMedia(true);
     try {
       const tipo = forcarTipo ?? (f.type.startsWith("image/") ? "foto" : f.type.startsWith("video/") ? "video" : f.type.startsWith("audio/") ? "audio" : "ficheiro");
       const criado = await api.criarMedia({ tipo, mime: f.type, nome_ficheiro: f.name });
       await api.carregarMedia(criado.upload, f, f.type);
-      await api.confirmarMedia(criado.anexo_id);
+      await api.confirmarMedia(criado.anexo_id, duracaoSegundos ? { duracao_segundos: duracaoSegundos } : void 0);
       const preview = {
         id: criado.anexo_id,
         tipo,
@@ -1645,7 +1646,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
         tamanho_bytes: f.size,
         largura: null,
         altura: null,
-        duracao_segundos: null,
+        duracao_segundos: duracaoSegundos ?? null,
         blurhash: null,
         estado: "pronto",
         url: URL.createObjectURL(f)
@@ -1950,7 +1951,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
           podeGravar: podeAudioMedia,
           aEnviarMedia,
           aoAnexar: () => setMenuAnexo(!menuAnexo),
-          aoGravarAudio: (blob) => void enviarFicheiro(new File([blob], "voz.webm", { type: blob.type || "audio/webm" }))
+          aoGravarAudio: (blob, duracao) => void enviarFicheiro(new File([blob], "voz.webm", { type: blob.type || "audio/webm" }), void 0, void 0, duracao)
         }
       ),
       menuAnexo && /* @__PURE__ */ jsxs3("div", { "data-maka-pop": "menu-anexo", className: "absolute bottom-16 left-3 z-[6] min-w-[190px] animate-maka-subir overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05]", children: [
@@ -2131,6 +2132,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
   const pedacos = useRef5([]);
   const cancelado = useRef5(false);
   const timer = useRef5(null);
+  const inicioGravacao = useRef5(0);
   const pararTimer = () => {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
@@ -2148,11 +2150,13 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         if (!cancelado.current && pedacos.current.length) {
-          aoGravarAudio(new Blob(pedacos.current, { type: rec.mimeType || "audio/webm" }));
+          const duracao = Math.max(1, Math.round((Date.now() - inicioGravacao.current) / 1e3));
+          aoGravarAudio(new Blob(pedacos.current, { type: rec.mimeType || "audio/webm" }), duracao);
         }
       };
       rec.start();
       gravador.current = rec;
+      inicioGravacao.current = Date.now();
       setSegundos(0);
       setAGravar(true);
       timer.current = setInterval(() => setSegundos((s) => s + 1), 1e3);
@@ -2467,7 +2471,7 @@ function AnexoView({ anexo: a, aoAbrirFoto }) {
   if (a.tipo === "foto")
     return /* @__PURE__ */ jsx4("img", { src: a.url, className: "max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90", alt: "", onClick: () => aoAbrirFoto(a.url) });
   if (a.tipo === "video") return /* @__PURE__ */ jsx4("video", { src: a.url, controls: true, className: "max-w-[260px] rounded-xl" });
-  if (a.tipo === "audio") return /* @__PURE__ */ jsx4(ReprodutorAudio, { url: a.url });
+  if (a.tipo === "audio") return /* @__PURE__ */ jsx4(ReprodutorAudio, { url: a.url, duracaoSegundos: a.duracao_segundos });
   return /* @__PURE__ */ jsx4(CartaoFicheiro, { anexo: a });
 }
 var ICONE_POR_EXTENSAO = {
