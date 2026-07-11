@@ -436,6 +436,35 @@ var import_react3 = require("@iconify/react");
 var import_react4 = require("react");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 var VELOCIDADES = [1, 1.5, 2];
+var GANHO_ALVO = 0.12;
+var ganhosCalculados = /* @__PURE__ */ new Map();
+async function calcularGanho(url) {
+  if (ganhosCalculados.has(url)) return ganhosCalculados.get(url) ?? null;
+  let ganho = null;
+  try {
+    const dados = await (await fetch(url, { mode: "cors" })).arrayBuffer();
+    const ctx = new OfflineAudioContext(1, 1, 44100);
+    const buffer = await ctx.decodeAudioData(dados);
+    const canal = buffer.getChannelData(0);
+    const janela = Math.floor(buffer.sampleRate * 0.05);
+    const ativas = [];
+    for (let i = 0; i + janela <= canal.length; i += janela) {
+      let soma = 0;
+      for (let j = i; j < i + janela; j++) soma += canal[j] * canal[j];
+      const rms = Math.sqrt(soma / janela);
+      if (rms > 5e-3) ativas.push(rms);
+    }
+    if (ativas.length) {
+      ativas.sort((a, b) => a - b);
+      const mediana = ativas[Math.floor(ativas.length / 2)];
+      ganho = Math.min(4, Math.max(1, GANHO_ALVO / mediana));
+    }
+  } catch {
+    ganho = null;
+  }
+  ganhosCalculados.set(url, ganho);
+  return ganho;
+}
 function ReprodutorAudio({ url }) {
   const audio = (0, import_react4.useRef)(null);
   const grafo = (0, import_react4.useRef)(null);
@@ -470,14 +499,17 @@ function ReprodutorAudio({ url }) {
     try {
       const ctx = new AudioContext();
       const fonte = ctx.createMediaElementSource(el);
+      const ganho = ctx.createGain();
+      ganho.gain.value = 1.8;
       const compressor = ctx.createDynamicsCompressor();
       compressor.threshold.value = -40;
       compressor.knee.value = 30;
       compressor.ratio.value = 8;
-      const ganho = ctx.createGain();
-      ganho.gain.value = 1.8;
-      fonte.connect(compressor).connect(ganho).connect(ctx.destination);
-      grafo.current = { ctx };
+      fonte.connect(ganho).connect(compressor).connect(ctx.destination);
+      grafo.current = { ctx, ganho };
+      void calcularGanho(url).then((calculado) => {
+        if (calculado && grafo.current) grafo.current.ganho.gain.value = calculado;
+      });
     } catch {
     }
   };

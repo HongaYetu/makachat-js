@@ -3,14 +3,62 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const VELOCIDADES = [1, 1.5, 2] as const;
 
+/** RMS de voz confortável (~-18 dBFS) — alvo da normalização. */
+const GANHO_ALVO = 0.12;
+/** cache do gain calculado por URL — re-tocar/re-montar não re-decodifica */
+const ganhosCalculados = new Map<string, number | null>();
+
+/**
+ * Gain calculado da própria gravação: mediana do RMS (janelas de ~50ms, sem
+ * silêncio) → alvo/mediana, limitado a [1, 4]. null = usa o gain por omissão
+ * (CORS/decode falhou ou gravação toda em silêncio).
+ */
+async function calcularGanho(url: string): Promise<number | null> {
+    if (ganhosCalculados.has(url)) return ganhosCalculados.get(url) ?? null;
+
+    let ganho: number | null = null;
+
+    try {
+        const dados = await (await fetch(url, { mode: 'cors' })).arrayBuffer();
+        // OfflineAudioContext: só para decodificar — não toca nem pede gesto
+        const ctx = new OfflineAudioContext(1, 1, 44100);
+        const buffer = await ctx.decodeAudioData(dados);
+        const canal = buffer.getChannelData(0);
+        const janela = Math.floor(buffer.sampleRate * 0.05);
+        const ativas: number[] = [];
+
+        for (let i = 0; i + janela <= canal.length; i += janela) {
+            let soma = 0;
+
+            for (let j = i; j < i + janela; j++) soma += canal[j] * canal[j];
+
+            const rms = Math.sqrt(soma / janela);
+
+            if (rms > 0.005) ativas.push(rms);
+        }
+
+        if (ativas.length) {
+            ativas.sort((a, b) => a - b);
+            const mediana = ativas[Math.floor(ativas.length / 2)];
+            ganho = Math.min(4, Math.max(1, GANHO_ALVO / mediana));
+        }
+    } catch {
+        ganho = null;
+    }
+
+    ganhosCalculados.set(url, ganho);
+
+    return ganho;
+}
+
 /**
  * Reprodutor de áudio customizado: play/pause, progresso clicável, velocidade
- * 1x/1.5x/2x e ganho automático (Web Audio: compressor + gain normalizam
- * gravações com volume baixo).
+ * 1x/1.5x/2x e ganho CALCULADO da gravação (Web Audio: gain normaliza para o
+ * alvo de voz + compressor como limitador de segurança).
  */
 export function ReprodutorAudio({ url }: { url: string }) {
     const audio = useRef<HTMLAudioElement | null>(null);
-    const grafo = useRef<{ ctx: AudioContext } | null>(null);
+    const grafo = useRef<{ ctx: AudioContext; ganho: GainNode } | null>(null);
     const [aTocar, setATocar] = useState(false);
     const [progresso, setProgresso] = useState(0);
     const [duracao, setDuracao] = useState(0);
@@ -41,7 +89,9 @@ export function ReprodutorAudio({ url }: { url: string }) {
         };
     }, [url]);
 
-    /** Ganho automático: compressor + gain ligados na primeira reprodução. */
+    /** Ganho automático ligado na primeira reprodução: arranca com um boost
+     *  por omissão (o play não espera) e refina para o gain CALCULADO da
+     *  gravação assim que o decode termina. */
     const ligarGanho = () => {
         const el = audio.current;
 
@@ -50,15 +100,21 @@ export function ReprodutorAudio({ url }: { url: string }) {
         try {
             const ctx = new AudioContext();
             const fonte = ctx.createMediaElementSource(el);
+            const ganho = ctx.createGain();
+            ganho.gain.value = 1.8;
+            // gain ANTES do compressor — o compressor é o limitador que segura
+            // os picos dos boosts altos (ao contrário clipava)
             const compressor = ctx.createDynamicsCompressor();
             compressor.threshold.value = -40;
             compressor.knee.value = 30;
             compressor.ratio.value = 8;
-            const ganho = ctx.createGain();
-            ganho.gain.value = 1.8;
 
-            fonte.connect(compressor).connect(ganho).connect(ctx.destination);
-            grafo.current = { ctx };
+            fonte.connect(ganho).connect(compressor).connect(ctx.destination);
+            grafo.current = { ctx, ganho };
+
+            void calcularGanho(url).then((calculado) => {
+                if (calculado && grafo.current) grafo.current.ganho.gain.value = calculado;
+            });
         } catch {
             // CORS sem cabeçalhos → toca sem normalização
         }
