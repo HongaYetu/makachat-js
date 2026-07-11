@@ -35,6 +35,7 @@ __export(index_exports, {
   MakaChatProvider: () => MakaChatProvider,
   NomeComBadge: () => NomeComBadge,
   NotificacoesLocais: () => NotificacoesLocais,
+  NovaConversaScreen: () => NovaConversaScreen,
   ReprodutorAudio: () => ReprodutorAudio,
   Sheet: () => Sheet,
   SqliteStorage: () => SqliteStorage,
@@ -869,7 +870,7 @@ var import_react5 = require("react");
 var import_react_native3 = require("react-native");
 var import_jsx_runtime3 = require("react/jsx-runtime");
 var SEMPRE = "9999-12-31T00:00:00.000Z";
-function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }) {
+function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
   const semLigacao = useSemLigacao();
@@ -1052,7 +1053,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
     !arquivadas && podeCriar && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       import_react_native3.Pressable,
       {
-        onPress: () => setNovaAberta(true),
+        onPress: () => onNovaConversa ? onNovaConversa() : setNovaAberta(true),
         style: ({ pressed }) => [estilos2.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }],
         children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "chatbubble-ellipses", size: 24, color: tema.primariaContraste })
       }
@@ -2935,24 +2936,289 @@ var estilos7 = import_react_native8.StyleSheet.create({
   papel: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }
 });
 
-// src/chamadas.tsx
+// src/ui/NovaConversaScreen.tsx
 var import_vector_icons8 = require("@expo/vector-icons");
-var import_react_native_safe_area_context3 = require("react-native-safe-area-context");
 var import_react11 = require("react");
 var import_react_native9 = require("react-native");
+var import_react_native_safe_area_context3 = require("react-native-safe-area-context");
 var import_jsx_runtime9 = require("react/jsx-runtime");
-var Ctx = (0, import_react11.createContext)(null);
+var DEBOUNCE_MS = 350;
+function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes = "Sugest\xF5es" }) {
+  const { api, engine, contactos, identidade } = useMakaChat();
+  const tema = useTema();
+  const insets = (0, import_react_native_safe_area_context3.useSafeAreaInsets)();
+  const conversas = useConversas(false);
+  const podeGrupos = useFuncionalidadeAtiva("grupos");
+  const [busca, setBusca] = (0, import_react11.useState)("");
+  const [resultados, setResultados] = (0, import_react11.useState)(null);
+  const [aPesquisar, setAPesquisar] = (0, import_react11.useState)(false);
+  const [modoGrupo, setModoGrupo] = (0, import_react11.useState)(false);
+  const [escolhidos, setEscolhidos] = (0, import_react11.useState)(/* @__PURE__ */ new Map());
+  const [nomeGrupo, setNomeGrupo] = (0, import_react11.useState)("");
+  const [aCriar, setACriar] = (0, import_react11.useState)(false);
+  const pedidoAtual = (0, import_react11.useRef)(0);
+  const sugestoes = (0, import_react11.useMemo)(() => {
+    const mapa = /* @__PURE__ */ new Map();
+    for (const c of conversas) {
+      for (const p of c.participantes) {
+        if (p.tipo === "sistema") continue;
+        if (p.id_externo === identidade.id && p.tipo === identidade.tipo) continue;
+        mapa.set(`${p.tipo}:${p.id_externo}`, { id_externo: p.id_externo, tipo: p.tipo, nome: p.nome, foto: p.foto_url });
+      }
+    }
+    for (const alvo of contactos) {
+      if (alvo.id_externo === identidade.id && alvo.tipo === identidade.tipo) continue;
+      mapa.set(`${alvo.tipo}:${alvo.id_externo}`, alvo);
+    }
+    return [...mapa.values()];
+  }, [conversas, contactos, identidade]);
+  (0, import_react11.useEffect)(() => {
+    const q = busca.trim();
+    if (!q) {
+      setResultados(null);
+      setAPesquisar(false);
+      return;
+    }
+    if (!pesquisarContactos) {
+      const ql = q.toLowerCase();
+      setResultados(sugestoes.filter((p) => (p.nome ?? p.id_externo).toLowerCase().includes(ql)));
+      return;
+    }
+    setAPesquisar(true);
+    const pedido = ++pedidoAtual.current;
+    const timer = setTimeout(() => {
+      void pesquisarContactos(q).then((lista2) => {
+        if (pedidoAtual.current !== pedido) return;
+        setResultados(lista2.filter((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)));
+      }).catch(() => {
+        if (pedidoAtual.current === pedido) setResultados([]);
+      }).finally(() => {
+        if (pedidoAtual.current === pedido) setAPesquisar(false);
+      });
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [busca, pesquisarContactos, sugestoes, identidade]);
+  const lista = busca.trim() ? resultados ?? [] : sugestoes;
+  const criarPrivada = async (alvo) => {
+    if (aCriar) return;
+    setACriar(true);
+    try {
+      const { conversa } = await api.criarPrivada(alvo);
+      await engine.atualizarConversas();
+      onCriada(conversa);
+    } catch (e) {
+      import_react_native9.Alert.alert("N\xE3o foi poss\xEDvel iniciar a conversa", e?.message ?? "Tenta de novo.");
+    } finally {
+      setACriar(false);
+    }
+  };
+  const criarGrupo = async () => {
+    const membros = [...escolhidos.values()];
+    if (aCriar || membros.length < 2) return;
+    setACriar(true);
+    try {
+      const nomePadrao = membros.map((p) => (p.nome ?? p.id_externo).split(" ")[0]).join(", ");
+      const { conversa } = await api.criarGrupo(nomeGrupo.trim() || nomePadrao, membros);
+      await engine.atualizarConversas();
+      onCriada(conversa);
+    } catch (e) {
+      import_react_native9.Alert.alert("N\xE3o foi poss\xEDvel criar o grupo", e?.message ?? "Tenta de novo.");
+    } finally {
+      setACriar(false);
+    }
+  };
+  const alternarEscolhido = (p) => {
+    const chave = `${p.tipo}:${p.id_externo}`;
+    setEscolhidos((atual) => {
+      const novo = new Map(atual);
+      if (novo.has(chave)) novo.delete(chave);
+      else novo.set(chave, p);
+      return novo;
+    });
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.header, { paddingTop: insets.top + 8, backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: onVoltar, style: { padding: 6 }, hitSlop: 8, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "arrow-back", size: 24, color: tema.texto }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.pesquisa, { backgroundColor: tema.fundo }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "search", size: 17, color: tema.textoSuave }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          import_react_native9.TextInput,
+          {
+            value: busca,
+            onChangeText: setBusca,
+            placeholder: "Pesquisar pessoas",
+            placeholderTextColor: tema.textoSuave,
+            style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 9 },
+            returnKeyType: "search"
+          }
+        ),
+        aPesquisar ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.ActivityIndicator, { size: "small", color: tema.textoSuave }) : busca.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: () => setBusca(""), hitSlop: 6, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "close-circle", size: 18, color: tema.textoSuave }) }) : null
+      ] })
+    ] }),
+    podeGrupos && !modoGrupo && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.Pressable, { onPress: () => setModoGrupo(true), style: [estilos8.linhaGrupo, { backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.iconeGrupo, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "people", size: 20, color: tema.primariaContraste }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { fontSize: 15.5, fontWeight: "600", color: tema.texto }, children: "Novo grupo" })
+    ] }),
+    modoGrupo && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.barraGrupo, { backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        import_react_native9.TextInput,
+        {
+          value: nomeGrupo,
+          onChangeText: setNomeGrupo,
+          placeholder: "Nome do grupo (opcional)",
+          placeholderTextColor: tema.textoSuave,
+          style: [estilos8.inputNome, { backgroundColor: tema.fundo, color: tema.texto }]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        import_react_native9.Pressable,
+        {
+          onPress: () => {
+            setModoGrupo(false);
+            setEscolhidos(/* @__PURE__ */ new Map());
+            setNomeGrupo("");
+          },
+          hitSlop: 8,
+          style: { padding: 6 },
+          children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "close", size: 22, color: tema.textoSuave })
+        }
+      )
+    ] }),
+    !busca.trim() && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, fontSize: 12.5, fontWeight: "700", color: tema.textoSuave, textTransform: "uppercase" }, children: textoSugestoes }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      ListaPerformante,
+      {
+        data: lista,
+        keyExtractor: (p) => `${p.tipo}:${p.id_externo}`,
+        estimatedItemSize: 62,
+        renderItem: ({ item: p }) => {
+          const marcado = escolhidos.has(`${p.tipo}:${p.id_externo}`);
+          return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+            import_react_native9.Pressable,
+            {
+              disabled: aCriar,
+              onPress: () => modoGrupo ? alternarEscolhido(p) : void criarPrivada(p),
+              style: ({ pressed }) => [estilos8.pessoa, pressed && { backgroundColor: "rgba(0,0,0,0.05)" }],
+              children: [
+                modoGrupo && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                  import_vector_icons8.Ionicons,
+                  {
+                    name: marcado ? "checkmark-circle" : "ellipse-outline",
+                    size: 22,
+                    color: marcado ? tema.primaria : tema.textoSuave
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: p.nome ?? p.id_externo, url: p.foto ?? null, tamanho: 44 }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { flex: 1, fontSize: 15.5, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo })
+              ]
+            }
+          );
+        },
+        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { padding: 24, textAlign: "center", color: tema.textoSuave }, children: busca.trim() ? aPesquisar ? "A pesquisar\u2026" : "Sem resultados." : "Sem sugest\xF5es ainda \u2014 usa a pesquisa." }),
+        contentContainerStyle: { paddingBottom: modoGrupo ? 96 : 24 }
+      }
+    ),
+    modoGrupo && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.rodapeGrupo, { paddingBottom: Math.max(insets.bottom, 12) }], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      import_react_native9.Pressable,
+      {
+        disabled: escolhidos.size < 2 || aCriar,
+        onPress: () => void criarGrupo(),
+        style: [estilos8.botaoCriar, { backgroundColor: tema.primaria, opacity: escolhidos.size >= 2 && !aCriar ? 1 : 0.4 }],
+        children: aCriar ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.ActivityIndicator, { color: tema.primariaContraste }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
+          "Criar grupo (",
+          escolhidos.size,
+          ")"
+        ] })
+      }
+    ) })
+  ] });
+}
+var estilos8 = import_react_native9.StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingBottom: 10
+  },
+  pesquisa: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 21,
+    paddingHorizontal: 12,
+    marginRight: 6
+  },
+  linhaGrupo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  iconeGrupo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  barraGrupo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  inputNome: {
+    flex: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14.5
+  },
+  pessoa: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9
+  },
+  rodapeGrupo: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 10
+  },
+  botaoCriar: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    paddingVertical: 13
+  }
+});
+
+// src/chamadas.tsx
+var import_vector_icons9 = require("@expo/vector-icons");
+var import_react_native_safe_area_context4 = require("react-native-safe-area-context");
+var import_react12 = require("react");
+var import_react_native10 = require("react-native");
+var import_jsx_runtime10 = require("react/jsx-runtime");
+var Ctx = (0, import_react12.createContext)(null);
 function useChamadas() {
-  const ctx = (0, import_react11.useContext)(Ctx);
+  const ctx = (0, import_react12.useContext)(Ctx);
   if (!ctx) throw new Error("useChamadas requer <ChamadasProvider>");
   return ctx;
 }
 function useChamadasOpcional() {
-  return (0, import_react11.useContext)(Ctx);
+  return (0, import_react12.useContext)(Ctx);
 }
 var globalsRegistados = false;
 async function iniciarServicoChamada(titulo) {
-  if (import_react_native9.Platform.OS !== "android") return;
+  if (import_react_native10.Platform.OS !== "android") return;
   try {
     if (obterPushMakaChat()?.configChamadas?.()?.servicoChamadaAtiva) return;
   } catch {
@@ -2977,7 +3243,7 @@ async function iniciarServicoChamada(titulo) {
   }
 }
 async function pararServicoChamada() {
-  if (import_react_native9.Platform.OS !== "android") return;
+  if (import_react_native10.Platform.OS !== "android") return;
   const notifee = obterNotifee();
   await notifee?.stopForegroundService?.().catch?.(() => void 0);
   await notifee?.cancelNotification?.("makachat_chamada_ativa").catch?.(() => void 0);
@@ -2985,41 +3251,41 @@ async function pararServicoChamada() {
 function ChamadasProvider({ children }) {
   const { api, engine, subscreverChamadas } = useMakaChat();
   const tema = useTema();
-  const livekit = (0, import_react11.useMemo)(() => obterLiveKit(), []);
-  const lkClient = (0, import_react11.useMemo)(() => obterLiveKitClient(), []);
+  const livekit = (0, import_react12.useMemo)(() => obterLiveKit(), []);
+  const lkClient = (0, import_react12.useMemo)(() => obterLiveKitClient(), []);
   const suportado = !!livekit && !!lkClient;
   const podePartilhaEcra = useFuncionalidadeAtiva("chamadas.partilha_ecra");
-  const [ativa, setAtiva] = (0, import_react11.useState)(null);
-  const [conversa, setConversa] = (0, import_react11.useState)(null);
-  const [tiles, setTiles] = (0, import_react11.useState)([]);
-  const [inicioEm, setInicioEm] = (0, import_react11.useState)(null);
-  const [erro, setErro] = (0, import_react11.useState)(null);
-  const [mudo, setMudo] = (0, import_react11.useState)(false);
-  const [camara, setCamara] = (0, import_react11.useState)(false);
-  const [altifalante, setAltifalante] = (0, import_react11.useState)(true);
-  const [ecra, setEcra] = (0, import_react11.useState)(false);
-  const [minimizada, setMinimizada] = (0, import_react11.useState)(false);
-  const room = (0, import_react11.useRef)(null);
-  const falhada = (0, import_react11.useRef)(false);
-  const faseRef = (0, import_react11.useRef)(null);
-  const facing = (0, import_react11.useRef)("user");
-  const conversaRef = (0, import_react11.useRef)(null);
-  const desligarRef = (0, import_react11.useRef)(async () => void 0);
-  const sozinhoTimer = (0, import_react11.useRef)(null);
-  const chamadaIdRef = (0, import_react11.useRef)(null);
-  const atendendoRef = (0, import_react11.useRef)(null);
-  const retomandoRef = (0, import_react11.useRef)(false);
-  (0, import_react11.useEffect)(() => {
+  const [ativa, setAtiva] = (0, import_react12.useState)(null);
+  const [conversa, setConversa] = (0, import_react12.useState)(null);
+  const [tiles, setTiles] = (0, import_react12.useState)([]);
+  const [inicioEm, setInicioEm] = (0, import_react12.useState)(null);
+  const [erro, setErro] = (0, import_react12.useState)(null);
+  const [mudo, setMudo] = (0, import_react12.useState)(false);
+  const [camara, setCamara] = (0, import_react12.useState)(false);
+  const [altifalante, setAltifalante] = (0, import_react12.useState)(true);
+  const [ecra, setEcra] = (0, import_react12.useState)(false);
+  const [minimizada, setMinimizada] = (0, import_react12.useState)(false);
+  const room = (0, import_react12.useRef)(null);
+  const falhada = (0, import_react12.useRef)(false);
+  const faseRef = (0, import_react12.useRef)(null);
+  const facing = (0, import_react12.useRef)("user");
+  const conversaRef = (0, import_react12.useRef)(null);
+  const desligarRef = (0, import_react12.useRef)(async () => void 0);
+  const sozinhoTimer = (0, import_react12.useRef)(null);
+  const chamadaIdRef = (0, import_react12.useRef)(null);
+  const atendendoRef = (0, import_react12.useRef)(null);
+  const retomandoRef = (0, import_react12.useRef)(false);
+  (0, import_react12.useEffect)(() => {
     chamadaIdRef.current = ativa?.chamada.id ?? null;
   }, [ativa]);
-  (0, import_react11.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     faseRef.current = ativa?.fase ?? null;
     if (ativa?.fase === "a_ligar") comecarToque("ligar");
     else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
-  (0, import_react11.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     const push = obterPushMakaChat();
     if (!push?.configChamadas) return;
     try {
@@ -3034,7 +3300,7 @@ function ChamadasProvider({ children }) {
     } catch {
     }
   }, [ativa?.fase]);
-  const limpar = (0, import_react11.useCallback)(() => {
+  const limpar = (0, import_react12.useCallback)(() => {
     if (sozinhoTimer.current) {
       clearTimeout(sozinhoTimer.current);
       sozinhoTimer.current = null;
@@ -3055,11 +3321,11 @@ function ChamadasProvider({ children }) {
     setMinimizada(false);
     void pararServicoChamada();
   }, [livekit]);
-  const comecarTimer = (0, import_react11.useCallback)(() => {
+  const comecarTimer = (0, import_react12.useCallback)(() => {
     setInicioEm((atual) => atual ?? Date.now());
     void iniciarServicoChamada(conversa?.titulo ?? "MakaChat");
   }, [conversa?.titulo]);
-  const carregarConversa = (0, import_react11.useCallback)(
+  const carregarConversa = (0, import_react12.useCallback)(
     async (conversaId) => {
       const local = await engine.storage.obterConversa(conversaId);
       setConversa(local);
@@ -3069,7 +3335,7 @@ function ChamadasProvider({ children }) {
     },
     [engine, api]
   );
-  const sincronizarTiles = (0, import_react11.useCallback)(() => {
+  const sincronizarTiles = (0, import_react12.useCallback)(() => {
     const r = room.current;
     if (!r || !lkClient) return;
     const Track = lkClient.Track;
@@ -3103,7 +3369,7 @@ function ChamadasProvider({ children }) {
     }
     setTiles(novos);
   }, [lkClient]);
-  const ligarSala = (0, import_react11.useCallback)(
+  const ligarSala = (0, import_react12.useCallback)(
     async (token, wsUrl, video) => {
       if (!suportado) {
         setErro("Chamadas indispon\xEDveis \u2014 a app n\xE3o inclui o m\xF3dulo LiveKit.");
@@ -3175,8 +3441,8 @@ function ChamadasProvider({ children }) {
     },
     [suportado, livekit, lkClient, sincronizarTiles]
   );
-  (0, import_react11.useEffect)(() => {
-    const sub = import_react_native9.AppState.addEventListener("change", (estado) => {
+  (0, import_react12.useEffect)(() => {
+    const sub = import_react_native10.AppState.addEventListener("change", (estado) => {
       const r = room.current;
       if (!r || !lkClient) return;
       if (estado !== "active" && camara) {
@@ -3187,7 +3453,7 @@ function ChamadasProvider({ children }) {
     });
     return () => sub.remove();
   }, [camara, lkClient]);
-  (0, import_react11.useEffect)(
+  (0, import_react12.useEffect)(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
         if (chamadaIdRef.current === evento.chamada.id) {
@@ -3211,7 +3477,7 @@ function ChamadasProvider({ children }) {
     }),
     [subscreverChamadas, engine, limpar, comecarTimer, carregarConversa]
   );
-  const falhar = (0, import_react11.useCallback)(
+  const falhar = (0, import_react12.useCallback)(
     async (chamadaId) => {
       falhada.current = true;
       await api.terminarChamada(chamadaId).catch(() => void 0);
@@ -3219,7 +3485,7 @@ function ChamadasProvider({ children }) {
     },
     [api]
   );
-  const iniciar = (0, import_react11.useCallback)(
+  const iniciar = (0, import_react12.useCallback)(
     async (conversaId, tipo) => {
       if (!suportado) return;
       const r = await api.iniciarChamada(conversaId, tipo);
@@ -3232,7 +3498,7 @@ function ChamadasProvider({ children }) {
     },
     [suportado, api, ligarSala, falhar, carregarConversa]
   );
-  const entrar = (0, import_react11.useCallback)(
+  const entrar = (0, import_react12.useCallback)(
     async (chamadaId, tipo) => {
       if (!suportado) return;
       atendendoRef.current = chamadaId;
@@ -3255,7 +3521,7 @@ function ChamadasProvider({ children }) {
     },
     [suportado, api, ligarSala, falhar, comecarTimer, carregarConversa]
   );
-  const tocarEmApp = (0, import_react11.useCallback)(
+  const tocarEmApp = (0, import_react12.useCallback)(
     async (chamadaId, chamadaTipo, conversaId) => {
       if (chamadaIdRef.current === chamadaId) return;
       void carregarConversa(conversaId);
@@ -3276,7 +3542,7 @@ function ChamadasProvider({ children }) {
     },
     [carregarConversa]
   );
-  const retomarPendente = (0, import_react11.useCallback)(async () => {
+  const retomarPendente = (0, import_react12.useCallback)(async () => {
     const push = obterPushMakaChat();
     if (!push?.obterChamadaPendente || retomandoRef.current) return;
     retomandoRef.current = true;
@@ -3297,14 +3563,14 @@ function ChamadasProvider({ children }) {
       retomandoRef.current = false;
     }
   }, [api, entrar, tocarEmApp]);
-  (0, import_react11.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     void retomarPendente();
-    const sub = import_react_native9.AppState.addEventListener("change", (estado) => {
+    const sub = import_react_native10.AppState.addEventListener("change", (estado) => {
       if (estado === "active") void retomarPendente();
     });
     return () => sub.remove();
   }, [retomarPendente]);
-  (0, import_react11.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     const push = obterPushMakaChat();
     if (!push?.aoChamadaPush) return;
     const sub = push.aoChamadaPush((chamada) => {
@@ -3378,13 +3644,13 @@ function ChamadasProvider({ children }) {
     setAltifalante(novo);
     await livekit?.AudioSession?.selectAudioOutput?.(novo ? "speaker" : "earpiece").catch(() => void 0);
   };
-  const valor = (0, import_react11.useMemo)(
+  const valor = (0, import_react12.useMemo)(
     () => ({ iniciar, entrar, retomarPendente, ativa, suportado }),
     [iniciar, entrar, retomarPendente, ativa, suportado]
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(Ctx.Provider, { value: valor, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(Ctx.Provider, { value: valor, children: [
     children,
-    ativa && !minimizada && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+    ativa && !minimizada && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
       EcraChamada,
       {
         ativa,
@@ -3407,22 +3673,22 @@ function ChamadasProvider({ children }) {
         aoCamara: () => void alternarCamara(),
         aoTrocarCamara: () => void trocarCamara(),
         aoAltifalante: () => void alternarAltifalante(),
-        aoEcra: import_react_native9.Platform.OS === "android" && podePartilhaEcra ? () => void alternarEcra() : void 0,
+        aoEcra: import_react_native10.Platform.OS === "android" && podePartilhaEcra ? () => void alternarEcra() : void 0,
         aoMinimizar: () => setMinimizada(true),
         tema
       }
     ),
-    ativa && minimizada && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.Pressable, { onPress: () => setMinimizada(false), style: estilos8.pill, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 28 }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13 }, children: ativa.fase === "em_curso" && inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : "Chamada\u2026" }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "expand-outline", size: 16, color: "rgba(255,255,255,0.8)" })
+    ativa && minimizada && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.Pressable, { onPress: () => setMinimizada(false), style: estilos9.pill, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 28 }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13 }, children: ativa.fase === "em_curso" && inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Duracao, { desde: inicioEm }) : "Chamada\u2026" }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_vector_icons9.Ionicons, { name: "expand-outline", size: 16, color: "rgba(255,255,255,0.8)" })
     ] })
   ] });
 }
 function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }) {
-  const { width, height } = (0, import_react_native9.useWindowDimensions)();
-  const insets = (0, import_react_native_safe_area_context3.useSafeAreaInsets)();
-  const [alturaBandeja, setAlturaBandeja] = (0, import_react11.useState)(0);
+  const { width, height } = (0, import_react_native10.useWindowDimensions)();
+  const insets = (0, import_react_native_safe_area_context4.useSafeAreaInsets)();
+  const [alturaBandeja, setAlturaBandeja] = (0, import_react12.useState)(0);
   const acimaControlos = insets.bottom + 24 + (alturaBandeja || 84) + 14;
   const video = ativa.chamada.tipo === "video";
   const titulo = ativa.fase === "a_receber" ? ativa.iniciador?.nome ?? conversa?.titulo ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
@@ -3434,52 +3700,52 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.Modal, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.StatusBar, { animated: true, barStyle: "light-content" }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-      emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: { ...import_react_native9.StyleSheet.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "contain", zOrder: 0 }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: estilos8.nomeTile, children: t.nome })
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.Modal, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.StatusBar, { animated: true, barStyle: "light-content" }),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+      emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.View, { style: { ...import_react_native10.StyleSheet.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "contain", zOrder: 0 }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: estilos9.nomeTile, children: t.nome })
       ] }, t.chave)) }),
-      emCurso && video && VideoTrack && local && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.pip, { bottom: acimaControlos, height: alturaPip }], children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "contain", mirror: true, zOrder: 1 }),
-        !camara && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.pipOff, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "videocam-off", size: 22, color: "rgba(255,255,255,0.8)" }) })
+      emCurso && video && VideoTrack && local && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: [estilos9.pip, { bottom: acimaControlos, height: alturaPip }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "contain", mirror: true, zOrder: 1 }),
+        !camara && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.View, { style: estilos9.pipOff, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_vector_icons9.Ionicons, { name: "videocam-off", size: 22, color: "rgba(255,255,255,0.8)" }) })
       ] }),
-      (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: estilos8.centro, children: [
-        ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) : null) }),
-        emCurso && remotoPausado && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: estilos8.pausaPill, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "videocam-off", size: 14, color: "rgba(255,255,255,0.75)" }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }, children: "C\xE2mara em pausa" })
+      (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: estilos9.centro, children: [
+        ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Duracao, { desde: inicioEm }) : null) }),
+        emCurso && remotoPausado && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: estilos9.pausaPill, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_vector_icons9.Ionicons, { name: "videocam-off", size: 14, color: "rgba(255,255,255,0.75)" }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }, children: "C\xE2mara em pausa" })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Pressable, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "chevron-down", size: 26, color: "#fff" }) }),
-        emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Duracao, { desde: inicioEm }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: { width: 42 } })
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: [estilos9.topo, { paddingTop: insets.top + 8 }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Pressable, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_vector_icons9.Ionicons, { name: "chevron-down", size: 26, color: "#fff" }) }),
+        emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Duracao, { desde: inicioEm }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.View, { style: { width: 42 } })
       ] }),
-      erro && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.erro, { bottom: acimaControlos }], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
+      erro && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.View, { style: [estilos9.erro, { bottom: acimaControlos }], children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
       ativa.fase === "a_receber" ? (
         // incoming: dois botões grandes com rótulo, afastados
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: [estilos9.controlosReceber, { bottom: insets.bottom + 36 }], children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
         ] })
-      ) : ativa.fase === "falhada" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
+      ) : ativa.fase === "falhada" ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.View, { style: [estilos9.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
         // em curso: bandeja arredondada com o desligar integrado
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
-          import_react_native9.View,
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+          import_react_native10.View,
           {
-            style: [estilos8.bandeja, { bottom: insets.bottom + 24 }],
+            style: [estilos9.bandeja, { bottom: insets.bottom + 24 }],
             onLayout: (e) => setAlturaBandeja(e.nativeEvent.layout.height),
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
-              video && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
-              video && camara && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
-              aoEcra && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
+              video && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
+              video && camara && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
+              aoEcra && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
             ]
           }
         )
@@ -3491,8 +3757,8 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
   const lado = grande ? 76 : 60;
   const fundo = cor ?? (ativo ? "#ffffff" : "rgba(255,255,255,0.18)");
   const corIcone = ativo && !cor ? "#0f172a" : "#fff";
-  const circulo = /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-    import_react_native9.Pressable,
+  const circulo = /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+    import_react_native10.Pressable,
     {
       onPress: aoTocar,
       style: ({ pressed }) => ({
@@ -3504,8 +3770,8 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
         justifyContent: "center",
         opacity: pressed ? 0.8 : 1
       }),
-      children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-        import_vector_icons8.Ionicons,
+      children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        import_vector_icons9.Ionicons,
         {
           name: icone,
           size: grande ? 34 : 26,
@@ -3516,25 +3782,25 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
     }
   );
   if (!rotulo) return circulo;
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { alignItems: "center", gap: 10 }, children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react_native10.View, { style: { alignItems: "center", gap: 10 }, children: [
     circulo,
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 14, fontWeight: "600" }, children: rotulo })
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_react_native10.Text, { style: { color: "#fff", fontSize: 14, fontWeight: "600" }, children: rotulo })
   ] });
 }
 function Duracao({ desde }) {
-  const [, forcar] = (0, import_react11.useState)(0);
-  (0, import_react11.useEffect)(() => {
+  const [, forcar] = (0, import_react12.useState)(0);
+  (0, import_react12.useEffect)(() => {
     const timer = setInterval(() => forcar((n) => n + 1), 1e3);
     return () => clearInterval(timer);
   }, []);
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_jsx_runtime10.Fragment, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
 }
-var estilos8 = import_react_native9.StyleSheet.create({
-  centro: { ...import_react_native9.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+var estilos9 = import_react_native10.StyleSheet.create({
+  centro: { ...import_react_native10.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   topo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 10 },
   pip: { position: "absolute", right: 14, width: 112, height: 168, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   // câmara desligada: tapa o último frame SEM desmontar a SurfaceView
-  pipOff: { ...import_react_native9.StyleSheet.absoluteFillObject, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
+  pipOff: { ...import_react_native10.StyleSheet.absoluteFillObject, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
   pausaPill: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   erro: { position: "absolute", left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
@@ -3575,15 +3841,15 @@ async function ligarPushNativo(api, identidade, tokenFcm, plataforma = "android"
 }
 
 // src/notificacoes-locais.tsx
-var import_react12 = require("react");
-var import_react_native10 = require("react-native");
+var import_react13 = require("react");
+var import_react_native11 = require("react-native");
 function NotificacoesLocais({ avatarPadrao } = {}) {
   const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
-  (0, import_react12.useEffect)(() => {
+  (0, import_react13.useEffect)(() => {
     const notifee = obterNotifee();
     if (!notifee?.displayNotification) return;
     return subscreverMensagens((mensagem) => {
-      if (estaVisivel(mensagem.conversa_id) && import_react_native10.AppState.currentState === "active") return;
+      if (estaVisivel(mensagem.conversa_id) && import_react_native11.AppState.currentState === "active") return;
       void (async () => {
         try {
           const conversa = await engine.storage.obterConversa(mensagem.conversa_id);
@@ -3673,6 +3939,7 @@ function previewDe(mensagem) {
   MakaChatProvider,
   NomeComBadge,
   NotificacoesLocais,
+  NovaConversaScreen,
   ReprodutorAudio,
   Sheet,
   SqliteStorage,

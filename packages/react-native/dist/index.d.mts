@@ -198,9 +198,14 @@ interface ConversasScreenProps {
      * controlada e a ação de arquivadas. Sem isto, o topo interno padrão é usado.
      */
     renderTopo?(ctx: TopoConversasContexto): React.ReactNode;
+    /**
+     * Nova conversa CUSTOM: o FAB chama isto (ex.: navegar para um ecrã com o
+     * NovaConversaScreen). Sem isto, abre o sheet interno de contactos.
+     */
+    onNovaConversa?(): void;
 }
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }: ConversasScreenProps): React.JSX.Element;
+declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }: ConversasScreenProps): React.JSX.Element;
 declare function previewConversa(c: Conversa): string;
 
 /** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
@@ -267,6 +272,25 @@ interface InfoConversaScreenProps {
 }
 /** Info da conversa/grupo estilo WhatsApp: membros, papéis, foto, renomear, sair. */
 declare function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado }: InfoConversaScreenProps): React.JSX.Element;
+
+interface NovaConversaScreenProps {
+    onVoltar(): void;
+    /** conversa criada (privada ou grupo) — a app navega para o chat */
+    onCriada(conversa: Conversa): void;
+    /**
+     * Pesquisa de contactos NO serviço (API da app): recebe o texto e devolve
+     * alvos. Sem esta prop, a pesquisa filtra localmente as sugestões.
+     */
+    pesquisarContactos?(q: string): Promise<AlvoParticipante[]>;
+    /** rótulo da secção sem pesquisa (padrão: "Sugestões") */
+    textoSugestoes?: string;
+}
+/**
+ * Ecrã "Nova conversa" completo do SDK: sugestões (contactos do provider +
+ * pessoas das conversas existentes), pesquisa server-side delegada à app e
+ * modo grupo com seleção múltipla. A app só fornece dados e navegação.
+ */
+declare function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes }: NovaConversaScreenProps): React.JSX.Element;
 
 interface EstadoChamada {
     chamada: Chamada;
@@ -431,4 +455,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, NovaConversaScreen, type NovaConversaScreenProps, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };

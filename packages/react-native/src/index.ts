@@ -21,6 +21,7 @@ export { Avatar, NomeComBadge, Sheet, ListaPerformante, horaCurta, rotuloDia } f
 export { ConversasScreen, previewConversa, type ConversasScreenProps, type TopoConversasContexto } from './ui/ConversasScreen';
 export { ChatScreen, type ChatScreenProps, type HeaderChatContexto } from './ui/ChatScreen';
 export { InfoConversaScreen, type InfoConversaScreenProps } from './ui/InfoConversaScreen';
+export { NovaConversaScreen, type NovaConversaScreenProps } from './ui/NovaConversaScreen';
 export { ChamadasProvider, useChamadas, useChamadasOpcional, type ChamadasApi } from './chamadas';
 export { ReprodutorAudio, GravadorAudio } from './ui/audio';
 export { Galeria, LobbyFotos, VisualizadorVideo, enviarAnexoLocal, escolherFotosEVideos, escolherFicheiro } from './ui/media';

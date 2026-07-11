@@ -45,12 +45,17 @@ export interface ConversasScreenProps {
      * controlada e a ação de arquivadas. Sem isto, o topo interno padrão é usado.
      */
     renderTopo?(ctx: TopoConversasContexto): React.ReactNode;
+    /**
+     * Nova conversa CUSTOM: o FAB chama isto (ex.: navegar para um ecrã com o
+     * NovaConversaScreen). Sem isto, abre o sheet interno de contactos.
+     */
+    onNovaConversa?(): void;
 }
 
 const SEMPRE = '9999-12-31T00:00:00.000Z';
 
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }: ConversasScreenProps) {
+export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }: ConversasScreenProps) {
     const { engine, api, identidade, contactos } = useMakaChat();
     const tema = useTema();
     const semLigacao = useSemLigacao();
@@ -287,7 +292,7 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
             {/* FAB nova conversa */}
             {!arquivadas && podeCriar && (
                 <Pressable
-                    onPress={() => setNovaAberta(true)}
+                    onPress={() => (onNovaConversa ? onNovaConversa() : setNovaAberta(true))}
                     style={({ pressed }: { pressed: boolean }) => [estilos.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }]}
                 >
                     <Ionicons name="chatbubble-ellipses" size={24} color={tema.primariaContraste} />

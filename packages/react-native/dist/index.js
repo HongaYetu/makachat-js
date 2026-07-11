@@ -826,7 +826,7 @@ import {
 } from "react-native";
 import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var SEMPRE = "9999-12-31T00:00:00.000Z";
-function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo }) {
+function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, renderTopo, onNovaConversa }) {
   const { engine, api, identidade, contactos } = useMakaChat();
   const tema = useTema();
   const semLigacao = useSemLigacao();
@@ -1009,7 +1009,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
     !arquivadas && podeCriar && /* @__PURE__ */ jsx3(
       Pressable2,
       {
-        onPress: () => setNovaAberta(true),
+        onPress: () => onNovaConversa ? onNovaConversa() : setNovaAberta(true),
         style: ({ pressed }) => [estilos2.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }],
         children: /* @__PURE__ */ jsx3(Ionicons2, { name: "chatbubble-ellipses", size: 24, color: tema.primariaContraste })
       }
@@ -2928,12 +2928,277 @@ var estilos7 = StyleSheet7.create({
   papel: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }
 });
 
-// src/chamadas.tsx
+// src/ui/NovaConversaScreen.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
+import { useEffect as useEffect10, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
+import { ActivityIndicator as ActivityIndicator2, Alert as Alert4, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, TextInput as TextInput5, View as View8 } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
-import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect10, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { AppState as AppState3, Modal as Modal2, Platform as Platform3, Pressable as Pressable8, StatusBar as StatusBar3, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
-import { Fragment as Fragment2, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
+var DEBOUNCE_MS = 350;
+function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes = "Sugest\xF5es" }) {
+  const { api, engine, contactos, identidade } = useMakaChat();
+  const tema = useTema();
+  const insets = useSafeAreaInsets3();
+  const conversas = useConversas(false);
+  const podeGrupos = useFuncionalidadeAtiva("grupos");
+  const [busca, setBusca] = useState9("");
+  const [resultados, setResultados] = useState9(null);
+  const [aPesquisar, setAPesquisar] = useState9(false);
+  const [modoGrupo, setModoGrupo] = useState9(false);
+  const [escolhidos, setEscolhidos] = useState9(/* @__PURE__ */ new Map());
+  const [nomeGrupo, setNomeGrupo] = useState9("");
+  const [aCriar, setACriar] = useState9(false);
+  const pedidoAtual = useRef8(0);
+  const sugestoes = useMemo7(() => {
+    const mapa = /* @__PURE__ */ new Map();
+    for (const c of conversas) {
+      for (const p of c.participantes) {
+        if (p.tipo === "sistema") continue;
+        if (p.id_externo === identidade.id && p.tipo === identidade.tipo) continue;
+        mapa.set(`${p.tipo}:${p.id_externo}`, { id_externo: p.id_externo, tipo: p.tipo, nome: p.nome, foto: p.foto_url });
+      }
+    }
+    for (const alvo of contactos) {
+      if (alvo.id_externo === identidade.id && alvo.tipo === identidade.tipo) continue;
+      mapa.set(`${alvo.tipo}:${alvo.id_externo}`, alvo);
+    }
+    return [...mapa.values()];
+  }, [conversas, contactos, identidade]);
+  useEffect10(() => {
+    const q = busca.trim();
+    if (!q) {
+      setResultados(null);
+      setAPesquisar(false);
+      return;
+    }
+    if (!pesquisarContactos) {
+      const ql = q.toLowerCase();
+      setResultados(sugestoes.filter((p) => (p.nome ?? p.id_externo).toLowerCase().includes(ql)));
+      return;
+    }
+    setAPesquisar(true);
+    const pedido = ++pedidoAtual.current;
+    const timer = setTimeout(() => {
+      void pesquisarContactos(q).then((lista2) => {
+        if (pedidoAtual.current !== pedido) return;
+        setResultados(lista2.filter((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)));
+      }).catch(() => {
+        if (pedidoAtual.current === pedido) setResultados([]);
+      }).finally(() => {
+        if (pedidoAtual.current === pedido) setAPesquisar(false);
+      });
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [busca, pesquisarContactos, sugestoes, identidade]);
+  const lista = busca.trim() ? resultados ?? [] : sugestoes;
+  const criarPrivada = async (alvo) => {
+    if (aCriar) return;
+    setACriar(true);
+    try {
+      const { conversa } = await api.criarPrivada(alvo);
+      await engine.atualizarConversas();
+      onCriada(conversa);
+    } catch (e) {
+      Alert4.alert("N\xE3o foi poss\xEDvel iniciar a conversa", e?.message ?? "Tenta de novo.");
+    } finally {
+      setACriar(false);
+    }
+  };
+  const criarGrupo = async () => {
+    const membros = [...escolhidos.values()];
+    if (aCriar || membros.length < 2) return;
+    setACriar(true);
+    try {
+      const nomePadrao = membros.map((p) => (p.nome ?? p.id_externo).split(" ")[0]).join(", ");
+      const { conversa } = await api.criarGrupo(nomeGrupo.trim() || nomePadrao, membros);
+      await engine.atualizarConversas();
+      onCriada(conversa);
+    } catch (e) {
+      Alert4.alert("N\xE3o foi poss\xEDvel criar o grupo", e?.message ?? "Tenta de novo.");
+    } finally {
+      setACriar(false);
+    }
+  };
+  const alternarEscolhido = (p) => {
+    const chave = `${p.tipo}:${p.id_externo}`;
+    setEscolhidos((atual) => {
+      const novo = new Map(atual);
+      if (novo.has(chave)) novo.delete(chave);
+      else novo.set(chave, p);
+      return novo;
+    });
+  };
+  return /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ jsxs8(View8, { style: [estilos8.header, { paddingTop: insets.top + 8, backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ jsx9(Pressable8, { onPress: onVoltar, style: { padding: 6 }, hitSlop: 8, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "arrow-back", size: 24, color: tema.texto }) }),
+      /* @__PURE__ */ jsxs8(View8, { style: [estilos8.pesquisa, { backgroundColor: tema.fundo }], children: [
+        /* @__PURE__ */ jsx9(Ionicons8, { name: "search", size: 17, color: tema.textoSuave }),
+        /* @__PURE__ */ jsx9(
+          TextInput5,
+          {
+            value: busca,
+            onChangeText: setBusca,
+            placeholder: "Pesquisar pessoas",
+            placeholderTextColor: tema.textoSuave,
+            style: { flex: 1, fontSize: 15, color: tema.texto, paddingVertical: 9 },
+            returnKeyType: "search"
+          }
+        ),
+        aPesquisar ? /* @__PURE__ */ jsx9(ActivityIndicator2, { size: "small", color: tema.textoSuave }) : busca.length > 0 ? /* @__PURE__ */ jsx9(Pressable8, { onPress: () => setBusca(""), hitSlop: 6, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "close-circle", size: 18, color: tema.textoSuave }) }) : null
+      ] })
+    ] }),
+    podeGrupos && !modoGrupo && /* @__PURE__ */ jsxs8(Pressable8, { onPress: () => setModoGrupo(true), style: [estilos8.linhaGrupo, { backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ jsx9(View8, { style: [estilos8.iconeGrupo, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx9(Ionicons8, { name: "people", size: 20, color: tema.primariaContraste }) }),
+      /* @__PURE__ */ jsx9(Text8, { style: { fontSize: 15.5, fontWeight: "600", color: tema.texto }, children: "Novo grupo" })
+    ] }),
+    modoGrupo && /* @__PURE__ */ jsxs8(View8, { style: [estilos8.barraGrupo, { backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ jsx9(
+        TextInput5,
+        {
+          value: nomeGrupo,
+          onChangeText: setNomeGrupo,
+          placeholder: "Nome do grupo (opcional)",
+          placeholderTextColor: tema.textoSuave,
+          style: [estilos8.inputNome, { backgroundColor: tema.fundo, color: tema.texto }]
+        }
+      ),
+      /* @__PURE__ */ jsx9(
+        Pressable8,
+        {
+          onPress: () => {
+            setModoGrupo(false);
+            setEscolhidos(/* @__PURE__ */ new Map());
+            setNomeGrupo("");
+          },
+          hitSlop: 8,
+          style: { padding: 6 },
+          children: /* @__PURE__ */ jsx9(Ionicons8, { name: "close", size: 22, color: tema.textoSuave })
+        }
+      )
+    ] }),
+    !busca.trim() && /* @__PURE__ */ jsx9(Text8, { style: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, fontSize: 12.5, fontWeight: "700", color: tema.textoSuave, textTransform: "uppercase" }, children: textoSugestoes }),
+    /* @__PURE__ */ jsx9(
+      ListaPerformante,
+      {
+        data: lista,
+        keyExtractor: (p) => `${p.tipo}:${p.id_externo}`,
+        estimatedItemSize: 62,
+        renderItem: ({ item: p }) => {
+          const marcado = escolhidos.has(`${p.tipo}:${p.id_externo}`);
+          return /* @__PURE__ */ jsxs8(
+            Pressable8,
+            {
+              disabled: aCriar,
+              onPress: () => modoGrupo ? alternarEscolhido(p) : void criarPrivada(p),
+              style: ({ pressed }) => [estilos8.pessoa, pressed && { backgroundColor: "rgba(0,0,0,0.05)" }],
+              children: [
+                modoGrupo && /* @__PURE__ */ jsx9(
+                  Ionicons8,
+                  {
+                    name: marcado ? "checkmark-circle" : "ellipse-outline",
+                    size: 22,
+                    color: marcado ? tema.primaria : tema.textoSuave
+                  }
+                ),
+                /* @__PURE__ */ jsx9(Avatar, { nome: p.nome ?? p.id_externo, url: p.foto ?? null, tamanho: 44 }),
+                /* @__PURE__ */ jsx9(Text8, { style: { flex: 1, fontSize: 15.5, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo })
+              ]
+            }
+          );
+        },
+        ListEmptyComponent: /* @__PURE__ */ jsx9(Text8, { style: { padding: 24, textAlign: "center", color: tema.textoSuave }, children: busca.trim() ? aPesquisar ? "A pesquisar\u2026" : "Sem resultados." : "Sem sugest\xF5es ainda \u2014 usa a pesquisa." }),
+        contentContainerStyle: { paddingBottom: modoGrupo ? 96 : 24 }
+      }
+    ),
+    modoGrupo && /* @__PURE__ */ jsx9(View8, { style: [estilos8.rodapeGrupo, { paddingBottom: Math.max(insets.bottom, 12) }], children: /* @__PURE__ */ jsx9(
+      Pressable8,
+      {
+        disabled: escolhidos.size < 2 || aCriar,
+        onPress: () => void criarGrupo(),
+        style: [estilos8.botaoCriar, { backgroundColor: tema.primaria, opacity: escolhidos.size >= 2 && !aCriar ? 1 : 0.4 }],
+        children: aCriar ? /* @__PURE__ */ jsx9(ActivityIndicator2, { color: tema.primariaContraste }) : /* @__PURE__ */ jsxs8(Text8, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
+          "Criar grupo (",
+          escolhidos.size,
+          ")"
+        ] })
+      }
+    ) })
+  ] });
+}
+var estilos8 = StyleSheet8.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingBottom: 10
+  },
+  pesquisa: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 21,
+    paddingHorizontal: 12,
+    marginRight: 6
+  },
+  linhaGrupo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  iconeGrupo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  barraGrupo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  inputNome: {
+    flex: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14.5
+  },
+  pessoa: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9
+  },
+  rodapeGrupo: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 10
+  },
+  botaoCriar: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    paddingVertical: 13
+  }
+});
+
+// src/chamadas.tsx
+import { Ionicons as Ionicons9 } from "@expo/vector-icons";
+import { useSafeAreaInsets as useSafeAreaInsets4 } from "react-native-safe-area-context";
+import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect11, useMemo as useMemo8, useRef as useRef9, useState as useState10 } from "react";
+import { AppState as AppState3, Modal as Modal2, Platform as Platform3, Pressable as Pressable9, StatusBar as StatusBar3, StyleSheet as StyleSheet9, Text as Text9, useWindowDimensions as useWindowDimensions2, View as View9 } from "react-native";
+import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
   const ctx = useContext2(Ctx);
@@ -2978,41 +3243,41 @@ async function pararServicoChamada() {
 function ChamadasProvider({ children }) {
   const { api, engine, subscreverChamadas } = useMakaChat();
   const tema = useTema();
-  const livekit = useMemo7(() => obterLiveKit(), []);
-  const lkClient = useMemo7(() => obterLiveKitClient(), []);
+  const livekit = useMemo8(() => obterLiveKit(), []);
+  const lkClient = useMemo8(() => obterLiveKitClient(), []);
   const suportado = !!livekit && !!lkClient;
   const podePartilhaEcra = useFuncionalidadeAtiva("chamadas.partilha_ecra");
-  const [ativa, setAtiva] = useState9(null);
-  const [conversa, setConversa] = useState9(null);
-  const [tiles, setTiles] = useState9([]);
-  const [inicioEm, setInicioEm] = useState9(null);
-  const [erro, setErro] = useState9(null);
-  const [mudo, setMudo] = useState9(false);
-  const [camara, setCamara] = useState9(false);
-  const [altifalante, setAltifalante] = useState9(true);
-  const [ecra, setEcra] = useState9(false);
-  const [minimizada, setMinimizada] = useState9(false);
-  const room = useRef8(null);
-  const falhada = useRef8(false);
-  const faseRef = useRef8(null);
-  const facing = useRef8("user");
-  const conversaRef = useRef8(null);
-  const desligarRef = useRef8(async () => void 0);
-  const sozinhoTimer = useRef8(null);
-  const chamadaIdRef = useRef8(null);
-  const atendendoRef = useRef8(null);
-  const retomandoRef = useRef8(false);
-  useEffect10(() => {
+  const [ativa, setAtiva] = useState10(null);
+  const [conversa, setConversa] = useState10(null);
+  const [tiles, setTiles] = useState10([]);
+  const [inicioEm, setInicioEm] = useState10(null);
+  const [erro, setErro] = useState10(null);
+  const [mudo, setMudo] = useState10(false);
+  const [camara, setCamara] = useState10(false);
+  const [altifalante, setAltifalante] = useState10(true);
+  const [ecra, setEcra] = useState10(false);
+  const [minimizada, setMinimizada] = useState10(false);
+  const room = useRef9(null);
+  const falhada = useRef9(false);
+  const faseRef = useRef9(null);
+  const facing = useRef9("user");
+  const conversaRef = useRef9(null);
+  const desligarRef = useRef9(async () => void 0);
+  const sozinhoTimer = useRef9(null);
+  const chamadaIdRef = useRef9(null);
+  const atendendoRef = useRef9(null);
+  const retomandoRef = useRef9(false);
+  useEffect11(() => {
     chamadaIdRef.current = ativa?.chamada.id ?? null;
   }, [ativa]);
-  useEffect10(() => {
+  useEffect11(() => {
     faseRef.current = ativa?.fase ?? null;
     if (ativa?.fase === "a_ligar") comecarToque("ligar");
     else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
-  useEffect10(() => {
+  useEffect11(() => {
     const push = obterPushMakaChat();
     if (!push?.configChamadas) return;
     try {
@@ -3168,7 +3433,7 @@ function ChamadasProvider({ children }) {
     },
     [suportado, livekit, lkClient, sincronizarTiles]
   );
-  useEffect10(() => {
+  useEffect11(() => {
     const sub = AppState3.addEventListener("change", (estado) => {
       const r = room.current;
       if (!r || !lkClient) return;
@@ -3180,7 +3445,7 @@ function ChamadasProvider({ children }) {
     });
     return () => sub.remove();
   }, [camara, lkClient]);
-  useEffect10(
+  useEffect11(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
         if (chamadaIdRef.current === evento.chamada.id) {
@@ -3290,14 +3555,14 @@ function ChamadasProvider({ children }) {
       retomandoRef.current = false;
     }
   }, [api, entrar, tocarEmApp]);
-  useEffect10(() => {
+  useEffect11(() => {
     void retomarPendente();
     const sub = AppState3.addEventListener("change", (estado) => {
       if (estado === "active") void retomarPendente();
     });
     return () => sub.remove();
   }, [retomarPendente]);
-  useEffect10(() => {
+  useEffect11(() => {
     const push = obterPushMakaChat();
     if (!push?.aoChamadaPush) return;
     const sub = push.aoChamadaPush((chamada) => {
@@ -3371,13 +3636,13 @@ function ChamadasProvider({ children }) {
     setAltifalante(novo);
     await livekit?.AudioSession?.selectAudioOutput?.(novo ? "speaker" : "earpiece").catch(() => void 0);
   };
-  const valor = useMemo7(
+  const valor = useMemo8(
     () => ({ iniciar, entrar, retomarPendente, ativa, suportado }),
     [iniciar, entrar, retomarPendente, ativa, suportado]
   );
-  return /* @__PURE__ */ jsxs8(Ctx.Provider, { value: valor, children: [
+  return /* @__PURE__ */ jsxs9(Ctx.Provider, { value: valor, children: [
     children,
-    ativa && !minimizada && /* @__PURE__ */ jsx9(
+    ativa && !minimizada && /* @__PURE__ */ jsx10(
       EcraChamada,
       {
         ativa,
@@ -3405,17 +3670,17 @@ function ChamadasProvider({ children }) {
         tema
       }
     ),
-    ativa && minimizada && /* @__PURE__ */ jsxs8(Pressable8, { onPress: () => setMinimizada(false), style: estilos8.pill, children: [
-      /* @__PURE__ */ jsx9(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 28 }),
-      /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700", fontSize: 13 }, children: ativa.fase === "em_curso" && inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : "Chamada\u2026" }),
-      /* @__PURE__ */ jsx9(Ionicons8, { name: "expand-outline", size: 16, color: "rgba(255,255,255,0.8)" })
+    ativa && minimizada && /* @__PURE__ */ jsxs9(Pressable9, { onPress: () => setMinimizada(false), style: estilos9.pill, children: [
+      /* @__PURE__ */ jsx10(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 28 }),
+      /* @__PURE__ */ jsx10(Text9, { style: { color: "#fff", fontWeight: "700", fontSize: 13 }, children: ativa.fase === "em_curso" && inicioEm ? /* @__PURE__ */ jsx10(Duracao, { desde: inicioEm }) : "Chamada\u2026" }),
+      /* @__PURE__ */ jsx10(Ionicons9, { name: "expand-outline", size: 16, color: "rgba(255,255,255,0.8)" })
     ] })
   ] });
 }
 function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }) {
   const { width, height } = useWindowDimensions2();
-  const insets = useSafeAreaInsets3();
-  const [alturaBandeja, setAlturaBandeja] = useState9(0);
+  const insets = useSafeAreaInsets4();
+  const [alturaBandeja, setAlturaBandeja] = useState10(0);
   const acimaControlos = insets.bottom + 24 + (alturaBandeja || 84) + 14;
   const video = ativa.chamada.tipo === "video";
   const titulo = ativa.fase === "a_receber" ? ativa.iniciador?.nome ?? conversa?.titulo ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
@@ -3427,52 +3692,52 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
-  return /* @__PURE__ */ jsxs8(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
-    /* @__PURE__ */ jsx9(StatusBar3, { animated: true, barStyle: "light-content" }),
-    /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
-      emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx9(View8, { style: { ...StyleSheet8.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs8(View8, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
-        /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "contain", zOrder: 0 }),
-        /* @__PURE__ */ jsx9(Text8, { style: estilos8.nomeTile, children: t.nome })
+  return /* @__PURE__ */ jsxs9(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
+    /* @__PURE__ */ jsx10(StatusBar3, { animated: true, barStyle: "light-content" }),
+    /* @__PURE__ */ jsxs9(View9, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+      emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx10(View9, { style: { ...StyleSheet9.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs9(View9, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
+        /* @__PURE__ */ jsx10(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "contain", zOrder: 0 }),
+        /* @__PURE__ */ jsx10(Text9, { style: estilos9.nomeTile, children: t.nome })
       ] }, t.chave)) }),
-      emCurso && video && VideoTrack && local && /* @__PURE__ */ jsxs8(View8, { style: [estilos8.pip, { bottom: acimaControlos, height: alturaPip }], children: [
-        /* @__PURE__ */ jsx9(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "contain", mirror: true, zOrder: 1 }),
-        !camara && /* @__PURE__ */ jsx9(View8, { style: estilos8.pipOff, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "videocam-off", size: 22, color: "rgba(255,255,255,0.8)" }) })
+      emCurso && video && VideoTrack && local && /* @__PURE__ */ jsxs9(View9, { style: [estilos9.pip, { bottom: acimaControlos, height: alturaPip }], children: [
+        /* @__PURE__ */ jsx10(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "contain", mirror: true, zOrder: 1 }),
+        !camara && /* @__PURE__ */ jsx10(View9, { style: estilos9.pipOff, children: /* @__PURE__ */ jsx10(Ionicons9, { name: "videocam-off", size: 22, color: "rgba(255,255,255,0.8)" }) })
       ] }),
-      (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs8(View8, { style: estilos8.centro, children: [
-        ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
-        /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
-        /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) : null) }),
-        emCurso && remotoPausado && /* @__PURE__ */ jsxs8(View8, { style: estilos8.pausaPill, children: [
-          /* @__PURE__ */ jsx9(Ionicons8, { name: "videocam-off", size: 14, color: "rgba(255,255,255,0.75)" }),
-          /* @__PURE__ */ jsx9(Text8, { style: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }, children: "C\xE2mara em pausa" })
+      (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs9(View9, { style: estilos9.centro, children: [
+        ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx10(Pulso, { children: /* @__PURE__ */ jsx10(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx10(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
+        /* @__PURE__ */ jsx10(Text9, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
+        /* @__PURE__ */ jsx10(Text9, { style: { color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: 8, textAlign: "center" }, children: subtitulo ?? (inicioEm ? /* @__PURE__ */ jsx10(Duracao, { desde: inicioEm }) : null) }),
+        emCurso && remotoPausado && /* @__PURE__ */ jsxs9(View9, { style: estilos9.pausaPill, children: [
+          /* @__PURE__ */ jsx10(Ionicons9, { name: "videocam-off", size: 14, color: "rgba(255,255,255,0.75)" }),
+          /* @__PURE__ */ jsx10(Text9, { style: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }, children: "C\xE2mara em pausa" })
         ] })
       ] }),
-      /* @__PURE__ */ jsxs8(View8, { style: [estilos8.topo, { paddingTop: insets.top + 8 }], children: [
-        /* @__PURE__ */ jsx9(Pressable8, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "chevron-down", size: 26, color: "#fff" }) }),
-        emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ jsx9(Duracao, { desde: inicioEm }) }),
-        /* @__PURE__ */ jsx9(View8, { style: { width: 42 } })
+      /* @__PURE__ */ jsxs9(View9, { style: [estilos9.topo, { paddingTop: insets.top + 8 }], children: [
+        /* @__PURE__ */ jsx10(Pressable9, { onPress: aoMinimizar, style: { padding: 8 }, children: /* @__PURE__ */ jsx10(Ionicons9, { name: "chevron-down", size: 26, color: "#fff" }) }),
+        emCurso && inicioEm && video && remotos.length > 0 && /* @__PURE__ */ jsx10(Text9, { style: { color: "#fff", fontWeight: "700" }, children: /* @__PURE__ */ jsx10(Duracao, { desde: inicioEm }) }),
+        /* @__PURE__ */ jsx10(View9, { style: { width: 42 } })
       ] }),
-      erro && /* @__PURE__ */ jsx9(View8, { style: [estilos8.erro, { bottom: acimaControlos }], children: /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
+      erro && /* @__PURE__ */ jsx10(View9, { style: [estilos9.erro, { bottom: acimaControlos }], children: /* @__PURE__ */ jsx10(Text9, { style: { color: "#fff", fontWeight: "700", fontSize: 13, textAlign: "center" }, children: erro }) }),
       ativa.fase === "a_receber" ? (
         // incoming: dois botões grandes com rótulo, afastados
-        /* @__PURE__ */ jsxs8(View8, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: [
-          /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
-          /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
+        /* @__PURE__ */ jsxs9(View9, { style: [estilos9.controlosReceber, { bottom: insets.bottom + 36 }], children: [
+          /* @__PURE__ */ jsx10(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, grande: true, rodado: true, rotulo: "Recusar" }),
+          /* @__PURE__ */ jsx10(Pulso, { children: /* @__PURE__ */ jsx10(Botao, { icone: "call", cor: "#10b981", aoTocar: aoAtender, grande: true, rotulo: "Atender" }) })
         ] })
-      ) : ativa.fase === "falhada" ? /* @__PURE__ */ jsx9(View8, { style: [estilos8.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ jsx9(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
+      ) : ativa.fase === "falhada" ? /* @__PURE__ */ jsx10(View9, { style: [estilos9.controlosReceber, { bottom: insets.bottom + 36 }], children: /* @__PURE__ */ jsx10(Botao, { icone: "close", aoTocar: aoDesligar, rotulo: "Fechar" }) }) : (
         // em curso: bandeja arredondada com o desligar integrado
-        /* @__PURE__ */ jsxs8(
-          View8,
+        /* @__PURE__ */ jsxs9(
+          View9,
           {
-            style: [estilos8.bandeja, { bottom: insets.bottom + 24 }],
+            style: [estilos9.bandeja, { bottom: insets.bottom + 24 }],
             onLayout: (e) => setAlturaBandeja(e.nativeEvent.layout.height),
             children: [
-              /* @__PURE__ */ jsx9(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
-              video && /* @__PURE__ */ jsx9(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
-              video && camara && /* @__PURE__ */ jsx9(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
-              /* @__PURE__ */ jsx9(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
-              aoEcra && /* @__PURE__ */ jsx9(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
-              /* @__PURE__ */ jsx9(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
+              /* @__PURE__ */ jsx10(Botao, { icone: mudo ? "mic-off" : "mic", ativo: mudo, aoTocar: aoMudo }),
+              video && /* @__PURE__ */ jsx10(Botao, { icone: camara ? "videocam" : "videocam-off", ativo: !camara, aoTocar: aoCamara }),
+              video && camara && /* @__PURE__ */ jsx10(Botao, { icone: "camera-reverse-outline", aoTocar: aoTrocarCamara }),
+              /* @__PURE__ */ jsx10(Botao, { icone: altifalante ? "volume-high" : "volume-low", ativo: altifalante, aoTocar: aoAltifalante }),
+              aoEcra && /* @__PURE__ */ jsx10(Botao, { icone: ecra ? "stop-circle-outline" : "share-outline", ativo: ecra, aoTocar: aoEcra }),
+              /* @__PURE__ */ jsx10(Botao, { icone: "call", cor: "#ef4444", aoTocar: aoDesligar, rodado: true })
             ]
           }
         )
@@ -3484,8 +3749,8 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
   const lado = grande ? 76 : 60;
   const fundo = cor ?? (ativo ? "#ffffff" : "rgba(255,255,255,0.18)");
   const corIcone = ativo && !cor ? "#0f172a" : "#fff";
-  const circulo = /* @__PURE__ */ jsx9(
-    Pressable8,
+  const circulo = /* @__PURE__ */ jsx10(
+    Pressable9,
     {
       onPress: aoTocar,
       style: ({ pressed }) => ({
@@ -3497,8 +3762,8 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
         justifyContent: "center",
         opacity: pressed ? 0.8 : 1
       }),
-      children: /* @__PURE__ */ jsx9(
-        Ionicons8,
+      children: /* @__PURE__ */ jsx10(
+        Ionicons9,
         {
           name: icone,
           size: grande ? 34 : 26,
@@ -3509,25 +3774,25 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
     }
   );
   if (!rotulo) return circulo;
-  return /* @__PURE__ */ jsxs8(View8, { style: { alignItems: "center", gap: 10 }, children: [
+  return /* @__PURE__ */ jsxs9(View9, { style: { alignItems: "center", gap: 10 }, children: [
     circulo,
-    /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 14, fontWeight: "600" }, children: rotulo })
+    /* @__PURE__ */ jsx10(Text9, { style: { color: "#fff", fontSize: 14, fontWeight: "600" }, children: rotulo })
   ] });
 }
 function Duracao({ desde }) {
-  const [, forcar] = useState9(0);
-  useEffect10(() => {
+  const [, forcar] = useState10(0);
+  useEffect11(() => {
     const timer = setInterval(() => forcar((n) => n + 1), 1e3);
     return () => clearInterval(timer);
   }, []);
-  return /* @__PURE__ */ jsx9(Fragment2, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
+  return /* @__PURE__ */ jsx10(Fragment2, { children: duracaoMmSs(Math.max(0, Math.floor((Date.now() - desde) / 1e3))) });
 }
-var estilos8 = StyleSheet8.create({
-  centro: { ...StyleSheet8.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+var estilos9 = StyleSheet9.create({
+  centro: { ...StyleSheet9.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   topo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 10 },
   pip: { position: "absolute", right: 14, width: 112, height: 168, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   // câmara desligada: tapa o último frame SEM desmontar a SurfaceView
-  pipOff: { ...StyleSheet8.absoluteFillObject, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
+  pipOff: { ...StyleSheet9.absoluteFillObject, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
   pausaPill: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   erro: { position: "absolute", left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
@@ -3568,11 +3833,11 @@ async function ligarPushNativo(api, identidade, tokenFcm, plataforma = "android"
 }
 
 // src/notificacoes-locais.tsx
-import { useEffect as useEffect11 } from "react";
+import { useEffect as useEffect12 } from "react";
 import { AppState as AppState4 } from "react-native";
 function NotificacoesLocais({ avatarPadrao } = {}) {
   const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
-  useEffect11(() => {
+  useEffect12(() => {
     const notifee = obterNotifee();
     if (!notifee?.displayNotification) return;
     return subscreverMensagens((mensagem) => {
@@ -3665,6 +3930,7 @@ export {
   MakaChatProvider,
   NomeComBadge,
   NotificacoesLocais,
+  NovaConversaScreen,
   ReprodutorAudio,
   Sheet,
   SqliteStorage,
