@@ -1191,7 +1191,7 @@ import { useCallback as useCallback3, useEffect as useEffect8, useMemo as useMem
 import {
   Alert as Alert2,
   AppState as AppState2,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView as KeyboardAvoidingView2,
   Linking as Linking3,
   Platform as Platform2,
   Pressable as Pressable6,
@@ -1401,8 +1401,9 @@ import {
 import { Ionicons as Ionicons4 } from "@expo/vector-icons";
 import { useEffect as useEffect6, useState as useState5 } from "react";
 import {
+  BackHandler,
   Image as Image2,
-  Keyboard,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -1414,6 +1415,8 @@ import {
   View as View4
 } from "react-native";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+var KCLobby = obterKeyboardController();
+var TecladoLobby = KCLobby?.KeyboardAvoidingView ?? KeyboardAvoidingView;
 async function escolherFotosEVideos() {
   const picker = obterImagePicker();
   if (!picker) return [];
@@ -1519,31 +1522,19 @@ async function abrirComSistema(uri, mime, urlRemota) {
   }
   if (urlRemota) await Linking.openURL(urlRemota).catch(() => void 0);
 }
-function useAlturaTeclado() {
-  const [altura, setAltura] = useState5(0);
-  useEffect6(() => {
-    const mostrar = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e) => setAltura(e.endCoordinates?.height ?? 0)
-    );
-    const esconder = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setAltura(0)
-    );
-    return () => {
-      mostrar.remove();
-      esconder.remove();
-    };
-  }, []);
-  return altura;
-}
 function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = useState5("");
   const { width } = useWindowDimensions();
   const lado = (width - 48) / 3;
-  const teclado = useAlturaTeclado();
-  return /* @__PURE__ */ jsx5(Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+  useEffect6(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      aoFechar();
+      return true;
+    });
+    return () => sub.remove();
+  }, [aoFechar]);
+  return /* @__PURE__ */ jsx5(View4, { style: [StyleSheet4.absoluteFillObject, { zIndex: 40, elevation: 40 }], children: /* @__PURE__ */ jsxs4(TecladoLobby, { style: { flex: 1, backgroundColor: "#0f172a" }, behavior: "padding", children: [
     /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ jsx5(Pressable4, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ jsx5(Ionicons4, { name: "close", size: 26, color: "#fff" }) }),
       /* @__PURE__ */ jsxs4(Text4, { style: { color: "#fff", fontWeight: "700", fontSize: 16 }, children: [
@@ -1565,7 +1556,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyFundo, { paddingBottom: teclado > 0 ? teclado + 12 : insets.bottom + 12 }], children: [
+    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
       /* @__PURE__ */ jsx5(
         TextInput2,
         {
@@ -1943,7 +1934,7 @@ var estilos5 = StyleSheet5.create({
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var EMOJIS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"];
 var KC = obterKeyboardController();
-var CampoTeclado = KC?.KeyboardAvoidingView ?? KeyboardAvoidingView;
+var CampoTeclado = KC?.KeyboardAvoidingView ?? KeyboardAvoidingView2;
 function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco = true, barraEstado = "escura", renderHeader }) {
   const { engine, api, socket, identidade, registarVisivel } = useMakaChat();
   const tema = useTema();

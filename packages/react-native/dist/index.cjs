@@ -1420,6 +1420,8 @@ var import_vector_icons4 = require("@expo/vector-icons");
 var import_react7 = require("react");
 var import_react_native5 = require("react-native");
 var import_jsx_runtime5 = require("react/jsx-runtime");
+var KCLobby = obterKeyboardController();
+var TecladoLobby = KCLobby?.KeyboardAvoidingView ?? import_react_native5.KeyboardAvoidingView;
 async function escolherFotosEVideos() {
   const picker = obterImagePicker();
   if (!picker) return [];
@@ -1525,31 +1527,19 @@ async function abrirComSistema(uri, mime, urlRemota) {
   }
   if (urlRemota) await import_react_native5.Linking.openURL(urlRemota).catch(() => void 0);
 }
-function useAlturaTeclado() {
-  const [altura, setAltura] = (0, import_react7.useState)(0);
-  (0, import_react7.useEffect)(() => {
-    const mostrar = import_react_native5.Keyboard.addListener(
-      import_react_native5.Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e) => setAltura(e.endCoordinates?.height ?? 0)
-    );
-    const esconder = import_react_native5.Keyboard.addListener(
-      import_react_native5.Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setAltura(0)
-    );
-    return () => {
-      mostrar.remove();
-      esconder.remove();
-    };
-  }, []);
-  return altura;
-}
 function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = (0, import_react7.useState)("");
   const { width } = (0, import_react_native5.useWindowDimensions)();
   const lado = (width - 48) / 3;
-  const teclado = useAlturaTeclado();
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
+  (0, import_react7.useEffect)(() => {
+    const sub = import_react_native5.BackHandler.addEventListener("hardwareBackPress", () => {
+      aoFechar();
+      return true;
+    });
+    return () => sub.remove();
+  }, [aoFechar]);
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.View, { style: [import_react_native5.StyleSheet.absoluteFillObject, { zIndex: 40, elevation: 40 }], children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(TecladoLobby, { style: { flex: 1, backgroundColor: "#0f172a" }, behavior: "padding", children: [
     /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.Text, { style: { color: "#fff", fontWeight: "700", fontSize: 16 }, children: [
@@ -1571,7 +1561,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyFundo, { paddingBottom: teclado > 0 ? teclado + 12 : insets.bottom + 12 }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
         import_react_native5.TextInput,
         {

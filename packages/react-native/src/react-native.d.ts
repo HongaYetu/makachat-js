@@ -52,6 +52,9 @@ declare module 'react-native' {
     };
     export const Share: { share(conteudo: { message?: string; url?: string }): Promise<any> };
     export const Vibration: { vibrate(padrao?: number | number[]): void };
+    export const BackHandler: {
+        addEventListener(tipo: string, handler: () => boolean): { remove(): void };
+    };
     export const StyleSheet: {
         create<T>(estilos: T): T;
         absoluteFillObject: any;

@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Anexo, MakaApi, Mensagem, StorageAdapter } from '@hongayetu/makachat-core';
 import React, { useEffect, useState } from 'react';
 import {
+    BackHandler,
     Image,
-    Keyboard,
+    KeyboardAvoidingView,
     Linking,
     Modal,
     Platform,
@@ -14,9 +15,14 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
-import { obterDocumentPicker, obterFileSystem, obterImagePicker, obterIntentLauncher, obterSharing, obterVideo } from '../opcionais';
+import { obterDocumentPicker, obterFileSystem, obterImagePicker, obterIntentLauncher, obterKeyboardController, obterSharing, obterVideo } from '../opcionais';
 import { useTema } from '../provider';
 import { ListaPerformante } from './comum';
+
+// o KeyboardAvoidingView do keyboard-controller só atua na janela principal —
+// por isso o lobby é um OVERLAY na árvore do ecrã (não um Modal nativo)
+const KCLobby = obterKeyboardController();
+const TecladoLobby = (KCLobby?.KeyboardAvoidingView ?? KeyboardAvoidingView) as typeof KeyboardAvoidingView;
 
 export interface FicheiroLocal {
     uri: string;
@@ -188,33 +194,6 @@ export async function abrirComSistema(uri: string, mime: string | null, urlRemot
     if (urlRemota) await Linking.openURL(urlRemota).catch(() => undefined);
 }
 
-// ---------------------------------------------------------------- teclado em Modals
-
-/**
- * Altura do teclado via listeners do RN core — o keyboard-controller não
- * funciona dentro de Modal nativo (janela própria no Android).
- */
-export function useAlturaTeclado(): number {
-    const [altura, setAltura] = useState(0);
-
-    useEffect(() => {
-        const mostrar = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-            (e) => setAltura(e.endCoordinates?.height ?? 0),
-        );
-        const esconder = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-            () => setAltura(0),
-        );
-
-        return () => {
-            mostrar.remove();
-            esconder.remove();
-        };
-    }, []);
-
-    return altura;
-}
 
 // ---------------------------------------------------------------- lobby de fotos (preview + legenda)
 
@@ -231,12 +210,21 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
     const [legenda, setLegenda] = useState('');
     const { width } = useWindowDimensions();
     const lado = (width - 48) / 3;
-    // o input da legenda tem de subir com o teclado (Modal não faz sozinho)
-    const teclado = useAlturaTeclado();
+
+    // overlay (não Modal): botão back do Android fecha o lobby
+    useEffect(() => {
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+            aoFechar();
+
+            return true;
+        });
+
+        return () => sub.remove();
+    }, [aoFechar]);
 
     return (
-        <Modal visible animationType="slide" onRequestClose={aoFechar}>
-            <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+        <View style={[StyleSheet.absoluteFillObject as object, { zIndex: 40, elevation: 40 }]}>
+            <TecladoLobby style={{ flex: 1, backgroundColor: '#0f172a' }} behavior="padding">
                 <View style={[estilos.lobbyTopo, { paddingTop: insets.top + 8 }]}>
                     <Pressable onPress={aoFechar} style={{ padding: 8 }}>
                         <Ionicons name="close" size={26} color="#fff" />
@@ -266,7 +254,7 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
                         </View>
                     ))}
                 </View>
-                <View style={[estilos.lobbyFundo, { paddingBottom: teclado > 0 ? teclado + 12 : insets.bottom + 12 }]}>
+                <View style={[estilos.lobbyFundo, { paddingBottom: insets.bottom + 12 }]}>
                     <TextInput
                         value={legenda}
                         onChangeText={setLegenda}
@@ -282,8 +270,8 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
                         <Ionicons name={aEnviar ? 'hourglass-outline' : 'send'} size={20} color={tema.primariaContraste} />
                     </Pressable>
                 </View>
-            </View>
-        </Modal>
+            </TecladoLobby>
+        </View>
     );
 }
 
