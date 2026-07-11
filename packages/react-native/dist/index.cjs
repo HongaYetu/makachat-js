@@ -2941,12 +2941,17 @@ function ChamadasProvider({ children }) {
     if (!r || !lkClient) return;
     const Track = lkClient.Track;
     const novos = [];
+    const proporcaoDe = (pub) => {
+      const dim = pub?.dimensions ?? pub?.track?.mediaStreamTrack?.getSettings?.();
+      return dim?.width && dim?.height ? dim.width / dim.height : null;
+    };
     const localCam = r.localParticipant?.getTrackPublication?.(Track.Source.Camera);
     novos.push({
       chave: "local",
       local: true,
       nome: "Tu",
-      trackRef: localCam?.track ? { participant: r.localParticipant, publication: localCam, source: Track.Source.Camera } : null
+      trackRef: localCam?.track ? { participant: r.localParticipant, publication: localCam, source: Track.Source.Camera } : null,
+      proporcao: proporcaoDe(localCam)
     });
     for (const participante of r.remoteParticipants?.values?.() ?? []) {
       const cam = participante.getTrackPublication?.(Track.Source.Camera);
@@ -2956,7 +2961,8 @@ function ChamadasProvider({ children }) {
         chave: participante.identity,
         local: false,
         nome: participante.name || "Participante",
-        trackRef: pub?.track ? { participant: participante, publication: pub, source: pub === ecra2 ? Track.Source.ScreenShare : Track.Source.Camera } : null
+        trackRef: pub?.track ? { participant: participante, publication: pub, source: pub === ecra2 ? Track.Source.ScreenShare : Track.Source.Camera } : null,
+        proporcao: proporcaoDe(pub)
       });
     }
     setTiles(novos);
@@ -2988,6 +2994,8 @@ function ChamadasProvider({ children }) {
       r.on(RoomEvent.TrackUnsubscribed, sincronizarTiles);
       r.on(RoomEvent.LocalTrackPublished, sincronizarTiles);
       r.on(RoomEvent.LocalTrackUnpublished, sincronizarTiles);
+      r.on(RoomEvent.TrackMuted, sincronizarTiles);
+      r.on(RoomEvent.TrackUnmuted, sincronizarTiles);
       r.on(RoomEvent.ParticipantConnected, sincronizarTiles);
       r.on(RoomEvent.ParticipantDisconnected, sincronizarTiles);
       const verificarSozinho = () => {
@@ -3278,16 +3286,20 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const VideoTrack = livekit?.VideoTrack;
   const remotos = tiles.filter((t) => !t.local && t.trackRef);
   const local = tiles.find((t) => t.local && t.trackRef);
+  const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
   return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.Modal, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
     /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.StatusBar, { animated: true, barStyle: "light-content" }),
     /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
       emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: { ...import_react_native9.StyleSheet.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover", zOrder: 0 }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "contain", zOrder: 0 }),
         /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: estilos8.nomeTile, children: t.nome })
       ] }, t.chave)) }),
-      emCurso && video && VideoTrack && local && camara && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: [estilos8.pip, { bottom: acimaControlos }], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true, zOrder: 1 }) }),
+      emCurso && video && VideoTrack && local && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: [estilos8.pip, { bottom: acimaControlos, height: alturaPip }], children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "contain", mirror: true, zOrder: 1 }),
+        !camara && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.View, { style: estilos8.pipOff, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_vector_icons8.Ionicons, { name: "videocam-off", size: 22, color: "rgba(255,255,255,0.8)" }) })
+      ] }),
       (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_react_native9.View, { style: estilos8.centro, children: [
         ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Pulso, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
         /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_react_native9.Text, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
@@ -3372,6 +3384,8 @@ var estilos8 = import_react_native9.StyleSheet.create({
   centro: { ...import_react_native9.StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   topo: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 52, paddingHorizontal: 10 },
   pip: { position: "absolute", right: 14, width: 112, height: 168, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
+  // câmara desligada: tapa o último frame SEM desmontar a SurfaceView
+  pipOff: { ...import_react_native9.StyleSheet.absoluteFillObject, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
   nomeTile: { position: "absolute", left: 10, bottom: 10, color: "#fff", fontWeight: "700", fontSize: 12, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   erro: { position: "absolute", left: 20, right: 20, backgroundColor: "rgba(239,68,68,0.92)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
   // bandeja de controlos em curso (pill escura, estilo WhatsApp)

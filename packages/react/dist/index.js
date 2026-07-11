@@ -796,7 +796,7 @@ function ChamadasProvider({ children }) {
   return /* @__PURE__ */ jsxs2(Ctx.Provider, { value: valorCtx, children: [
     children,
     /* @__PURE__ */ jsx3("style", { children: `
-                .maka-video-remoto { flex: 1 1 0%; min-width: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+                .maka-video-remoto { flex: 1 1 0%; min-width: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
                 .maka-video-local { position: absolute; right: 10px; bottom: 10px; width: 28%; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 1; }
             ` }),
     erroSolto && !ativa && /* @__PURE__ */ jsx3("div", { className: "fixed bottom-6 left-6 z-[9999] animate-maka-subir rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-2xl ring-1 ring-red-500/50", children: erroSolto }),

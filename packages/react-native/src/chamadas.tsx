@@ -20,6 +20,8 @@ interface Tile {
     local: boolean;
     nome: string;
     trackRef: unknown | null;
+    /** largura/altura real do vídeo — dimensiona o PiP sem crop nem esticar */
+    proporcao: number | null;
 }
 
 export interface ChamadasApi {
@@ -227,6 +229,14 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         const Track = lkClient.Track;
         const novos: Tile[] = [];
 
+        // proporção real (largura/altura) do vídeo publicado — dimensions do
+        // LiveKit ou, para o local antes do ack, os settings do próprio track
+        const proporcaoDe = (pub: any): number | null => {
+            const dim = pub?.dimensions ?? pub?.track?.mediaStreamTrack?.getSettings?.();
+
+            return dim?.width && dim?.height ? dim.width / dim.height : null;
+        };
+
         const localCam = r.localParticipant?.getTrackPublication?.(Track.Source.Camera);
         novos.push({
             chave: 'local',
@@ -235,6 +245,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             trackRef: localCam?.track
                 ? { participant: r.localParticipant, publication: localCam, source: Track.Source.Camera }
                 : null,
+            proporcao: proporcaoDe(localCam),
         });
 
         for (const participante of r.remoteParticipants?.values?.() ?? []) {
@@ -248,6 +259,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 trackRef: pub?.track
                     ? { participant: participante, publication: pub, source: pub === ecra ? Track.Source.ScreenShare : Track.Source.Camera }
                     : null,
+                proporcao: proporcaoDe(pub),
             });
         }
 
@@ -287,6 +299,9 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             r.on(RoomEvent.TrackUnsubscribed, sincronizarTiles);
             r.on(RoomEvent.LocalTrackPublished, sincronizarTiles);
             r.on(RoomEvent.LocalTrackUnpublished, sincronizarTiles);
+            // mute/unmute não (des)publica — refresca proporção/trackRef na mesma
+            r.on(RoomEvent.TrackMuted, sincronizarTiles);
+            r.on(RoomEvent.TrackUnmuted, sincronizarTiles);
             r.on(RoomEvent.ParticipantConnected, sincronizarTiles);
             r.on(RoomEvent.ParticipantDisconnected, sincronizarTiles);
 
@@ -714,6 +729,8 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     const VideoTrack = livekit?.VideoTrack;
     const remotos = tiles.filter((t) => !t.local && t.trackRef);
     const local = tiles.find((t) => t.local && t.trackRef);
+    // caixa do PiP na proporção real da câmara → cover/contain coincidem (sem crop)
+    const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
     const emCurso = ativa.fase === 'em_curso';
 
     const subtitulo =
@@ -737,20 +754,27 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     <View style={{ ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' }}>
                         {remotos.map((t) => (
                             <View key={t.chave} style={{ width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }}>
-                                <VideoTrack trackRef={t.trackRef} style={{ flex: 1 }} objectFit="cover" zOrder={0} />
+                                {/* contain: o vídeo inteiro na proporção real (letterbox escuro), sem cortar */}
+                                <VideoTrack trackRef={t.trackRef} style={{ flex: 1 }} objectFit="contain" zOrder={0} />
                                 <Text style={estilos.nomeTile}>{t.nome}</Text>
                             </View>
                         ))}
                     </View>
                 )}
 
-                {/* preview local — só com a câmara ligada (o track mutado ainda
-                    existe e mostraria o último frame congelado) */}
-                {emCurso && video && VideoTrack && local && camara && (
-                    <View style={[estilos.pip, { bottom: acimaControlos }]}>
+                {/* preview local — SEMPRE montado durante o vídeo: desmontar a
+                    SurfaceView perde o TrackEvent.Restarted do unmute e o remount
+                    agarra o stream morto (PiP preto). Câmara off = overlay. */}
+                {emCurso && video && VideoTrack && local && (
+                    <View style={[estilos.pip, { bottom: acimaControlos, height: alturaPip }]}>
                         {/* zOrder: SurfaceViews Android ignoram a ordem do layout — sem isto o
                             PiP renderiza ATRÁS do vídeo remoto fullscreen e fica invisível */}
-                        <VideoTrack trackRef={local.trackRef} style={{ flex: 1 }} objectFit="cover" mirror zOrder={1} />
+                        <VideoTrack trackRef={local.trackRef} style={{ flex: 1 }} objectFit="contain" mirror zOrder={1} />
+                        {!camara && (
+                            <View style={estilos.pipOff}>
+                                <Ionicons name="videocam-off" size={22} color="rgba(255,255,255,0.8)" />
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -889,6 +913,8 @@ const estilos = StyleSheet.create({
     centro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
     topo: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: 10 },
     pip: { position: 'absolute', right: 14, width: 112, height: 168, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+    // câmara desligada: tapa o último frame SEM desmontar a SurfaceView
+    pipOff: { ...StyleSheet.absoluteFillObject, backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' },
     nomeTile: { position: 'absolute', left: 10, bottom: 10, color: '#fff', fontWeight: '700', fontSize: 12, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
     erro: { position: 'absolute', left: 20, right: 20, backgroundColor: 'rgba(239,68,68,0.92)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
     // bandeja de controlos em curso (pill escura, estilo WhatsApp)
