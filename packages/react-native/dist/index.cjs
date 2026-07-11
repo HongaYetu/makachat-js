@@ -300,6 +300,20 @@ var obterFileSystem = () => {
     return null;
   }
 };
+var obterSharing = () => {
+  try {
+    return require("expo-sharing");
+  } catch {
+    return null;
+  }
+};
+var obterIntentLauncher = () => {
+  try {
+    return require("expo-intent-launcher");
+  } catch {
+    return null;
+  }
+};
 var obterLiveKit = () => {
   try {
     return require("@livekit/react-native");
@@ -1461,11 +1475,80 @@ async function enviarAnexoLocal(api, ficheiro, opcoes) {
   });
   return anexo;
 }
+var chaveFicheiroLocal = (anexoId) => `ficheiro_local_${anexoId}`;
+async function obterFicheiroLocal(storage, anexoId) {
+  const uri = await storage.obterMeta(chaveFicheiroLocal(anexoId)).catch(() => null);
+  if (!uri) return null;
+  const fs = obterFileSystem();
+  const info = await fs?.getInfoAsync?.(uri).catch(() => null);
+  if (info?.exists) return uri;
+  await storage.gravarMeta(chaveFicheiroLocal(anexoId), "").catch(() => void 0);
+  return null;
+}
+async function registarFicheiroLocal(storage, anexoId, uri) {
+  await storage.gravarMeta(chaveFicheiroLocal(anexoId), uri).catch(() => void 0);
+}
+async function baixarFicheiro(storage, anexo) {
+  const fs = obterFileSystem();
+  if (!fs?.downloadAsync || !fs.documentDirectory || !anexo.url) return null;
+  const dir = `${fs.documentDirectory}makachat/`;
+  await fs.makeDirectoryAsync?.(dir, { intermediates: true }).catch(() => void 0);
+  const nome = (anexo.nome_ficheiro ?? "ficheiro").replace(/[^\w.\-]+/g, "_");
+  const destino = `${dir}${anexo.id}_${nome}`;
+  const resultado = await fs.downloadAsync(anexo.url, destino);
+  if (resultado?.status && resultado.status >= 400) return null;
+  await registarFicheiroLocal(storage, anexo.id, destino);
+  return destino;
+}
+async function abrirComSistema(uri, mime, urlRemota) {
+  const fs = obterFileSystem();
+  if (import_react_native5.Platform.OS === "android") {
+    const launcher = obterIntentLauncher();
+    if (launcher?.startActivityAsync && fs?.getContentUriAsync) {
+      try {
+        const contentUri = await fs.getContentUriAsync(uri);
+        await launcher.startActivityAsync("android.intent.action.VIEW", {
+          data: contentUri,
+          type: mime ?? "*/*",
+          flags: 1
+          // FLAG_GRANT_READ_URI_PERMISSION
+        });
+        return;
+      } catch {
+      }
+    }
+  }
+  const sharing = obterSharing();
+  if (sharing?.shareAsync && await sharing.isAvailableAsync?.().catch(() => true) !== false) {
+    await sharing.shareAsync(uri, mime ? { mimeType: mime } : void 0).catch(() => void 0);
+    return;
+  }
+  if (urlRemota) await import_react_native5.Linking.openURL(urlRemota).catch(() => void 0);
+}
+function useAlturaTeclado() {
+  const [altura, setAltura] = (0, import_react7.useState)(0);
+  (0, import_react7.useEffect)(() => {
+    const mostrar = import_react_native5.Keyboard.addListener(
+      import_react_native5.Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => setAltura(e.endCoordinates?.height ?? 0)
+    );
+    const esconder = import_react_native5.Keyboard.addListener(
+      import_react_native5.Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setAltura(0)
+    );
+    return () => {
+      mostrar.remove();
+      esconder.remove();
+    };
+  }, []);
+  return altura;
+}
 function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = (0, import_react7.useState)("");
   const { width } = (0, import_react_native5.useWindowDimensions)();
   const lado = (width - 48) / 3;
+  const teclado = useAlturaTeclado();
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
     /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react_native5.Pressable, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_vector_icons4.Ionicons, { name: "close", size: 26, color: "#fff" }) }),
@@ -1488,7 +1571,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react_native5.View, { style: [estilos4.lobbyFundo, { paddingBottom: teclado > 0 ? teclado + 12 : insets.bottom + 12 }], children: [
       /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
         import_react_native5.TextInput,
         {
@@ -1684,7 +1767,41 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }) {
   if (anexo.tipo === "audio" && anexo.url) {
     return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(ReprodutorAudio, { url: anexo.url, mimha: minha, duracaoSegundos: anexo.duracao_segundos });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: () => anexo.url && aoAbrirUrl(anexo.url), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FicheiroAnexo, { anexo, minha, corTexto });
+}
+function FicheiroAnexo({ anexo, minha, corTexto }) {
+  const { engine } = useMakaChat();
+  const [local, setLocal] = (0, import_react8.useState)(null);
+  const [verificado, setVerificado] = (0, import_react8.useState)(false);
+  const [aBaixar, setABaixar] = (0, import_react8.useState)(false);
+  (0, import_react8.useEffect)(() => {
+    let vivo = true;
+    void obterFicheiroLocal(engine.storage, anexo.id).then((uri) => {
+      if (vivo) {
+        setLocal(uri);
+        setVerificado(true);
+      }
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [engine, anexo.id]);
+  const tocar = async () => {
+    if (aBaixar) return;
+    if (local) {
+      await abrirComSistema(local, anexo.mime, anexo.url);
+      return;
+    }
+    setABaixar(true);
+    try {
+      const uri = await baixarFicheiro(engine.storage, anexo);
+      if (uri) setLocal(uri);
+      else if (anexo.url) await import_react_native6.Linking.openURL(anexo.url).catch(() => void 0);
+    } finally {
+      setABaixar(false);
+    }
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: () => void tocar(), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
     /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: iconeFicheiro(anexo.nome_ficheiro), size: 26, color: corTexto }),
     /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flex: 1, minWidth: 0 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 13.5, fontWeight: "600", color: corTexto }, children: anexo.nome_ficheiro ?? "Ficheiro" }),
@@ -1694,7 +1811,7 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }) {
         (anexo.nome_ficheiro ?? "").split(".").pop()?.toUpperCase()
       ] })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "download-outline", size: 20, color: corTexto })
+    aBaixar ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.ActivityIndicator, { size: "small", color: corTexto }) : !local && verificado ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "arrow-down-circle-outline", size: 22, color: corTexto }) : null
   ] });
 }
 function Bolha({
@@ -1984,6 +2101,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     setAEnviarMedia(true);
     try {
       const anexo = await enviarAnexoLocal(api, f);
+      if (f.tipo === "ficheiro") await registarFicheiroLocal(engine.storage, anexo.id, f.uri);
       await enviar({ conversa_id: conversaId, tipo: f.tipo === "ficheiro" ? "ficheiro" : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
       descerParaFundo();
     } catch (e) {

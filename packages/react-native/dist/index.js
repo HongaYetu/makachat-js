@@ -244,6 +244,20 @@ var obterFileSystem = () => {
     return null;
   }
 };
+var obterSharing = () => {
+  try {
+    return __require("expo-sharing");
+  } catch {
+    return null;
+  }
+};
+var obterIntentLauncher = () => {
+  try {
+    return __require("expo-intent-launcher");
+  } catch {
+    return null;
+  }
+};
 var obterLiveKit = () => {
   try {
     return __require("@livekit/react-native");
@@ -1173,13 +1187,13 @@ var estilos2 = StyleSheet2.create({
 // src/ui/ChatScreen.tsx
 import { Ionicons as Ionicons6 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets2 } from "react-native-safe-area-context";
-import { useCallback as useCallback3, useEffect as useEffect6, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect8, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
 import {
   Alert as Alert2,
   AppState as AppState2,
   KeyboardAvoidingView,
-  Linking as Linking2,
-  Platform,
+  Linking as Linking3,
+  Platform as Platform2,
   Pressable as Pressable6,
   StatusBar,
   StyleSheet as StyleSheet6,
@@ -1369,11 +1383,12 @@ var estilos3 = StyleSheet3.create({
 
 // src/ui/Bolha.tsx
 import { Ionicons as Ionicons5 } from "@expo/vector-icons";
-import { useMemo as useMemo4, useRef as useRef6, useState as useState6 } from "react";
+import { useEffect as useEffect7, useMemo as useMemo4, useRef as useRef6, useState as useState6 } from "react";
 import {
+  ActivityIndicator,
   Animated as Animated2,
   Image as Image3,
-  Linking,
+  Linking as Linking2,
   PanResponder,
   Pressable as Pressable5,
   StyleSheet as StyleSheet5,
@@ -1384,10 +1399,13 @@ import {
 
 // src/ui/media.tsx
 import { Ionicons as Ionicons4 } from "@expo/vector-icons";
-import { useState as useState5 } from "react";
+import { useEffect as useEffect6, useState as useState5 } from "react";
 import {
   Image as Image2,
+  Keyboard,
+  Linking,
   Modal,
+  Platform,
   Pressable as Pressable4,
   StyleSheet as StyleSheet4,
   Text as Text4,
@@ -1451,11 +1469,80 @@ async function enviarAnexoLocal(api, ficheiro, opcoes) {
   });
   return anexo;
 }
+var chaveFicheiroLocal = (anexoId) => `ficheiro_local_${anexoId}`;
+async function obterFicheiroLocal(storage, anexoId) {
+  const uri = await storage.obterMeta(chaveFicheiroLocal(anexoId)).catch(() => null);
+  if (!uri) return null;
+  const fs = obterFileSystem();
+  const info = await fs?.getInfoAsync?.(uri).catch(() => null);
+  if (info?.exists) return uri;
+  await storage.gravarMeta(chaveFicheiroLocal(anexoId), "").catch(() => void 0);
+  return null;
+}
+async function registarFicheiroLocal(storage, anexoId, uri) {
+  await storage.gravarMeta(chaveFicheiroLocal(anexoId), uri).catch(() => void 0);
+}
+async function baixarFicheiro(storage, anexo) {
+  const fs = obterFileSystem();
+  if (!fs?.downloadAsync || !fs.documentDirectory || !anexo.url) return null;
+  const dir = `${fs.documentDirectory}makachat/`;
+  await fs.makeDirectoryAsync?.(dir, { intermediates: true }).catch(() => void 0);
+  const nome = (anexo.nome_ficheiro ?? "ficheiro").replace(/[^\w.\-]+/g, "_");
+  const destino = `${dir}${anexo.id}_${nome}`;
+  const resultado = await fs.downloadAsync(anexo.url, destino);
+  if (resultado?.status && resultado.status >= 400) return null;
+  await registarFicheiroLocal(storage, anexo.id, destino);
+  return destino;
+}
+async function abrirComSistema(uri, mime, urlRemota) {
+  const fs = obterFileSystem();
+  if (Platform.OS === "android") {
+    const launcher = obterIntentLauncher();
+    if (launcher?.startActivityAsync && fs?.getContentUriAsync) {
+      try {
+        const contentUri = await fs.getContentUriAsync(uri);
+        await launcher.startActivityAsync("android.intent.action.VIEW", {
+          data: contentUri,
+          type: mime ?? "*/*",
+          flags: 1
+          // FLAG_GRANT_READ_URI_PERMISSION
+        });
+        return;
+      } catch {
+      }
+    }
+  }
+  const sharing = obterSharing();
+  if (sharing?.shareAsync && await sharing.isAvailableAsync?.().catch(() => true) !== false) {
+    await sharing.shareAsync(uri, mime ? { mimeType: mime } : void 0).catch(() => void 0);
+    return;
+  }
+  if (urlRemota) await Linking.openURL(urlRemota).catch(() => void 0);
+}
+function useAlturaTeclado() {
+  const [altura, setAltura] = useState5(0);
+  useEffect6(() => {
+    const mostrar = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => setAltura(e.endCoordinates?.height ?? 0)
+    );
+    const esconder = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setAltura(0)
+    );
+    return () => {
+      mostrar.remove();
+      esconder.remove();
+    };
+  }, []);
+  return altura;
+}
 function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }) {
   const tema = useTema();
   const [legenda, setLegenda] = useState5("");
   const { width } = useWindowDimensions();
   const lado = (width - 48) / 3;
+  const teclado = useAlturaTeclado();
   return /* @__PURE__ */ jsx5(Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs4(View4, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
     /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyTopo, { paddingTop: insets.top + 8 }], children: [
       /* @__PURE__ */ jsx5(Pressable4, { onPress: aoFechar, style: { padding: 8 }, children: /* @__PURE__ */ jsx5(Ionicons4, { name: "close", size: 26, color: "#fff" }) }),
@@ -1478,7 +1565,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
         }
       )
     ] }, f.uri)) }),
-    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyFundo, { paddingBottom: insets.bottom + 12 }], children: [
+    /* @__PURE__ */ jsxs4(View4, { style: [estilos4.lobbyFundo, { paddingBottom: teclado > 0 ? teclado + 12 : insets.bottom + 12 }], children: [
       /* @__PURE__ */ jsx5(
         TextInput2,
         {
@@ -1636,7 +1723,7 @@ function CartaoPartilha({ mensagem, minha }) {
   const meta = mensagem.metadados ?? {};
   const abrir = () => {
     if (aoAbrirPartilha) return aoAbrirPartilha(meta);
-    if (meta.url) void Linking.openURL(meta.url).catch(() => void 0);
+    if (meta.url) void Linking2.openURL(meta.url).catch(() => void 0);
   };
   return /* @__PURE__ */ jsxs5(Pressable5, { onPress: abrir, style: [estilos5.partilha, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
     meta.imagem_url ? /* @__PURE__ */ jsx6(Image3, { source: { uri: meta.imagem_url }, style: { width: 62, height: 62 } }) : null,
@@ -1674,7 +1761,41 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }) {
   if (anexo.tipo === "audio" && anexo.url) {
     return /* @__PURE__ */ jsx6(ReprodutorAudio, { url: anexo.url, mimha: minha, duracaoSegundos: anexo.duracao_segundos });
   }
-  return /* @__PURE__ */ jsxs5(Pressable5, { onPress: () => anexo.url && aoAbrirUrl(anexo.url), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
+  return /* @__PURE__ */ jsx6(FicheiroAnexo, { anexo, minha, corTexto });
+}
+function FicheiroAnexo({ anexo, minha, corTexto }) {
+  const { engine } = useMakaChat();
+  const [local, setLocal] = useState6(null);
+  const [verificado, setVerificado] = useState6(false);
+  const [aBaixar, setABaixar] = useState6(false);
+  useEffect7(() => {
+    let vivo = true;
+    void obterFicheiroLocal(engine.storage, anexo.id).then((uri) => {
+      if (vivo) {
+        setLocal(uri);
+        setVerificado(true);
+      }
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [engine, anexo.id]);
+  const tocar = async () => {
+    if (aBaixar) return;
+    if (local) {
+      await abrirComSistema(local, anexo.mime, anexo.url);
+      return;
+    }
+    setABaixar(true);
+    try {
+      const uri = await baixarFicheiro(engine.storage, anexo);
+      if (uri) setLocal(uri);
+      else if (anexo.url) await Linking2.openURL(anexo.url).catch(() => void 0);
+    } finally {
+      setABaixar(false);
+    }
+  };
+  return /* @__PURE__ */ jsxs5(Pressable5, { onPress: () => void tocar(), style: [estilos5.ficheiro, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
     /* @__PURE__ */ jsx6(Ionicons5, { name: iconeFicheiro(anexo.nome_ficheiro), size: 26, color: corTexto }),
     /* @__PURE__ */ jsxs5(View5, { style: { flex: 1, minWidth: 0 }, children: [
       /* @__PURE__ */ jsx6(Text5, { numberOfLines: 1, style: { fontSize: 13.5, fontWeight: "600", color: corTexto }, children: anexo.nome_ficheiro ?? "Ficheiro" }),
@@ -1684,7 +1805,7 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }) {
         (anexo.nome_ficheiro ?? "").split(".").pop()?.toUpperCase()
       ] })
     ] }),
-    /* @__PURE__ */ jsx6(Ionicons5, { name: "download-outline", size: 20, color: corTexto })
+    aBaixar ? /* @__PURE__ */ jsx6(ActivityIndicator, { size: "small", color: corTexto }) : !local && verificado ? /* @__PURE__ */ jsx6(Ionicons5, { name: "arrow-down-circle-outline", size: 22, color: corTexto }) : null
   ] });
 }
 function Bolha({
@@ -1889,20 +2010,20 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const contraparte = conversa ? contraparteDe(conversa, identidade) : null;
   const grupo = conversa?.tipo === "grupo";
   const fechada = conversa?.estado === "fechada";
-  useEffect6(() => {
+  useEffect8(() => {
     void engine.entrarConversa(conversaId);
     if (!emFoco) return;
     const sair = registarVisivel(conversaId);
     return sair;
   }, [engine, conversaId, registarVisivel, emFoco]);
-  useEffect6(() => {
+  useEffect8(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
-  useEffect6(() => {
+  useEffect8(() => {
     const sub = AppState2.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();
   }, []);
-  useEffect6(() => {
+  useEffect8(() => {
     const ultima = mensagens.at(-1);
     if (!ultima || !appAtiva || !emFoco || !noFundo) return;
     if (ultimaVista.current === ultima.id) return;
@@ -1912,7 +2033,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
   const totalAnterior = useRef7(mensagens.length);
   const ultimaContada = useRef7(null);
-  useEffect6(() => {
+  useEffect8(() => {
     const ultima = mensagens.at(-1);
     const anterior = ultimaContada.current;
     const totalAntes = totalAnterior.current;
@@ -1974,6 +2095,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     setAEnviarMedia(true);
     try {
       const anexo = await enviarAnexoLocal(api, f);
+      if (f.tipo === "ficheiro") await registarFicheiroLocal(engine.storage, anexo.id, f.uri);
       await enviar({ conversa_id: conversaId, tipo: f.tipo === "ficheiro" ? "ficheiro" : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
       descerParaFundo();
     } catch (e) {
@@ -2192,7 +2314,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
                 aoAbrirUrl: (url) => {
                   const anexo = m.anexos.find((a) => a.url === url);
                   if (anexo?.tipo === "video") setVideoAberto(url);
-                  else void Linking2.openURL(url).catch(() => void 0);
+                  else void Linking3.openURL(url).catch(() => void 0);
                 },
                 aoLigar: chamadas && !fechada ? (tipo) => void chamadas.iniciar(conversaId, tipo) : void 0
               }
@@ -2234,7 +2356,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     ) : /* @__PURE__ */ jsx7(
       CampoTeclado,
       {
-        behavior: KC ? "translate-with-padding" : Platform.OS === "ios" ? "padding" : void 0,
+        behavior: KC ? "translate-with-padding" : Platform2.OS === "ios" ? "padding" : void 0,
         keyboardVerticalOffset: -(Math.max(insets.bottom, 8) - 8),
         children: /* @__PURE__ */ jsxs6(View6, { style: [estilos6.inputLinha, { backgroundColor: tema.superficie, paddingBottom: padFundoInput }], children: [
           (podeFoto || podeFicheiro) && /* @__PURE__ */ jsx7(Pressable6, { onPress: () => setAnexoMenu(true), style: { padding: 7 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "attach", size: 24, color: tema.textoSuave }) }),
@@ -2371,7 +2493,7 @@ function Presenca2({ contraparte, typingAtivo, grupo, totalMembros }) {
   const { subscreverPresenca, socket } = useMakaChat();
   const tema = useTema();
   const [online, setOnline] = useState7(false);
-  useEffect6(() => {
+  useEffect8(() => {
     if (!contraparte) return;
     return subscreverPresenca((p) => {
       if (p.identidade_id === contraparte.identidade_id) setOnline(p.online);
@@ -2395,7 +2517,7 @@ function TypingBolha() {
 function PontoTyping({ atraso }) {
   const tema = useTema();
   const [opaco, setOpaco] = useState7(false);
-  useEffect6(() => {
+  useEffect8(() => {
     const timer = setInterval(() => setOpaco((o) => !o), 480);
     const arranque = setTimeout(() => setOpaco(true), atraso);
     return () => {
@@ -2444,7 +2566,7 @@ function SheetEncaminhar({ aoFechar, aoConfirmar }) {
   const tema = useTema();
   const [conversas, setConversas] = useState7([]);
   const [escolhidas, setEscolhidas] = useState7(/* @__PURE__ */ new Set());
-  useEffect6(() => {
+  useEffect8(() => {
     void engine.storage.listarConversas(false).then(setConversas);
   }, [engine]);
   return /* @__PURE__ */ jsxs6(Sheet, { visivel: true, aoFechar, titulo: "Encaminhar para\u2026", children: [
@@ -2551,7 +2673,7 @@ var estilos6 = StyleSheet6.create({
 
 // src/ui/InfoConversaScreen.tsx
 import { Ionicons as Ionicons7 } from "@expo/vector-icons";
-import { useEffect as useEffect7, useMemo as useMemo6, useState as useState8 } from "react";
+import { useEffect as useEffect9, useMemo as useMemo6, useState as useState8 } from "react";
 import { Alert as Alert3, Pressable as Pressable7, ScrollView, StatusBar as StatusBar2, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, View as View7 } from "react-native";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
@@ -2565,7 +2687,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   const [novoNome, setNovoNome] = useState8("");
   const [adicionarAberto, setAdicionarAberto] = useState8(false);
   const [membroDe, setMembroDe] = useState8(null);
-  useEffect7(() => {
+  useEffect9(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
   const eu = conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null;
@@ -2800,8 +2922,8 @@ var estilos7 = StyleSheet7.create({
 // src/chamadas.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
-import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect8, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { AppState as AppState3, Modal as Modal2, Platform as Platform2, Pressable as Pressable8, StatusBar as StatusBar3, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
+import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect10, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
+import { AppState as AppState3, Modal as Modal2, Platform as Platform3, Pressable as Pressable8, StatusBar as StatusBar3, StyleSheet as StyleSheet8, Text as Text8, useWindowDimensions as useWindowDimensions2, View as View8 } from "react-native";
 import { Fragment as Fragment2, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
@@ -2814,7 +2936,7 @@ function useChamadasOpcional() {
 }
 var globalsRegistados = false;
 async function iniciarServicoChamada(titulo) {
-  if (Platform2.OS !== "android") return;
+  if (Platform3.OS !== "android") return;
   try {
     if (obterPushMakaChat()?.configChamadas?.()?.servicoChamadaAtiva) return;
   } catch {
@@ -2839,7 +2961,7 @@ async function iniciarServicoChamada(titulo) {
   }
 }
 async function pararServicoChamada() {
-  if (Platform2.OS !== "android") return;
+  if (Platform3.OS !== "android") return;
   const notifee = obterNotifee();
   await notifee?.stopForegroundService?.().catch?.(() => void 0);
   await notifee?.cancelNotification?.("makachat_chamada_ativa").catch?.(() => void 0);
@@ -2871,17 +2993,17 @@ function ChamadasProvider({ children }) {
   const chamadaIdRef = useRef8(null);
   const atendendoRef = useRef8(null);
   const retomandoRef = useRef8(false);
-  useEffect8(() => {
+  useEffect10(() => {
     chamadaIdRef.current = ativa?.chamada.id ?? null;
   }, [ativa]);
-  useEffect8(() => {
+  useEffect10(() => {
     faseRef.current = ativa?.fase ?? null;
     if (ativa?.fase === "a_ligar") comecarToque("ligar");
     else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
-  useEffect8(() => {
+  useEffect10(() => {
     const push = obterPushMakaChat();
     if (!push?.configChamadas) return;
     try {
@@ -3037,7 +3159,7 @@ function ChamadasProvider({ children }) {
     },
     [suportado, livekit, lkClient, sincronizarTiles]
   );
-  useEffect8(() => {
+  useEffect10(() => {
     const sub = AppState3.addEventListener("change", (estado) => {
       const r = room.current;
       if (!r || !lkClient) return;
@@ -3049,7 +3171,7 @@ function ChamadasProvider({ children }) {
     });
     return () => sub.remove();
   }, [camara, lkClient]);
-  useEffect8(
+  useEffect10(
     () => subscreverChamadas((evento) => {
       if (evento.evento === "iniciada") {
         if (chamadaIdRef.current === evento.chamada.id) {
@@ -3159,14 +3281,14 @@ function ChamadasProvider({ children }) {
       retomandoRef.current = false;
     }
   }, [api, entrar, tocarEmApp]);
-  useEffect8(() => {
+  useEffect10(() => {
     void retomarPendente();
     const sub = AppState3.addEventListener("change", (estado) => {
       if (estado === "active") void retomarPendente();
     });
     return () => sub.remove();
   }, [retomarPendente]);
-  useEffect8(() => {
+  useEffect10(() => {
     const push = obterPushMakaChat();
     if (!push?.aoChamadaPush) return;
     const sub = push.aoChamadaPush((chamada) => {
@@ -3269,7 +3391,7 @@ function ChamadasProvider({ children }) {
         aoCamara: () => void alternarCamara(),
         aoTrocarCamara: () => void trocarCamara(),
         aoAltifalante: () => void alternarAltifalante(),
-        aoEcra: Platform2.OS === "android" && podePartilhaEcra ? () => void alternarEcra() : void 0,
+        aoEcra: Platform3.OS === "android" && podePartilhaEcra ? () => void alternarEcra() : void 0,
         aoMinimizar: () => setMinimizada(true),
         tema
       }
@@ -3385,7 +3507,7 @@ function Botao({ icone, cor, aoTocar, grande, rodado, ativo, rotulo }) {
 }
 function Duracao({ desde }) {
   const [, forcar] = useState9(0);
-  useEffect8(() => {
+  useEffect10(() => {
     const timer = setInterval(() => forcar((n) => n + 1), 1e3);
     return () => clearInterval(timer);
   }, []);
@@ -3437,11 +3559,11 @@ async function ligarPushNativo(api, identidade, tokenFcm, plataforma = "android"
 }
 
 // src/notificacoes-locais.tsx
-import { useEffect as useEffect9 } from "react";
+import { useEffect as useEffect11 } from "react";
 import { AppState as AppState4 } from "react-native";
 function NotificacoesLocais({ avatarPadrao } = {}) {
   const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
-  useEffect9(() => {
+  useEffect11(() => {
     const notifee = obterNotifee();
     if (!notifee?.displayNotification) return;
     return subscreverMensagens((mensagem) => {

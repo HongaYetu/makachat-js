@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Anexo, Mensagem, MetadadosPartilha, ParticipanteConversa } from '@hongayetu/makachat-core';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Animated,
     Image,
     Linking,
@@ -15,7 +16,7 @@ import {
 import { useMakaChat, useTema } from '../provider';
 import { ReprodutorAudio } from './audio';
 import { Avatar, duracaoMmSs, horaCurta, NomeComBadge } from './comum';
-import { tamanhoLegivel } from './media';
+import { abrirComSistema, baixarFicheiro, obterFicheiroLocal, tamanhoLegivel } from './media';
 
 /** ids UUIDv7 são ordenáveis — a comparação de watermarks é lexicográfica. */
 function idMaiorOuIgual(watermark: string | null, mensagemId: string): boolean {
@@ -152,8 +153,59 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }: {
         return <ReprodutorAudio url={anexo.url} mimha={minha} duracaoSegundos={anexo.duracao_segundos} />;
     }
 
+    return <FicheiroAnexo anexo={anexo} minha={minha} corTexto={corTexto} />;
+}
+
+/**
+ * Ficheiro estilo WhatsApp: 1º toque BAIXA (documentDirectory, registado no
+ * storage — persiste entre sessões), toques seguintes ABREM com o sistema.
+ * O ícone à direita reflete o estado: baixar / spinner / nada (já local).
+ */
+function FicheiroAnexo({ anexo, minha, corTexto }: { anexo: Anexo; minha: boolean; corTexto: string }) {
+    const { engine } = useMakaChat();
+    // null = ainda a verificar/remoto; string = uri local pronto a abrir
+    const [local, setLocal] = useState<string | null>(null);
+    const [verificado, setVerificado] = useState(false);
+    const [aBaixar, setABaixar] = useState(false);
+
+    useEffect(() => {
+        let vivo = true;
+
+        void obterFicheiroLocal(engine.storage, anexo.id).then((uri) => {
+            if (vivo) {
+                setLocal(uri);
+                setVerificado(true);
+            }
+        });
+
+        return () => {
+            vivo = false;
+        };
+    }, [engine, anexo.id]);
+
+    const tocar = async () => {
+        if (aBaixar) return;
+
+        if (local) {
+            await abrirComSistema(local, anexo.mime, anexo.url);
+
+            return;
+        }
+
+        setABaixar(true);
+
+        try {
+            const uri = await baixarFicheiro(engine.storage, anexo);
+
+            if (uri) setLocal(uri);
+            else if (anexo.url) await Linking.openURL(anexo.url).catch(() => undefined); // sem fs → antigo
+        } finally {
+            setABaixar(false);
+        }
+    };
+
     return (
-        <Pressable onPress={() => anexo.url && aoAbrirUrl(anexo.url)} style={[estilos.ficheiro, { backgroundColor: minha ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.05)' }]}>
+        <Pressable onPress={() => void tocar()} style={[estilos.ficheiro, { backgroundColor: minha ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.05)' }]}>
             <Ionicons name={iconeFicheiro(anexo.nome_ficheiro)} size={26} color={corTexto} />
             <View style={{ flex: 1, minWidth: 0 }}>
                 <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '600', color: corTexto }}>
@@ -163,7 +215,11 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }: {
                     {tamanhoLegivel(anexo.tamanho_bytes)} {(anexo.nome_ficheiro ?? '').split('.').pop()?.toUpperCase()}
                 </Text>
             </View>
-            <Ionicons name="download-outline" size={20} color={corTexto} />
+            {aBaixar ? (
+                <ActivityIndicator size="small" color={corTexto} />
+            ) : !local && verificado ? (
+                <Ionicons name="arrow-down-circle-outline" size={22} color={corTexto} />
+            ) : null}
         </Pressable>
     );
 }

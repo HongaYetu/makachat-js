@@ -21,6 +21,8 @@ export default defineConfig({
         'expo-document-picker',
         'expo-file-system',
         'expo-file-system/legacy',
+        'expo-sharing',
+        'expo-intent-launcher',
         '@notifee/react-native',
         '@hongayetu/expo-makachat-push',
         '@gorhom/bottom-sheet',

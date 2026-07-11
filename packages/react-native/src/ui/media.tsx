@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Anexo, MakaApi, Mensagem } from '@hongayetu/makachat-core';
-import React, { useState } from 'react';
+import { Anexo, MakaApi, Mensagem, StorageAdapter } from '@hongayetu/makachat-core';
+import React, { useEffect, useState } from 'react';
 import {
     Image,
+    Keyboard,
+    Linking,
     Modal,
+    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -11,7 +14,7 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
-import { obterDocumentPicker, obterFileSystem, obterImagePicker, obterVideo } from '../opcionais';
+import { obterDocumentPicker, obterFileSystem, obterImagePicker, obterIntentLauncher, obterSharing, obterVideo } from '../opcionais';
 import { useTema } from '../provider';
 import { ListaPerformante } from './comum';
 
@@ -105,6 +108,114 @@ export async function enviarAnexoLocal(api: MakaApi, ficheiro: FicheiroLocal, op
     return anexo;
 }
 
+// ---------------------------------------------------------------- ficheiros locais (baixar 1x → abrir com o sistema)
+
+const chaveFicheiroLocal = (anexoId: string) => `ficheiro_local_${anexoId}`;
+
+/** Uri local do anexo se já foi baixado E o ficheiro ainda existe (meta stale é limpa). */
+export async function obterFicheiroLocal(storage: StorageAdapter, anexoId: string): Promise<string | null> {
+    const uri = await storage.obterMeta(chaveFicheiroLocal(anexoId)).catch(() => null);
+
+    if (!uri) return null;
+
+    const fs = obterFileSystem();
+    const info = await fs?.getInfoAsync?.(uri).catch(() => null);
+
+    if (info?.exists) return uri;
+
+    await storage.gravarMeta(chaveFicheiroLocal(anexoId), '').catch(() => undefined);
+
+    return null;
+}
+
+/** Regista um uri local para o anexo (ex.: o próprio ficheiro que acabei de enviar). */
+export async function registarFicheiroLocal(storage: StorageAdapter, anexoId: string, uri: string): Promise<void> {
+    await storage.gravarMeta(chaveFicheiroLocal(anexoId), uri).catch(() => undefined);
+}
+
+/** Baixa o anexo para o documentDirectory (persistente) e regista no storage. */
+export async function baixarFicheiro(storage: StorageAdapter, anexo: Anexo): Promise<string | null> {
+    const fs = obterFileSystem();
+
+    if (!fs?.downloadAsync || !fs.documentDirectory || !anexo.url) return null;
+
+    const dir = `${fs.documentDirectory}makachat/`;
+    await fs.makeDirectoryAsync?.(dir, { intermediates: true }).catch(() => undefined);
+    // prefixo do id evita colisões entre ficheiros com o mesmo nome
+    const nome = (anexo.nome_ficheiro ?? 'ficheiro').replace(/[^\w.\-]+/g, '_');
+    const destino = `${dir}${anexo.id}_${nome}`;
+    const resultado = await fs.downloadAsync(anexo.url, destino);
+
+    if (resultado?.status && resultado.status >= 400) return null;
+
+    await registarFicheiroLocal(storage, anexo.id, destino);
+
+    return destino;
+}
+
+/** Abre um ficheiro local com o sistema: intent VIEW no Android, share sheet no iOS. */
+export async function abrirComSistema(uri: string, mime: string | null, urlRemota?: string | null): Promise<void> {
+    const fs = obterFileSystem();
+
+    if (Platform.OS === 'android') {
+        const launcher = obterIntentLauncher();
+
+        if (launcher?.startActivityAsync && fs?.getContentUriAsync) {
+            try {
+                const contentUri = await fs.getContentUriAsync(uri);
+                await launcher.startActivityAsync('android.intent.action.VIEW', {
+                    data: contentUri,
+                    type: mime ?? '*/*',
+                    flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+                });
+
+                return;
+            } catch {
+                // sem app para o tipo → cai para a share sheet
+            }
+        }
+    }
+
+    const sharing = obterSharing();
+
+    if (sharing?.shareAsync && (await sharing.isAvailableAsync?.().catch(() => true)) !== false) {
+        await sharing.shareAsync(uri, mime ? { mimeType: mime } : undefined).catch(() => undefined);
+
+        return;
+    }
+
+    // sem expo-sharing/intent-launcher instalados → comportamento antigo
+    if (urlRemota) await Linking.openURL(urlRemota).catch(() => undefined);
+}
+
+// ---------------------------------------------------------------- teclado em Modals
+
+/**
+ * Altura do teclado via listeners do RN core — o keyboard-controller não
+ * funciona dentro de Modal nativo (janela própria no Android).
+ */
+export function useAlturaTeclado(): number {
+    const [altura, setAltura] = useState(0);
+
+    useEffect(() => {
+        const mostrar = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            (e) => setAltura(e.endCoordinates?.height ?? 0),
+        );
+        const esconder = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            () => setAltura(0),
+        );
+
+        return () => {
+            mostrar.remove();
+            esconder.remove();
+        };
+    }, []);
+
+    return altura;
+}
+
 // ---------------------------------------------------------------- lobby de fotos (preview + legenda)
 
 export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }: {
@@ -120,6 +231,8 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
     const [legenda, setLegenda] = useState('');
     const { width } = useWindowDimensions();
     const lado = (width - 48) / 3;
+    // o input da legenda tem de subir com o teclado (Modal não faz sozinho)
+    const teclado = useAlturaTeclado();
 
     return (
         <Modal visible animationType="slide" onRequestClose={aoFechar}>
@@ -153,7 +266,7 @@ export function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFe
                         </View>
                     ))}
                 </View>
-                <View style={[estilos.lobbyFundo, { paddingBottom: insets.bottom + 12 }]}>
+                <View style={[estilos.lobbyFundo, { paddingBottom: teclado > 0 ? teclado + 12 : insets.bottom + 12 }]}>
                     <TextInput
                         value={legenda}
                         onChangeText={setLegenda}

@@ -58,6 +58,22 @@ export const obterFileSystem = (): any => {
     }
 };
 
+export const obterSharing = (): any => {
+    try {
+        return require('expo-sharing');
+    } catch {
+        return null;
+    }
+};
+
+export const obterIntentLauncher = (): any => {
+    try {
+        return require('expo-intent-launcher');
+    } catch {
+        return null;
+    }
+};
+
 export const obterLiveKit = (): any => {
     try {
         return require('@livekit/react-native');

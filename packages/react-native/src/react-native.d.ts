@@ -39,6 +39,17 @@ declare module 'react-native' {
         event(mapeamento: any[], config?: any): any;
     };
     export const Linking: { openURL(url: string): Promise<void> };
+    export const Keyboard: {
+        addEventListener(
+            tipo: string,
+            handler: (e: { endCoordinates?: { height: number } }) => void,
+        ): { remove(): void };
+        addListener(
+            tipo: string,
+            handler: (e: { endCoordinates?: { height: number } }) => void,
+        ): { remove(): void };
+        dismiss(): void;
+    };
     export const Share: { share(conteudo: { message?: string; url?: string }): Promise<any> };
     export const Vibration: { vibrate(padrao?: number | number[]): void };
     export const StyleSheet: {

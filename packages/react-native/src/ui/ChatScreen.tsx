@@ -29,6 +29,7 @@ import {
     FicheiroLocal,
     Galeria,
     LobbyFotos,
+    registarFicheiroLocal,
     VisualizadorVideo,
 } from './media';
 
@@ -306,6 +307,10 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
         try {
             const anexo = await enviarAnexoLocal(api, f);
+
+            // o MEU ficheiro já existe localmente — abre sem re-baixar
+            if (f.tipo === 'ficheiro') await registarFicheiroLocal(engine.storage, anexo.id, f.uri);
+
             await enviar({ conversa_id: conversaId, tipo: f.tipo === 'ficheiro' ? 'ficheiro' : f.tipo, anexo_ids: [anexo.id] }, [anexo]);
             descerParaFundo();
         } catch (e) {
