@@ -737,7 +737,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     <View style={{ ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' }}>
                         {remotos.map((t) => (
                             <View key={t.chave} style={{ width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }}>
-                                <VideoTrack trackRef={t.trackRef} style={{ flex: 1 }} objectFit="cover" />
+                                <VideoTrack trackRef={t.trackRef} style={{ flex: 1 }} objectFit="cover" zOrder={0} />
                                 <Text style={estilos.nomeTile}>{t.nome}</Text>
                             </View>
                         ))}
@@ -748,7 +748,9 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
                     existe e mostraria o último frame congelado) */}
                 {emCurso && video && VideoTrack && local && camara && (
                     <View style={[estilos.pip, { bottom: acimaControlos }]}>
-                        <VideoTrack trackRef={local.trackRef} style={{ flex: 1 }} objectFit="cover" mirror />
+                        {/* zOrder: SurfaceViews Android ignoram a ordem do layout — sem isto o
+                            PiP renderiza ATRÁS do vídeo remoto fullscreen e fica invisível */}
+                        <VideoTrack trackRef={local.trackRef} style={{ flex: 1 }} objectFit="cover" mirror zOrder={1} />
                     </View>
                 )}
 

@@ -3274,10 +3274,10 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
     /* @__PURE__ */ jsx9(StatusBar3, { animated: true, barStyle: "light-content" }),
     /* @__PURE__ */ jsxs8(View8, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
       emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx9(View8, { style: { ...StyleSheet8.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs8(View8, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [
-        /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover" }),
+        /* @__PURE__ */ jsx9(VideoTrack, { trackRef: t.trackRef, style: { flex: 1 }, objectFit: "cover", zOrder: 0 }),
         /* @__PURE__ */ jsx9(Text8, { style: estilos8.nomeTile, children: t.nome })
       ] }, t.chave)) }),
-      emCurso && video && VideoTrack && local && camara && /* @__PURE__ */ jsx9(View8, { style: [estilos8.pip, { bottom: acimaControlos }], children: /* @__PURE__ */ jsx9(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true }) }),
+      emCurso && video && VideoTrack && local && camara && /* @__PURE__ */ jsx9(View8, { style: [estilos8.pip, { bottom: acimaControlos }], children: /* @__PURE__ */ jsx9(VideoTrack, { trackRef: local.trackRef, style: { flex: 1 }, objectFit: "cover", mirror: true, zOrder: 1 }) }),
       (!emCurso || !video || remotos.length === 0) && /* @__PURE__ */ jsxs8(View8, { style: estilos8.centro, children: [
         ativa.fase === "a_receber" || ativa.fase === "a_ligar" ? /* @__PURE__ */ jsx9(Pulso, { children: /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }) }) : /* @__PURE__ */ jsx9(Avatar, { nome: titulo, url: foto, tamanho: 132 }),
         /* @__PURE__ */ jsx9(Text8, { style: { color: "#fff", fontSize: 28, fontWeight: "800", marginTop: 20, textAlign: "center", paddingHorizontal: 32 }, children: titulo }),
