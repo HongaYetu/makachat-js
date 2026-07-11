@@ -337,7 +337,8 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
                     onPress={() => (onNovaConversa ? onNovaConversa() : setNovaAberta(true))}
                     style={({ pressed }: { pressed: boolean }) => [estilos.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }]}
                 >
-                    <Ionicons name="chatbubble-ellipses" size={24} color={tema.primariaContraste} />
+                    {/* "compor" (lápis) — padrão de nova mensagem estilo WhatsApp/iOS */}
+                    <Ionicons name="create-outline" size={26} color={tema.primariaContraste} style={{ marginLeft: 2 }} />
                 </Pressable>
             )}
 

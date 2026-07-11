@@ -1084,7 +1084,7 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
       {
         onPress: () => onNovaConversa ? onNovaConversa() : setNovaAberta(true),
         style: ({ pressed }) => [estilos2.fab, { backgroundColor: tema.primaria }, pressed && { transform: [{ scale: 0.94 }] }],
-        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "chatbubble-ellipses", size: 24, color: tema.primariaContraste })
+        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_vector_icons2.Ionicons, { name: "create-outline", size: 26, color: tema.primariaContraste, style: { marginLeft: 2 } })
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sheet, { visivel: menuDe !== null, aoFechar: () => setMenuDe(null), titulo: menuDe?.titulo ?? void 0, itens: menuDe ? itensMenu(menuDe) : [] }),
