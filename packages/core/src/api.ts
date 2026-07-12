@@ -7,6 +7,7 @@ import {
     CredenciaisSessao,
     FlagFuncionalidade,
     Mensagem,
+    MensagemLink,
     ObterToken,
 } from './tipos';
 
@@ -111,6 +112,18 @@ export class MakaApi {
             method: 'POST',
             body: JSON.stringify({ tipo: 'grupo', titulo, participantes: participantes.map(limparAlvo) }),
         });
+    }
+
+    /** Media da conversa por tipo — tabs da info (Fotos/Ficheiros/Áudios/Links). */
+    listarMedia(conversaId: string, tipo: 'fotos' | 'videos' | 'audios' | 'ficheiros' | 'links', opcoes?: { antes_de?: string; limite?: number }) {
+        const query = new URLSearchParams({ tipo });
+
+        if (opcoes?.antes_de) query.set('antes_de', opcoes.antes_de);
+        if (opcoes?.limite) query.set('limite', String(opcoes.limite));
+
+        return this.pedir<{ anexos?: (Anexo & { mensagem_id: string })[]; links?: MensagemLink[] }>(
+            `/v1/chat/conversas/${conversaId}/media?${query.toString()}`,
+        );
     }
 
     listarMensagens(conversaId: string, opcoes?: { antes_de?: string; limite?: number }) {

@@ -444,6 +444,7 @@ function MakaChatProvider({
   tema,
   contactos,
   aoAbrirPartilha,
+  aoVerPerfil,
   children
 }) {
   const [features, setFeatures] = (0, import_react.useState)([]);
@@ -548,7 +549,7 @@ function MakaChatProvider({
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     Contexto.Provider,
     {
-      value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha },
+      value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil },
       children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_bottom_sheet.BottomSheetModalProvider, { children })
     }
   );
@@ -647,18 +648,19 @@ function useTypingConversa(conversaId) {
   return typing;
 }
 function usePresenca(identidadeId) {
-  const { subscreverPresenca } = useMakaChat();
-  const [presenca, setPresenca] = (0, import_react2.useState)(null);
+  const { engine, subscreverPresenca } = useMakaChat();
+  const [presenca, setPresenca] = (0, import_react2.useState)(identidadeId ? engine.presencaDe(identidadeId) : null);
   (0, import_react2.useEffect)(() => {
     if (!identidadeId) {
       return;
     }
+    setPresenca(engine.presencaDe(identidadeId));
     return subscreverPresenca((evento) => {
       if (evento.identidade_id === identidadeId) {
         setPresenca(evento);
       }
     });
-  }, [subscreverPresenca, identidadeId]);
+  }, [engine, subscreverPresenca, identidadeId]);
   return presenca;
 }
 function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
@@ -977,7 +979,10 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         onLongPress: () => setMenuDe(c),
         style: ({ pressed }) => [estilos2.item, pressed && { backgroundColor: "rgba(0,0,0,0.04)" }],
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Avatar, { nome: c.titulo ?? "?", url: c.foto_url, tamanho: 52 }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Avatar, { nome: c.titulo ?? "?", url: c.foto_url, tamanho: 52 }),
+            c.tipo === "privada" && contraparte && engine.presencaDe(contraparte.identidade_id)?.online && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.View, { style: [estilos2.bolinhaOnline, { borderColor: tema.superficie }] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: { flex: 1, minWidth: 0 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react_native3.View, { style: estilos2.linhaTopo, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -1226,6 +1231,16 @@ function previewConversa(c) {
   return u.tipo === "texto" || u.tipo === "sistema" || u.tipo === "chamada" ? u.conteudo ?? "" : p[u.tipo] ?? "";
 }
 var estilos2 = import_react_native3.StyleSheet.create({
+  bolinhaOnline: {
+    position: "absolute",
+    right: 0,
+    bottom: 1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#10b981",
+    borderWidth: 2.5
+  },
   vazio: { alignItems: "center", paddingHorizontal: 36, paddingTop: 72 },
   vazioIcone: { width: 88, height: 88, borderRadius: 44, alignItems: "center", justifyContent: "center", marginBottom: 18 },
   vazioTitulo: { fontSize: 17, fontWeight: "800", marginBottom: 6, textAlign: "center" },
@@ -1467,6 +1482,7 @@ var estilos3 = import_react_native4.StyleSheet.create({
 
 // src/ui/Bolha.tsx
 var import_vector_icons5 = require("@expo/vector-icons");
+var import_makachat_core2 = require("@hongayetu/makachat-core");
 var import_react8 = require("react");
 var import_react_native6 = require("react-native");
 
@@ -1788,6 +1804,20 @@ function CartaoPartilha({ mensagem, minha }) {
     ] })
   ] });
 }
+function TextoComLinks({ conteudo, cor, minha }) {
+  const partes = (0, import_react8.useMemo)(() => (0, import_makachat_core2.dividirLinks)(conteudo), [conteudo]);
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 16, lineHeight: 22, color: cor }, children: partes.map(
+    (p, i) => p.url ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+      import_react_native6.Text,
+      {
+        style: { textDecorationLine: "underline", fontWeight: "600", color: minha ? cor : "#2563eb" },
+        onPress: () => void import_react_native6.Linking.openURL(p.url).catch(() => void 0),
+        children: p.texto
+      },
+      i
+    ) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { children: p.texto }, i)
+  ) });
+}
 function iconeFicheiro(nome) {
   const ext = (nome ?? "").split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return "document-text";
@@ -1951,7 +1981,7 @@ function Bolha({
               m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 15 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "ban-outline", size: 14 }),
                 " Mensagem eliminada"
-              ] }) : m.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 16, lineHeight: 22, color: corTexto }, children: m.conteudo }) : null,
+              ] }) : m.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(TextoComLinks, { conteudo: m.conteudo, cor: corTexto, minha }) : null,
               /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: estilos5.rodape, children: [
                 m.encaminhada_de_id && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "arrow-redo-outline", size: 11, color: corTexto, style: { opacity: 0.6 } }),
                 /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontSize: 10, color: corTexto, opacity: 0.6 }, children: [
@@ -2724,11 +2754,12 @@ var estilos6 = import_react_native7.StyleSheet.create({
 
 // src/ui/InfoConversaScreen.tsx
 var import_vector_icons7 = require("@expo/vector-icons");
+var import_makachat_core3 = require("@hongayetu/makachat-core");
 var import_react10 = require("react");
 var import_react_native8 = require("react-native");
 var import_jsx_runtime8 = require("react/jsx-runtime");
 function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
-  const { engine, api, identidade, contactos } = useMakaChat();
+  const { engine, api, identidade, contactos, aoVerPerfil } = useMakaChat();
   const tema = useTema();
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
@@ -2745,6 +2776,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   const souAdmin = eu?.papel === "dono" || eu?.papel === "admin";
   const grupo = conversa?.tipo === "grupo";
   const membros = (conversa?.participantes ?? []).filter((p) => !p.saiu_em && p.tipo !== "sistema");
+  const contraparte = !grupo ? membros.find((p) => p.identidade_id !== eu?.identidade_id) ?? null : null;
   const atualizar = async () => {
     const { conversa: fresca } = await api.obterConversa(conversaId);
     await engine.storage.upsertConversas([fresca]);
@@ -2838,7 +2870,19 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
         grupo && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Text, { style: { fontSize: 13, color: tema.textoSuave, marginTop: 3 }, children: [
           membros.length,
           " membros"
-        ] })
+        ] }),
+        !grupo && contraparte && engine.presencaDe(contraparte.identidade_id)?.online && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 13, fontWeight: "600", color: "#10b981", marginTop: 3 }, children: "online" }),
+        !grupo && contraparte && aoVerPerfil && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          import_react_native8.Pressable,
+          {
+            onPress: () => aoVerPerfil(contraparte),
+            style: [estilos7.verPerfil, { borderColor: tema.primaria }],
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "person-circle-outline", size: 18, color: tema.primaria }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 14, fontWeight: "700", color: tema.primaria }, children: "Ver perfil" })
+            ]
+          }
+        )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: [
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: [estilos7.seccaoTitulo, { color: tema.textoSuave }], children: grupo ? "Membros" : "Participantes" }),
@@ -2849,7 +2893,10 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
         membros.map((p) => {
           const souEuMesmo = p.identidade_id === eu?.identidade_id;
           return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: souEuMesmo ? void 0 : () => setMembroDe(p), style: estilos7.membro, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Avatar, { nome: p.nome, url: p.foto_url, tamanho: 42 }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Avatar, { nome: p.nome, url: p.foto_url, tamanho: 42 }),
+              !souEuMesmo && engine.presencaDe(p.identidade_id)?.online && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.bolinhaMembro, { borderColor: tema.superficie }] })
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, minWidth: 0 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(NomeComBadge, { nome: souEuMesmo ? "Tu" : p.nome, metadados: p.metadados, estilo: { fontSize: 15, fontWeight: "600", color: tema.texto } }),
               /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
@@ -2858,6 +2905,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
           ] }, p.identidade_id);
         })
       ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(MediaDaConversa, { conversaId }),
       grupo && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: sairDoGrupo, style: estilos7.membro, children: [
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "exit-outline", size: 22, color: "#ef4444" }),
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 15, fontWeight: "600", color: "#ef4444" }, children: "Sair do grupo" })
@@ -2870,6 +2918,11 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
         aoFechar: () => setMembroDe(null),
         titulo: membroDe?.nome,
         itens: membroDe ? [
+          ...aoVerPerfil ? [{
+            icone: "person-circle-outline",
+            rotulo: "Ver perfil",
+            acao: () => aoVerPerfil(membroDe)
+          }] : [],
           ...onAbrirOutraConversa && podeCriarConversa ? [{
             icone: "chatbubble-outline",
             rotulo: "Enviar mensagem",
@@ -2901,6 +2954,97 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
           await api.adicionarParticipantes(conversaId, alvos).catch(() => void 0);
           await atualizar();
         }
+      }
+    )
+  ] });
+}
+var TABS = [
+  { chave: "fotos", rotulo: "Fotos" },
+  { chave: "ficheiros", rotulo: "Ficheiros" },
+  { chave: "audios", rotulo: "\xC1udios" },
+  { chave: "links", rotulo: "Links" }
+];
+function MediaDaConversa({ conversaId }) {
+  const { api } = useMakaChat();
+  const tema = useTema();
+  const { width } = (0, import_react_native8.useWindowDimensions)();
+  const [tab, setTab] = (0, import_react10.useState)("fotos");
+  const [anexos, setAnexos] = (0, import_react10.useState)(null);
+  const [links, setLinks] = (0, import_react10.useState)(null);
+  const [aCarregar, setACarregar] = (0, import_react10.useState)(false);
+  const [temMais, setTemMais] = (0, import_react10.useState)(false);
+  const LIMITE = 30;
+  const ladoFoto = (width - 16 * 2 - 4 * 2) / 3;
+  const carregar = async (maisAntesDe) => {
+    setACarregar(true);
+    try {
+      const r = await api.listarMedia(conversaId, tab, { antes_de: maisAntesDe, limite: LIMITE });
+      if (tab === "links") {
+        const novos = r.links ?? [];
+        setLinks((atuais) => maisAntesDe ? [...atuais ?? [], ...novos] : novos);
+        setTemMais(novos.length === LIMITE);
+      } else {
+        const novos = r.anexos ?? [];
+        setAnexos((atuais) => maisAntesDe ? [...atuais ?? [], ...novos] : novos);
+        setTemMais(novos.length === LIMITE);
+      }
+    } catch {
+      if (tab === "links") setLinks([]);
+      else setAnexos([]);
+    } finally {
+      setACarregar(false);
+    }
+  };
+  (0, import_react10.useEffect)(() => {
+    setAnexos(null);
+    setLinks(null);
+    void carregar();
+  }, [conversaId, tab]);
+  const abrirLink = (l) => {
+    const url = l.metadados?.url ?? (0, import_makachat_core3.dividirLinks)(l.conteudo ?? "").find((p) => p.url)?.url;
+    if (url) void import_react_native8.Linking.openURL(String(url)).catch(() => void 0);
+  };
+  const vazio = tab === "links" ? links !== null && links.length === 0 : anexos !== null && anexos.length === 0;
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.seccao, { backgroundColor: tema.superficie }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: [estilos7.seccaoTitulo, { color: tema.textoSuave }], children: "Media da conversa" }),
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: estilos7.tabsLinha, children: TABS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      import_react_native8.Pressable,
+      {
+        onPress: () => setTab(t.chave),
+        style: [estilos7.tab, tab === t.chave && { backgroundColor: tema.primaria }],
+        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 13, fontWeight: "700", color: tab === t.chave ? tema.primariaContraste : tema.textoSuave }, children: t.rotulo })
+      },
+      t.chave
+    )) }),
+    aCarregar && anexos === null && links === null && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.ActivityIndicator, { style: { paddingVertical: 18 }, color: tema.primaria }),
+    vazio && !aCarregar && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Text, { style: { paddingHorizontal: 18, paddingVertical: 14, fontSize: 13, color: tema.textoSuave }, children: [
+      "Ainda n\xE3o h\xE1 ",
+      TABS.find((t) => t.chave === tab)?.rotulo.toLowerCase(),
+      " nesta conversa."
+    ] }),
+    tab === "fotos" && !!anexos?.length && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: estilos7.grelha, children: anexos.map(
+      (a) => a.url ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Pressable, { onPress: () => void import_react_native8.Linking.openURL(a.url).catch(() => void 0), children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Image, { source: { uri: a.url }, style: { width: ladoFoto, height: ladoFoto, borderRadius: 8 } }) }, a.id) : null
+    ) }),
+    tab === "ficheiros" && anexos?.map((a) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: { paddingHorizontal: 16, paddingVertical: 4 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(FicheiroAnexo, { anexo: a, minha: false, corTexto: tema.texto }) }, a.id)),
+    tab === "audios" && anexos?.map(
+      (a) => a.url ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: { paddingHorizontal: 16, paddingVertical: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(ReprodutorAudio, { url: a.url, mimha: false, duracaoSegundos: a.duracao_segundos }) }, a.id) : null
+    ),
+    tab === "links" && links?.map((l) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: () => abrirLink(l), style: estilos7.linkLinha, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.linkIcone, { backgroundColor: `${tema.primaria}1A` }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "link", size: 18, color: tema.primaria }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, minWidth: 0 }, children: [
+        !!l.metadados?.titulo && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { numberOfLines: 1, style: { fontSize: 14, fontWeight: "600", color: tema.texto }, children: String(l.metadados.titulo) }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { numberOfLines: 2, style: { fontSize: 12.5, color: tema.textoSuave }, children: String(l.metadados?.url ?? l.conteudo ?? "") })
+      ] })
+    ] }, l.id)),
+    temMais && !aCarregar && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      import_react_native8.Pressable,
+      {
+        onPress: () => {
+          const ultimo = tab === "links" ? links?.at(-1)?.id : anexos?.at(-1)?.id;
+          if (ultimo) void carregar(ultimo);
+        },
+        style: { alignItems: "center", paddingVertical: 10 },
+        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 13.5, fontWeight: "700", color: tema.primaria }, children: "Ver mais" })
       }
     )
   ] });
@@ -2967,7 +3111,14 @@ var estilos7 = import_react_native8.StyleSheet.create({
   seccaoTitulo: { fontSize: 12.5, fontWeight: "700", paddingHorizontal: 18, paddingVertical: 6, textTransform: "uppercase" },
   membro: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 18, paddingVertical: 8 },
   addIcone: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  papel: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }
+  papel: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  verPerfil: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  bolinhaMembro: { position: "absolute", right: -1, bottom: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#10b981", borderWidth: 2 },
+  tabsLinha: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
+  tab: { borderRadius: 16, paddingHorizontal: 13, paddingVertical: 6, backgroundColor: "rgba(100,116,139,0.12)" },
+  grelha: { flexDirection: "row", flexWrap: "wrap", gap: 4, paddingHorizontal: 16, paddingBottom: 8 },
+  linkLinha: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 18, paddingVertical: 8 },
+  linkIcone: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" }
 });
 
 // src/ui/NovaConversaScreen.tsx

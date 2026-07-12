@@ -207,6 +207,20 @@ type Ack<T = Record<string, unknown>> = {
  * por watermark: lida ⇔ lido_ate >= mensagem.id.
  */
 declare function idMaiorOuIgual(a: string | null, b: string): boolean;
+/** Item da tab Links da info (mensagem com subtipo 'link' no hub). */
+interface MensagemLink {
+    id: string;
+    tipo: string;
+    conteudo: string | null;
+    metadados: MetadadosPartilha | null;
+    remetente_identidade_id: string;
+    criada_em: string;
+}
+/** Divide texto em segmentos, isolando URLs (linkify nas bolhas). */
+declare function dividirLinks(texto: string): {
+    texto: string;
+    url?: string;
+}[];
 
 /**
  * Nomes de eventos socket do módulo CHAT do Honga Hub — fonte única,
@@ -274,6 +288,16 @@ declare class MakaApi {
     }>;
     criarGrupo(titulo: string, participantes: AlvoParticipante[]): Promise<{
         conversa: Conversa;
+    }>;
+    /** Media da conversa por tipo — tabs da info (Fotos/Ficheiros/Áudios/Links). */
+    listarMedia(conversaId: string, tipo: 'fotos' | 'videos' | 'audios' | 'ficheiros' | 'links', opcoes?: {
+        antes_de?: string;
+        limite?: number;
+    }): Promise<{
+        anexos?: (Anexo & {
+            mensagem_id: string;
+        })[];
+        links?: MensagemLink[];
     }>;
     listarMensagens(conversaId: string, opcoes?: {
         antes_de?: string;
@@ -522,8 +546,13 @@ declare class SyncEngine {
     private filaConversa;
     /** salas de conversa a (re)entrar em cada ligação — typing/presença chegam por aqui */
     private salas;
+    /** última presença conhecida por identidade (snapshot do connect + eventos) —
+     *  a lista de conversas mostra bolinhas sem abrir nenhuma conversa */
+    private presencas;
     constructor(storage: StorageAdapter, api: MakaApi, socket: MakaSocket, opcoes: SyncEngineOpcoes);
     get versaoAtual(): number;
+    /** Última presença conhecida da identidade (null = nunca vista/offline). */
+    presencaDe(identidadeId: string): Presenca | null;
     subscrever(ouvinte: Ouvinte): () => void;
     private notificar;
     /**
@@ -573,4 +602,4 @@ declare class SyncEngine {
     private registarEventos;
 }
 
-export { type Ack, type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CredenciaisSessao, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, ErroApi, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type IdentidadeConfig, type ItemOutbox, MakaApi, MakaSocket, type MakaSocketOpcoes, MemoryStorage, type Mensagem, type MetadadosPartilha, type ObterToken, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, idMaiorOuIgual, uuid };
+export { type Ack, type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CredenciaisSessao, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, ErroApi, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type IdentidadeConfig, type ItemOutbox, MakaApi, MakaSocket, type MakaSocketOpcoes, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ObterToken, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, uuid };

@@ -8,6 +8,7 @@ import {
     MetadadosPartilha,
     ObterToken,
     EventoChamada,
+    ParticipanteConversa,
     Presenca,
     StorageAdapter,
     SyncEngine,
@@ -43,6 +44,8 @@ export interface MakaChatContexto {
     estaVisivel(conversaId: string): boolean;
     /** clique num cartão de partilha/link — a app navega (deep link/router) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -56,6 +59,7 @@ export interface MakaChatProviderProps {
     tema?: MakaTema;
     contactos?: AlvoParticipante[];
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
 
@@ -82,6 +86,7 @@ export function MakaChatProvider({
     tema,
     contactos,
     aoAbrirPartilha,
+    aoVerPerfil,
     children,
 }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
@@ -93,7 +98,7 @@ export function MakaChatProvider({
     const ouvintesMensagens = useRef(new Set<(mensagem: Mensagem) => void>());
 
     const valor = useMemo<
-        Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'tema' | 'aoAbrirPartilha'>
+        Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'tema' | 'aoAbrirPartilha' | 'aoVerPerfil'>
     >(() => {
         const api = new MakaApi(getToken);
         const adapter = storage ?? abrirStoragePadrao(serviceKey, identity);
@@ -230,7 +235,7 @@ export function MakaChatProvider({
 
     return (
         <Contexto.Provider
-            value={{ ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha }}
+            value={{ ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil }}
         >
             <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
         </Contexto.Provider>

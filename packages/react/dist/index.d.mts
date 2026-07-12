@@ -1,4 +1,4 @@
-import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, ObterToken, StorageAdapter, Conversa, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
+import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, ParticipanteConversa, ObterToken, StorageAdapter, Conversa, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import React from 'react';
 
@@ -39,6 +39,8 @@ interface MakaChatContexto {
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -62,9 +64,10 @@ interface MakaChatProviderProps {
     aoAbrirNotificacao?: (conversaId: string) => void;
     /** clique num cartão de partilha/link */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

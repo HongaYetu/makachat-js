@@ -201,7 +201,13 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
                 onLongPress={() => setMenuDe(c)}
                 style={({ pressed }: { pressed: boolean }) => [estilos.item, pressed && { backgroundColor: 'rgba(0,0,0,0.04)' }]}
             >
-                <Avatar nome={c.titulo ?? '?'} url={c.foto_url} tamanho={52} />
+                <View>
+                    <Avatar nome={c.titulo ?? '?'} url={c.foto_url} tamanho={52} />
+                    {/* bolinha online da contraparte (snapshot no connect + eventos) */}
+                    {c.tipo === 'privada' && contraparte && engine.presencaDe(contraparte.identidade_id)?.online && (
+                        <View style={[estilos.bolinhaOnline, { borderColor: tema.superficie }]} />
+                    )}
+                </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={estilos.linhaTopo}>
                         <NomeComBadge
@@ -519,6 +525,16 @@ export function previewConversa(c: Conversa): string {
 }
 
 const estilos = StyleSheet.create({
+    bolinhaOnline: {
+        position: 'absolute',
+        right: 0,
+        bottom: 1,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#10b981',
+        borderWidth: 2.5,
+    },
     vazio: { alignItems: 'center', paddingHorizontal: 36, paddingTop: 72 },
     vazioIcone: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
     vazioTitulo: { fontSize: 17, fontWeight: '800', marginBottom: 6, textAlign: 'center' },

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Anexo, Mensagem, MetadadosPartilha, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { Anexo, dividirLinks, Mensagem, MetadadosPartilha, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -109,6 +109,29 @@ function CartaoPartilha({ mensagem, minha }: { mensagem: Mensagem; minha: boolea
     );
 }
 
+/** Texto com URLs clicáveis (abre no browser) — parse feito pelo core (dividirLinks). */
+function TextoComLinks({ conteudo, cor, minha }: { conteudo: string; cor: string; minha: boolean }) {
+    const partes = useMemo(() => dividirLinks(conteudo), [conteudo]);
+
+    return (
+        <Text style={{ fontSize: 16, lineHeight: 22, color: cor }}>
+            {partes.map((p, i) =>
+                p.url ? (
+                    <Text
+                        key={i}
+                        style={{ textDecorationLine: 'underline', fontWeight: '600', color: minha ? cor : '#2563eb' }}
+                        onPress={() => void Linking.openURL(p.url as string).catch(() => undefined)}
+                    >
+                        {p.texto}
+                    </Text>
+                ) : (
+                    <Text key={i}>{p.texto}</Text>
+                ),
+            )}
+        </Text>
+    );
+}
+
 function iconeFicheiro(nome?: string | null): keyof typeof Ionicons.glyphMap {
     const ext = (nome ?? '').split('.').pop()?.toLowerCase() ?? '';
 
@@ -161,7 +184,7 @@ function AnexoView({ anexo, minha, aoAbrirFoto, aoAbrirUrl }: {
  * storage — persiste entre sessões), toques seguintes ABREM com o sistema.
  * O ícone à direita reflete o estado: baixar / spinner / nada (já local).
  */
-function FicheiroAnexo({ anexo, minha, corTexto }: { anexo: Anexo; minha: boolean; corTexto: string }) {
+export function FicheiroAnexo({ anexo, minha, corTexto }: { anexo: Anexo; minha: boolean; corTexto: string }) {
     const { engine } = useMakaChat();
     // null = ainda a verificar/remoto; string = uri local pronto a abrir
     const [local, setLocal] = useState<string | null>(null);
@@ -367,7 +390,7 @@ export function Bolha({
                         <Ionicons name="ban-outline" size={14} /> Mensagem eliminada
                     </Text>
                 ) : m.conteudo ? (
-                    <Text style={{ fontSize: 16, lineHeight: 22, color: corTexto }}>{m.conteudo}</Text>
+                    <TextoComLinks conteudo={m.conteudo} cor={corTexto} minha={minha} />
                 ) : null}
                 <View style={estilos.rodape}>
                     {m.encaminhada_de_id && <Ionicons name="arrow-redo-outline" size={11} color={corTexto} style={{ opacity: 0.6 }} />}

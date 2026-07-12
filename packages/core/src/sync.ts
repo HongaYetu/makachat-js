@@ -41,6 +41,9 @@ export class SyncEngine {
     private filaConversa: Promise<void> = Promise.resolve();
     /** salas de conversa a (re)entrar em cada ligação — typing/presença chegam por aqui */
     private salas = new Set<string>();
+    /** última presença conhecida por identidade (snapshot do connect + eventos) —
+     *  a lista de conversas mostra bolinhas sem abrir nenhuma conversa */
+    private presencas = new Map<string, Presenca>();
 
     constructor(
         readonly storage: StorageAdapter,
@@ -55,6 +58,11 @@ export class SyncEngine {
 
     get versaoAtual(): number {
         return this.versao;
+    }
+
+    /** Última presença conhecida da identidade (null = nunca vista/offline). */
+    presencaDe(identidadeId: string): Presenca | null {
+        return this.presencas.get(identidadeId) ?? null;
     }
 
     subscrever(ouvinte: Ouvinte): () => void {
@@ -616,6 +624,10 @@ export class SyncEngine {
         }
 
         this.socket.on(EVENTOS_SERVIDOR.TYPING, (typing: Typing) => this.opcoes.aoTyping?.(typing));
-        this.socket.on(EVENTOS_SERVIDOR.PRESENCA, (presenca: Presenca) => this.opcoes.aoPresenca?.(presenca));
+        this.socket.on(EVENTOS_SERVIDOR.PRESENCA, (presenca: Presenca) => {
+            this.presencas.set(presenca.identidade_id, presenca);
+            this.opcoes.aoPresenca?.(presenca);
+            this.notificar(); // listas re-renderizam as bolinhas
+        });
     }
 }

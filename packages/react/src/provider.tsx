@@ -9,6 +9,7 @@ import {
     MemoryStorage,
     ObterToken,
     EventoChamada,
+    ParticipanteConversa,
     Presenca,
     StorageAdapter,
     SyncEngine,
@@ -41,6 +42,8 @@ export interface MakaChatContexto {
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -67,10 +70,11 @@ export interface MakaChatProviderProps {
     aoAbrirNotificacao?: (conversaId: string) => void;
     /** clique num cartão de partilha/link */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const [ligado, setLigado] = useState(false);
     const visiveis = useRef(new Map<string, number>());
@@ -215,7 +219,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     }, [valor]);
 
     return (
-        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha }}>
+        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

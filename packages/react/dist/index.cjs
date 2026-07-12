@@ -185,7 +185,7 @@ function pararToque() {
 // src/provider.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
 var Contexto = (0, import_react.createContext)(null);
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }) {
   const [features, setFeatures] = (0, import_react.useState)([]);
   const [ligado, setLigado] = (0, import_react.useState)(false);
   const visiveis = (0, import_react.useRef)(/* @__PURE__ */ new Map());
@@ -290,7 +290,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     document.addEventListener("visibilitychange", aoVisibilidade);
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
   }, [valor]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
@@ -394,18 +394,19 @@ function useTypingConversa(conversaId) {
   return typing;
 }
 function usePresenca(identidadeId) {
-  const { subscreverPresenca } = useMakaChat();
-  const [presenca, setPresenca] = (0, import_react2.useState)(null);
+  const { engine, subscreverPresenca } = useMakaChat();
+  const [presenca, setPresenca] = (0, import_react2.useState)(identidadeId ? engine.presencaDe(identidadeId) : null);
   (0, import_react2.useEffect)(() => {
     if (!identidadeId) {
       return;
     }
+    setPresenca(engine.presencaDe(identidadeId));
     return subscreverPresenca((evento) => {
       if (evento.identidade_id === identidadeId) {
         setPresenca(evento);
       }
     });
-  }, [subscreverPresenca, identidadeId]);
+  }, [engine, subscreverPresenca, identidadeId]);
   return presenca;
 }
 function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
@@ -1225,7 +1226,13 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
               onClick: () => onAbrirConversa(c),
               className: `flex w-full cursor-pointer items-center gap-3 rounded-xl border-0 px-3 py-2.5 text-left transition-colors ${ativa ? "bg-[color-mix(in_srgb,var(--maka-primaria)_10%,transparent)]" : "bg-transparent hover:bg-black/[.04]"}`,
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AvatarWeb, { nome: c.titulo ?? "?", url: c.foto_url, grupo: c.tipo === "grupo" }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "relative shrink-0", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AvatarWeb, { nome: c.titulo ?? "?", url: c.foto_url, grupo: c.tipo === "grupo" }),
+                  c.tipo === "privada" && (() => {
+                    const outro = contraparteDe(c, identidade);
+                    return outro && engine.presencaDe(outro.identidade_id)?.online ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" }) : null;
+                  })()
+                ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "min-w-0 flex-1", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: `block truncate text-sm text-[var(--maka-texto)] ${naoLidas ? "font-bold" : "font-semibold"}`, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(NomeComBadge, { nome: c.titulo ?? "Conversa", metadados: contraparteDe(c, identidade)?.metadados }) }),
                   /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: `block truncate text-[13px] ${naoLidas ? "font-medium text-[var(--maka-texto)]" : "text-[var(--maka-texto-suave)]"}`, children: previewConversa(c) })
@@ -1339,7 +1346,7 @@ function pessoasConhecidas(conversas, contactos, excluir = /* @__PURE__ */ new S
   return [...mapa.values()].filter((p) => !excluir.has(`${p.tipo}:${p.id_externo}`));
 }
 function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) {
-  const { api, engine, contactos } = useMakaChat();
+  const { api, engine, contactos, aoVerPerfil } = useMakaChat();
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const grupo = conversa.tipo === "grupo";
   const souAdmin = grupo && ["dono", "admin"].includes(eu.papel);
@@ -1350,6 +1357,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
   const [conversas, setConversas] = (0, import_react8.useState)([]);
   const fotoInput = (0, import_react8.useRef)(null);
   const membros = conversa.participantes.filter((p) => !p.saiu_em);
+  const contraparteInfo = !grupo ? membros.find((p) => p.identidade_id !== eu.identidade_id && p.tipo !== "sistema") ?? null : null;
   (0, import_react8.useEffect)(() => {
     void engine.storage.listarConversas(false).then(setConversas);
   }, [engine]);
@@ -1411,22 +1419,41 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
             onKeyDown: (e) => e.key === "Enter" && void renomear()
           }
         ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "font-bold text-[var(--maka-texto)]", children: conversa.titulo }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: grupo ? `${membros.length} membros` : "" })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: grupo ? `${membros.length} membros` : "" }),
+        contraparteInfo && engine.presencaDe(contraparteInfo.identidade_id)?.online && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs font-semibold text-emerald-500", children: "online" }),
+        contraparteInfo && aoVerPerfil && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+          "button",
+          {
+            onClick: () => aoVerPerfil(contraparteInfo),
+            className: "mt-1 flex cursor-pointer items-center gap-1.5 rounded-full border border-solid border-[var(--maka-primaria)] bg-transparent px-4 py-1.5 text-sm font-bold text-[var(--maka-primaria)]",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:user-circle" }),
+              " Ver perfil"
+            ]
+          }
+        )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "maka-scroll min-h-0 flex-1 overflow-auto border-0 border-t border-solid border-black/5", children: membros.map((p) => {
-        const souEu = p.identidade_id === eu.identidade_id;
-        return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-3 px-4 py-2.5", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AvatarWeb, { nome: p.nome, url: p.foto_url, tamanho: 36 }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "min-w-0 flex-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block truncate text-sm font-semibold text-[var(--maka-texto)]", children: souEu ? "Tu" : p.nome }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel !== "membro" ? p.papel : p.tipo })
-          ] }),
-          !souEu && podeCriarConversa && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-circle" }) }),
-          !souEu && souAdmin && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Remover do grupo", onClick: () => {
-            void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas());
-          }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:user-minus", className: "text-red-500" }) })
-        ] }, p.identidade_id);
-      }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "maka-scroll min-h-0 flex-1 overflow-auto border-0 border-t border-solid border-black/5", children: [
+        membros.map((p) => {
+          const souEu = p.identidade_id === eu.identidade_id;
+          return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-3 px-4 py-2.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "relative shrink-0", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AvatarWeb, { nome: p.nome, url: p.foto_url, tamanho: 36 }),
+              !souEu && engine.presencaDe(p.identidade_id)?.online && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "min-w-0 flex-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block truncate text-sm font-semibold text-[var(--maka-texto)]", children: souEu ? "Tu" : p.nome }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel !== "membro" ? p.papel : p.tipo })
+            ] }),
+            !souEu && aoVerPerfil && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Ver perfil", onClick: () => aoVerPerfil(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:user-circle" }) }),
+            !souEu && podeCriarConversa && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-circle" }) }),
+            !souEu && souAdmin && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Remover do grupo", onClick: () => {
+              void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas());
+            }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:user-minus", className: "text-red-500" }) })
+          ] }, p.identidade_id);
+        }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(MediaDaConversaWeb, { conversaId: conversa.id })
+      ] }),
       grupo && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex gap-2 p-3", children: [
         souAdmin && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: () => setAdicionar(true), className: "flex-1 cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-sm", children: "Adicionar membros" }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: () => setConfirmarSair(true), className: "flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-bold text-red-600", children: "Sair do grupo" })
@@ -1452,6 +1479,119 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
         } }]
       }
     ) })
+  ] });
+}
+var TABS_MEDIA = [
+  { chave: "fotos", rotulo: "Fotos" },
+  { chave: "ficheiros", rotulo: "Ficheiros" },
+  { chave: "audios", rotulo: "\xC1udios" },
+  { chave: "links", rotulo: "Links" }
+];
+function MediaDaConversaWeb({ conversaId }) {
+  const { api } = useMakaChat();
+  const [tab, setTab] = (0, import_react8.useState)("fotos");
+  const [anexos, setAnexos] = (0, import_react8.useState)(null);
+  const [links, setLinks] = (0, import_react8.useState)(null);
+  const [aCarregar, setACarregar] = (0, import_react8.useState)(false);
+  const [temMais, setTemMais] = (0, import_react8.useState)(false);
+  const LIMITE = 24;
+  const carregar = async (antesDe) => {
+    setACarregar(true);
+    try {
+      const r = await api.listarMedia(conversaId, tab, { antes_de: antesDe, limite: LIMITE });
+      if (tab === "links") {
+        const novos = r.links ?? [];
+        setLinks((a) => antesDe ? [...a ?? [], ...novos] : novos);
+        setTemMais(novos.length === LIMITE);
+      } else {
+        const novos = r.anexos ?? [];
+        setAnexos((a) => antesDe ? [...a ?? [], ...novos] : novos);
+        setTemMais(novos.length === LIMITE);
+      }
+    } catch {
+      if (tab === "links") setLinks([]);
+      else setAnexos([]);
+    } finally {
+      setACarregar(false);
+    }
+  };
+  (0, import_react8.useEffect)(() => {
+    setAnexos(null);
+    setLinks(null);
+    void carregar();
+  }, [conversaId, tab]);
+  const urlDoLink = (l) => l.metadados?.url ?? (0, import_makachat_core2.dividirLinks)(l.conteudo ?? "").find((p) => p.url)?.url;
+  const vazio = tab === "links" ? links !== null && links.length === 0 : anexos !== null && anexos.length === 0;
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "border-0 border-t border-solid border-black/5 px-4 py-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mb-2 block text-xs font-bold uppercase tracking-wide text-[var(--maka-texto-suave)]", children: "Media da conversa" }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mb-2 flex gap-1.5", children: TABS_MEDIA.map((t) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      "button",
+      {
+        onClick: () => setTab(t.chave),
+        className: `cursor-pointer rounded-full border-0 px-3 py-1.5 text-xs font-bold ${tab === t.chave ? "bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)]" : "bg-black/[.06] text-[var(--maka-texto-suave)]"}`,
+        children: t.rotulo
+      },
+      t.chave
+    )) }),
+    aCarregar && anexos === null && links === null && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2 py-4 text-sm text-[var(--maka-texto-suave)]", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:loader-2", className: "animate-spin" }),
+      " A carregar\u2026"
+    ] }),
+    vazio && !aCarregar && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "py-3 text-sm text-[var(--maka-texto-suave)]", children: [
+      "Ainda n\xE3o h\xE1 ",
+      TABS_MEDIA.find((t) => t.chave === tab)?.rotulo.toLowerCase(),
+      " nesta conversa."
+    ] }),
+    tab === "fotos" && !!anexos?.length && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "grid grid-cols-3 gap-1", children: anexos.map(
+      (a) => a.url ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: a.url, alt: "", className: "aspect-square w-full rounded-lg object-cover" }) }, a.id) : null
+    ) }),
+    tab === "ficheiros" && anexos?.map((a) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+      "a",
+      {
+        href: a.url ?? "#",
+        target: "_blank",
+        rel: "noopener noreferrer",
+        className: "flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-[var(--maka-texto)] no-underline hover:bg-black/[.04]",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:file", className: "shrink-0 text-lg text-[var(--maka-texto-suave)]" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "min-w-0 flex-1 truncate", children: a.nome_ficheiro ?? "Ficheiro" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:download", className: "shrink-0 text-[var(--maka-texto-suave)]" })
+        ]
+      },
+      a.id
+    )),
+    tab === "audios" && anexos?.map((a) => a.url ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "py-1", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(ReprodutorAudio, { url: a.url, duracaoSegundos: a.duracao_segundos }) }, a.id) : null),
+    tab === "links" && links?.map((l) => {
+      const url = urlDoLink(l);
+      return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+        "a",
+        {
+          href: url ? String(url) : "#",
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: "flex items-center gap-2.5 rounded-lg px-2 py-2 no-underline hover:bg-black/[.04]",
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "grid h-9 w-9 shrink-0 place-items-center rounded-full", style: { backgroundColor: "color-mix(in srgb, var(--maka-primaria) 10%, transparent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:link", className: "text-[var(--maka-primaria)]" }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "min-w-0 flex-1", children: [
+              !!l.metadados?.titulo && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block truncate text-sm font-semibold text-[var(--maka-texto)]", children: String(l.metadados.titulo) }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block truncate text-xs text-[var(--maka-texto-suave)]", children: String(url ?? l.conteudo ?? "") })
+            ] })
+          ]
+        },
+        l.id
+      );
+    }),
+    temMais && !aCarregar && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      "button",
+      {
+        onClick: () => {
+          const ultimo = tab === "links" ? links?.at(-1)?.id : anexos?.at(-1)?.id;
+          if (ultimo) void carregar(ultimo);
+        },
+        className: "mt-2 w-full cursor-pointer rounded-full border-0 bg-transparent py-1.5 text-sm font-bold text-[var(--maka-primaria)]",
+        children: "Ver mais"
+      }
+    )
   ] });
 }
 function AdicionarMembros({ conversa, conversas, contactos, aoFechar }) {
@@ -2556,7 +2696,21 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
               m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("em", { className: "flex items-center gap-1 opacity-60", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:ban" }),
                 " Mensagem eliminada"
-              ] }) : m.conteudo && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "whitespace-pre-wrap text-sm leading-relaxed", children: m.conteudo }),
+              ] }) : m.conteudo && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "whitespace-pre-wrap text-sm leading-relaxed", children: (0, import_makachat_core2.dividirLinks)(m.conteudo).map(
+                (p, i) => p.url ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  "a",
+                  {
+                    href: p.url,
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    className: "font-semibold underline",
+                    style: { color: "inherit" },
+                    onClick: (e) => e.stopPropagation(),
+                    children: p.texto
+                  },
+                  i
+                ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: p.texto }, i)
+              ) }),
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "flex items-center gap-1 self-end text-[10px] opacity-60", children: [
                 m.encaminhada_de_id && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:share-3" }),
                 m.editada_em ? "editada \xB7 " : "",

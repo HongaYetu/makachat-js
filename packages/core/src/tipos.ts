@@ -232,3 +232,35 @@ export type Ack<T = Record<string, unknown>> = {
 export function idMaiorOuIgual(a: string | null, b: string): boolean {
     return !!a && a >= b;
 }
+
+/** Item da tab Links da info (mensagem com subtipo 'link' no hub). */
+export interface MensagemLink {
+    id: string;
+    tipo: string;
+    conteudo: string | null;
+    metadados: MetadadosPartilha | null;
+    remetente_identidade_id: string;
+    criada_em: string;
+}
+
+/** Divide texto em segmentos, isolando URLs (linkify nas bolhas). */
+export function dividirLinks(texto: string): { texto: string; url?: string }[] {
+    const regex = /https?:\/\/[^\s<>"']+/gi;
+    const partes: { texto: string; url?: string }[] = [];
+    let cursor = 0;
+
+    for (const m of texto.matchAll(regex)) {
+        const inicio = m.index ?? 0;
+
+        if (inicio > cursor) partes.push({ texto: texto.slice(cursor, inicio) });
+
+        // pontuação final comum não faz parte do URL ("vê https://x.com.")
+        const url = m[0].replace(/[).,;!?]+$/, '');
+        partes.push({ texto: url, url });
+        cursor = inicio + url.length;
+    }
+
+    if (cursor < texto.length) partes.push({ texto: texto.slice(cursor) });
+
+    return partes.length ? partes : [{ texto }];
+}

@@ -2,6 +2,20 @@
 function idMaiorOuIgual(a, b) {
   return !!a && a >= b;
 }
+function dividirLinks(texto) {
+  const regex = /https?:\/\/[^\s<>"']+/gi;
+  const partes = [];
+  let cursor = 0;
+  for (const m of texto.matchAll(regex)) {
+    const inicio = m.index ?? 0;
+    if (inicio > cursor) partes.push({ texto: texto.slice(cursor, inicio) });
+    const url = m[0].replace(/[).,;!?]+$/, "");
+    partes.push({ texto: url, url });
+    cursor = inicio + url.length;
+  }
+  if (cursor < texto.length) partes.push({ texto: texto.slice(cursor) });
+  return partes.length ? partes : [{ texto }];
+}
 
 // src/eventos.ts
 var EVENTOS_CLIENTE = {
@@ -144,6 +158,15 @@ var MakaApi = class {
       method: "POST",
       body: JSON.stringify({ tipo: "grupo", titulo, participantes: participantes.map(limparAlvo) })
     });
+  }
+  /** Media da conversa por tipo — tabs da info (Fotos/Ficheiros/Áudios/Links). */
+  listarMedia(conversaId, tipo, opcoes) {
+    const query = new URLSearchParams({ tipo });
+    if (opcoes?.antes_de) query.set("antes_de", opcoes.antes_de);
+    if (opcoes?.limite) query.set("limite", String(opcoes.limite));
+    return this.pedir(
+      `/v1/chat/conversas/${conversaId}/media?${query.toString()}`
+    );
   }
   listarMensagens(conversaId, opcoes) {
     const query = new URLSearchParams();
@@ -528,9 +551,16 @@ var SyncEngine = class {
   filaConversa = Promise.resolve();
   /** salas de conversa a (re)entrar em cada ligação — typing/presença chegam por aqui */
   salas = /* @__PURE__ */ new Set();
+  /** última presença conhecida por identidade (snapshot do connect + eventos) —
+   *  a lista de conversas mostra bolinhas sem abrir nenhuma conversa */
+  presencas = /* @__PURE__ */ new Map();
   // ---- subscrição (usada pelos hooks) ----
   get versaoAtual() {
     return this.versao;
+  }
+  /** Última presença conhecida da identidade (null = nunca vista/offline). */
+  presencaDe(identidadeId) {
+    return this.presencas.get(identidadeId) ?? null;
   }
   subscrever(ouvinte) {
     this.ouvintes.add(ouvinte);
@@ -941,7 +971,11 @@ var SyncEngine = class {
       });
     }
     this.socket.on(EVENTOS_SERVIDOR.TYPING, (typing) => this.opcoes.aoTyping?.(typing));
-    this.socket.on(EVENTOS_SERVIDOR.PRESENCA, (presenca) => this.opcoes.aoPresenca?.(presenca));
+    this.socket.on(EVENTOS_SERVIDOR.PRESENCA, (presenca) => {
+      this.presencas.set(presenca.identidade_id, presenca);
+      this.opcoes.aoPresenca?.(presenca);
+      this.notificar();
+    });
   }
 };
 export {
@@ -953,6 +987,7 @@ export {
   MakaSocket,
   MemoryStorage,
   SyncEngine,
+  dividirLinks,
   idMaiorOuIgual,
   uuid
 };

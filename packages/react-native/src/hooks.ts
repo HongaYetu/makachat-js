@@ -110,20 +110,23 @@ export function useTypingConversa(conversaId: string | null): Typing | null {
 }
 
 export function usePresenca(identidadeId: string | null): Presenca | null {
-    const { subscreverPresenca } = useMakaChat();
-    const [presenca, setPresenca] = useState<Presenca | null>(null);
+    const { engine, subscreverPresenca } = useMakaChat();
+    // estado inicial do engine (snapshot do connect) — não só eventos futuros
+    const [presenca, setPresenca] = useState<Presenca | null>(identidadeId ? engine.presencaDe(identidadeId) : null);
 
     useEffect(() => {
         if (!identidadeId) {
             return;
         }
 
+        setPresenca(engine.presencaDe(identidadeId));
+
         return subscreverPresenca((evento) => {
             if (evento.identidade_id === identidadeId) {
                 setPresenca(evento);
             }
         });
-    }, [subscreverPresenca, identidadeId]);
+    }, [engine, subscreverPresenca, identidadeId]);
 
     return presenca;
 }

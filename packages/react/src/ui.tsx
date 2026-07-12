@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { AlvoParticipante, Anexo, Conversa, idMaiorOuIgual, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReprodutorAudio } from './audio';
 import { useChamadasOpcional } from './chamadas';
@@ -302,7 +302,18 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                                 : 'bg-transparent hover:bg-black/[.04]'
                         }`}
                     >
-                        <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} grupo={c.tipo === 'grupo'} />
+                        <span className="relative shrink-0">
+                            <AvatarWeb nome={c.titulo ?? '?'} url={c.foto_url} grupo={c.tipo === 'grupo'} />
+                            {/* bolinha online da contraparte (snapshot no connect + eventos) */}
+                            {c.tipo === 'privada' &&
+                                (() => {
+                                    const outro = contraparteDe(c, identidade);
+
+                                    return outro && engine.presencaDe(outro.identidade_id)?.online ? (
+                                        <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" />
+                                    ) : null;
+                                })()}
+                        </span>
                         <span className="min-w-0 flex-1">
                             <span className={`block truncate text-sm text-[var(--maka-texto)] ${naoLidas ? 'font-bold' : 'font-semibold'}`}>
                                 <NomeComBadge nome={c.titulo ?? 'Conversa'} metadados={contraparteDe(c, identidade)?.metadados} />
@@ -415,7 +426,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
     conversa: Conversa; eu: ParticipanteConversa; aoFechar(): void;
     aoAbrirOutraConversa?(id: string): void; aoSaiu(): void;
 }) {
-    const { api, engine, contactos } = useMakaChat();
+    const { api, engine, contactos, aoVerPerfil } = useMakaChat();
     const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
     const grupo = conversa.tipo === 'grupo';
     const souAdmin = grupo && ['dono', 'admin'].includes(eu.papel);
@@ -426,6 +437,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
     const [conversas, setConversas] = useState<Conversa[]>([]);
     const fotoInput = useRef<HTMLInputElement>(null);
     const membros = conversa.participantes.filter((p) => !p.saiu_em);
+    const contraparteInfo = !grupo ? membros.find((p) => p.identidade_id !== eu.identidade_id && p.tipo !== 'sistema') ?? null : null;
 
     useEffect(() => {
         void engine.storage.listarConversas(false).then(setConversas);
@@ -493,6 +505,18 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                         <span className="font-bold text-[var(--maka-texto)]">{conversa.titulo}</span>
                     )}
                     <span className="text-xs text-[var(--maka-texto-suave)]">{grupo ? `${membros.length} membros` : ''}</span>
+                    {contraparteInfo && engine.presencaDe(contraparteInfo.identidade_id)?.online && (
+                        <span className="text-xs font-semibold text-emerald-500">online</span>
+                    )}
+                    {/* "Ver perfil" — só quando o serviço fornece a navegação (ex.: kanda) */}
+                    {contraparteInfo && aoVerPerfil && (
+                        <button
+                            onClick={() => aoVerPerfil(contraparteInfo)}
+                            className="mt-1 flex cursor-pointer items-center gap-1.5 rounded-full border border-solid border-[var(--maka-primaria)] bg-transparent px-4 py-1.5 text-sm font-bold text-[var(--maka-primaria)]"
+                        >
+                            <Icon icon="tabler:user-circle" /> Ver perfil
+                        </button>
+                    )}
                 </div>
 
                 <div className="maka-scroll min-h-0 flex-1 overflow-auto border-0 border-t border-solid border-black/5">
@@ -501,11 +525,21 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
 
                         return (
                             <div key={p.identidade_id} className="flex items-center gap-3 px-4 py-2.5">
-                                <AvatarWeb nome={p.nome} url={p.foto_url} tamanho={36} />
+                                <span className="relative shrink-0">
+                                    <AvatarWeb nome={p.nome} url={p.foto_url} tamanho={36} />
+                                    {!souEu && engine.presencaDe(p.identidade_id)?.online && (
+                                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" />
+                                    )}
+                                </span>
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">{souEu ? 'Tu' : p.nome}</span>
                                     <span className="text-xs text-[var(--maka-texto-suave)]">{p.papel !== 'membro' ? p.papel : p.tipo}</span>
                                 </span>
+                                {!souEu && aoVerPerfil && (
+                                    <BotaoIcone titulo="Ver perfil" onClick={() => aoVerPerfil(p)}>
+                                        <Icon icon="tabler:user-circle" />
+                                    </BotaoIcone>
+                                )}
                                 {!souEu && podeCriarConversa && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="tabler:message-circle" /></BotaoIcone>}
                                 {!souEu && souAdmin && (
                                     <BotaoIcone titulo="Remover do grupo" onClick={() => { void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas()); }}>
@@ -515,6 +549,9 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                             </div>
                         );
                     })}
+
+                    {/* media da conversa (Fotos/Ficheiros/Áudios/Links) */}
+                    <MediaDaConversaWeb conversaId={conversa.id} />
                 </div>
 
                 {grupo && (
@@ -549,6 +586,155 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                         botoes={[{ rotulo: 'Sair do grupo', destrutivo: true, acao: () => { void api.sairDaConversa(conversa.id).then(() => engine.atualizarConversas()); aoSaiu(); } }]}
                     />
                 </div>
+            )}
+        </div>
+    );
+}
+
+const TABS_MEDIA: { chave: 'fotos' | 'ficheiros' | 'audios' | 'links'; rotulo: string }[] = [
+    { chave: 'fotos', rotulo: 'Fotos' },
+    { chave: 'ficheiros', rotulo: 'Ficheiros' },
+    { chave: 'audios', rotulo: 'Áudios' },
+    { chave: 'links', rotulo: 'Links' },
+];
+
+/** Tabs de media da conversa na info — fonte: GET /conversas/:id/media (hub, paginado). */
+function MediaDaConversaWeb({ conversaId }: { conversaId: string }) {
+    const { api } = useMakaChat();
+    const [tab, setTab] = useState<(typeof TABS_MEDIA)[number]['chave']>('fotos');
+    const [anexos, setAnexos] = useState<(Anexo & { mensagem_id: string })[] | null>(null);
+    const [links, setLinks] = useState<MensagemLink[] | null>(null);
+    const [aCarregar, setACarregar] = useState(false);
+    const [temMais, setTemMais] = useState(false);
+    const LIMITE = 24;
+
+    const carregar = async (antesDe?: string) => {
+        setACarregar(true);
+
+        try {
+            const r = await api.listarMedia(conversaId, tab, { antes_de: antesDe, limite: LIMITE });
+
+            if (tab === 'links') {
+                const novos = r.links ?? [];
+                setLinks((a) => (antesDe ? [...(a ?? []), ...novos] : novos));
+                setTemMais(novos.length === LIMITE);
+            } else {
+                const novos = r.anexos ?? [];
+                setAnexos((a) => (antesDe ? [...(a ?? []), ...novos] : novos));
+                setTemMais(novos.length === LIMITE);
+            }
+        } catch {
+            if (tab === 'links') setLinks([]);
+            else setAnexos([]);
+        } finally {
+            setACarregar(false);
+        }
+    };
+
+    useEffect(() => {
+        setAnexos(null);
+        setLinks(null);
+        void carregar();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversaId, tab]);
+
+    const urlDoLink = (l: MensagemLink) => l.metadados?.url ?? dividirLinks(l.conteudo ?? '').find((p) => p.url)?.url;
+    const vazio = tab === 'links' ? links !== null && links.length === 0 : anexos !== null && anexos.length === 0;
+
+    return (
+        <div className="border-0 border-t border-solid border-black/5 px-4 py-3">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-[var(--maka-texto-suave)]">Media da conversa</span>
+            <div className="mb-2 flex gap-1.5">
+                {TABS_MEDIA.map((t) => (
+                    <button
+                        key={t.chave}
+                        onClick={() => setTab(t.chave)}
+                        className={`cursor-pointer rounded-full border-0 px-3 py-1.5 text-xs font-bold ${
+                            tab === t.chave
+                                ? 'bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)]'
+                                : 'bg-black/[.06] text-[var(--maka-texto-suave)]'
+                        }`}
+                    >
+                        {t.rotulo}
+                    </button>
+                ))}
+            </div>
+
+            {aCarregar && anexos === null && links === null && (
+                <div className="flex items-center gap-2 py-4 text-sm text-[var(--maka-texto-suave)]">
+                    <Icon icon="tabler:loader-2" className="animate-spin" /> A carregar…
+                </div>
+            )}
+            {vazio && !aCarregar && (
+                <div className="py-3 text-sm text-[var(--maka-texto-suave)]">
+                    Ainda não há {TABS_MEDIA.find((t) => t.chave === tab)?.rotulo.toLowerCase()} nesta conversa.
+                </div>
+            )}
+
+            {tab === 'fotos' && !!anexos?.length && (
+                <div className="grid grid-cols-3 gap-1">
+                    {anexos.map((a) =>
+                        a.url ? (
+                            <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer">
+                                <img src={a.url} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                            </a>
+                        ) : null,
+                    )}
+                </div>
+            )}
+
+            {tab === 'ficheiros' &&
+                anexos?.map((a) => (
+                    <a
+                        key={a.id}
+                        href={a.url ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-[var(--maka-texto)] no-underline hover:bg-black/[.04]"
+                    >
+                        <Icon icon="tabler:file" className="shrink-0 text-lg text-[var(--maka-texto-suave)]" />
+                        <span className="min-w-0 flex-1 truncate">{a.nome_ficheiro ?? 'Ficheiro'}</span>
+                        <Icon icon="tabler:download" className="shrink-0 text-[var(--maka-texto-suave)]" />
+                    </a>
+                ))}
+
+            {tab === 'audios' &&
+                anexos?.map((a) => (a.url ? <div key={a.id} className="py-1"><ReprodutorAudio url={a.url} duracaoSegundos={a.duracao_segundos} /></div> : null))}
+
+            {tab === 'links' &&
+                links?.map((l) => {
+                    const url = urlDoLink(l);
+
+                    return (
+                        <a
+                            key={l.id}
+                            href={url ? String(url) : '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2.5 rounded-lg px-2 py-2 no-underline hover:bg-black/[.04]"
+                        >
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--maka-primaria) 10%, transparent)' }}>
+                                <Icon icon="tabler:link" className="text-[var(--maka-primaria)]" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                {!!l.metadados?.titulo && <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">{String(l.metadados.titulo)}</span>}
+                                <span className="block truncate text-xs text-[var(--maka-texto-suave)]">{String(url ?? l.conteudo ?? '')}</span>
+                            </span>
+                        </a>
+                    );
+                })}
+
+            {temMais && !aCarregar && (
+                <button
+                    onClick={() => {
+                        const ultimo = tab === 'links' ? links?.at(-1)?.id : anexos?.at(-1)?.id;
+
+                        if (ultimo) void carregar(ultimo);
+                    }}
+                    className="mt-2 w-full cursor-pointer rounded-full border-0 bg-transparent py-1.5 text-sm font-bold text-[var(--maka-primaria)]"
+                >
+                    Ver mais
+                </button>
             )}
         </div>
     );
@@ -1885,7 +2071,27 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 {m.eliminada ? (
                     <em className="flex items-center gap-1 opacity-60"><Icon icon="tabler:ban" /> Mensagem eliminada</em>
                 ) : (
-                    m.conteudo && <span className="whitespace-pre-wrap text-sm leading-relaxed">{m.conteudo}</span>
+                    m.conteudo && (
+                        <span className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {dividirLinks(m.conteudo).map((p, i) =>
+                                p.url ? (
+                                    <a
+                                        key={i}
+                                        href={p.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold underline"
+                                        style={{ color: 'inherit' }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {p.texto}
+                                    </a>
+                                ) : (
+                                    <span key={i}>{p.texto}</span>
+                                ),
+                            )}
+                        </span>
+                    )
                 )}
                 <span className="flex items-center gap-1 self-end text-[10px] opacity-60">
                     {m.encaminhada_de_id && <Icon icon="tabler:share-3" />}{m.editada_em ? 'editada · ' : ''}{horaCurtaWeb(m.criada_em)}

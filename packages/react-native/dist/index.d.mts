@@ -1,4 +1,4 @@
-import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, ParticipanteConversa, Chamada } from '@hongayetu/makachat-core';
+import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ParticipanteConversa, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -89,6 +89,8 @@ interface MakaChatContexto {
     estaVisivel(conversaId: string): boolean;
     /** clique num cartão de partilha/link — a app navega (deep link/router) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
 }
 interface MakaChatProviderProps {
     serviceKey: string;
@@ -99,9 +101,10 @@ interface MakaChatProviderProps {
     tema?: MakaTema;
     contactos?: AlvoParticipante[];
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    aoVerPerfil?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, children, }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoVerPerfil, children, }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam antes do login). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

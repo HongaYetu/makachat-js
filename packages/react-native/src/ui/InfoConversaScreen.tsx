@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { AlvoParticipante, Conversa, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, Conversa, dividirLinks, MensagemLink, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useFuncionalidadeAtiva, useVersaoChat } from '../hooks';
 import { useMakaChat, useTema } from '../provider';
+import { ReprodutorAudio } from './audio';
+import { FicheiroAnexo } from './Bolha';
 import { Avatar, ListaPerformante, NomeComBadge, Sheet } from './comum';
 import { enviarAnexoLocal, escolherFotosEVideos } from './media';
 
@@ -19,7 +21,7 @@ export interface InfoConversaScreenProps {
 
 /** Info da conversa/grupo estilo WhatsApp: membros, papéis, foto, renomear, sair. */
 export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = 'escura' }: InfoConversaScreenProps) {
-    const { engine, api, identidade, contactos } = useMakaChat();
+    const { engine, api, identidade, contactos, aoVerPerfil } = useMakaChat();
     const tema = useTema();
     const versao = useVersaoChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
@@ -39,6 +41,7 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
     const souAdmin = eu?.papel === 'dono' || eu?.papel === 'admin';
     const grupo = conversa?.tipo === 'grupo';
     const membros = (conversa?.participantes ?? []).filter((p) => !p.saiu_em && p.tipo !== 'sistema');
+    const contraparte = !grupo ? membros.find((p) => p.identidade_id !== eu?.identidade_id) ?? null : null;
 
     const atualizar = async () => {
         const { conversa: fresca } = await api.obterConversa(conversaId);
@@ -154,6 +157,19 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                         </Pressable>
                     )}
                     {grupo && <Text style={{ fontSize: 13, color: tema.textoSuave, marginTop: 3 }}>{membros.length} membros</Text>}
+                    {!grupo && contraparte && engine.presencaDe(contraparte.identidade_id)?.online && (
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#10b981', marginTop: 3 }}>online</Text>
+                    )}
+                    {/* "Ver perfil" — só quando o serviço fornece a navegação (ex.: kanda) */}
+                    {!grupo && contraparte && aoVerPerfil && (
+                        <Pressable
+                            onPress={() => aoVerPerfil(contraparte)}
+                            style={[estilos.verPerfil, { borderColor: tema.primaria }]}
+                        >
+                            <Ionicons name="person-circle-outline" size={18} color={tema.primaria} />
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: tema.primaria }}>Ver perfil</Text>
+                        </Pressable>
+                    )}
                 </View>
 
                 {/* membros */}
@@ -174,7 +190,12 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
 
                         return (
                             <Pressable key={p.identidade_id} onPress={souEuMesmo ? undefined : () => setMembroDe(p)} style={estilos.membro}>
-                                <Avatar nome={p.nome} url={p.foto_url} tamanho={42} />
+                                <View>
+                                    <Avatar nome={p.nome} url={p.foto_url} tamanho={42} />
+                                    {!souEuMesmo && engine.presencaDe(p.identidade_id)?.online && (
+                                        <View style={[estilos.bolinhaMembro, { borderColor: tema.superficie }]} />
+                                    )}
+                                </View>
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                     <NomeComBadge nome={souEuMesmo ? 'Tu' : p.nome} metadados={p.metadados} estilo={{ fontSize: 15, fontWeight: '600', color: tema.texto }} />
                                     <Text style={{ fontSize: 12, color: tema.textoSuave }}>{p.tipo}</Text>
@@ -190,6 +211,9 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                         );
                     })}
                 </View>
+
+                {/* media da conversa (Fotos/Ficheiros/Áudios/Links) */}
+                <MediaDaConversa conversaId={conversaId} />
 
                 {/* sair */}
                 {grupo && (
@@ -210,6 +234,13 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                 itens={
                     membroDe
                         ? [
+                              ...(aoVerPerfil
+                                  ? [{
+                                        icone: 'person-circle-outline' as const,
+                                        rotulo: 'Ver perfil',
+                                        acao: () => aoVerPerfil(membroDe),
+                                    }]
+                                  : []),
                               ...(onAbrirOutraConversa && podeCriarConversa
                                   ? [{
                                         icone: 'chatbubble-outline' as const,
@@ -249,6 +280,162 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                         await atualizar();
                     }}
                 />
+            )}
+        </View>
+    );
+}
+
+type TabMedia = 'fotos' | 'ficheiros' | 'audios' | 'links';
+
+const TABS: { chave: TabMedia; rotulo: string }[] = [
+    { chave: 'fotos', rotulo: 'Fotos' },
+    { chave: 'ficheiros', rotulo: 'Ficheiros' },
+    { chave: 'audios', rotulo: 'Áudios' },
+    { chave: 'links', rotulo: 'Links' },
+];
+
+/** Tabs de media da conversa — fonte: GET /conversas/:id/media (hub, paginado). */
+function MediaDaConversa({ conversaId }: { conversaId: string }) {
+    const { api } = useMakaChat();
+    const tema = useTema();
+    const { width } = useWindowDimensions();
+    const [tab, setTab] = useState<TabMedia>('fotos');
+    const [anexos, setAnexos] = useState<(Anexo & { mensagem_id: string })[] | null>(null);
+    const [links, setLinks] = useState<MensagemLink[] | null>(null);
+    const [aCarregar, setACarregar] = useState(false);
+    const [temMais, setTemMais] = useState(false);
+
+    const LIMITE = 30;
+    const ladoFoto = (width - 16 * 2 - 4 * 2) / 3;
+
+    const carregar = async (maisAntesDe?: string) => {
+        setACarregar(true);
+
+        try {
+            const r = await api.listarMedia(conversaId, tab, { antes_de: maisAntesDe, limite: LIMITE });
+
+            if (tab === 'links') {
+                const novos = r.links ?? [];
+                setLinks((atuais) => (maisAntesDe ? [...(atuais ?? []), ...novos] : novos));
+                setTemMais(novos.length === LIMITE);
+            } else {
+                const novos = r.anexos ?? [];
+                setAnexos((atuais) => (maisAntesDe ? [...(atuais ?? []), ...novos] : novos));
+                setTemMais(novos.length === LIMITE);
+            }
+        } catch {
+            if (tab === 'links') setLinks([]);
+            else setAnexos([]);
+        } finally {
+            setACarregar(false);
+        }
+    };
+
+    useEffect(() => {
+        setAnexos(null);
+        setLinks(null);
+        void carregar();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversaId, tab]);
+
+    const abrirLink = (l: MensagemLink) => {
+        const url = l.metadados?.url ?? dividirLinks(l.conteudo ?? '').find((p) => p.url)?.url;
+
+        if (url) void Linking.openURL(String(url)).catch(() => undefined);
+    };
+
+    const vazio = tab === 'links' ? links !== null && links.length === 0 : anexos !== null && anexos.length === 0;
+
+    return (
+        <View style={[estilos.seccao, { backgroundColor: tema.superficie }]}>
+            <Text style={[estilos.seccaoTitulo, { color: tema.textoSuave }]}>Media da conversa</Text>
+
+            {/* tabs */}
+            <View style={estilos.tabsLinha}>
+                {TABS.map((t) => (
+                    <Pressable
+                        key={t.chave}
+                        onPress={() => setTab(t.chave)}
+                        style={[estilos.tab, tab === t.chave && { backgroundColor: tema.primaria }]}
+                    >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: tab === t.chave ? tema.primariaContraste : tema.textoSuave }}>
+                            {t.rotulo}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
+
+            {aCarregar && anexos === null && links === null && (
+                <ActivityIndicator style={{ paddingVertical: 18 }} color={tema.primaria} />
+            )}
+            {vazio && !aCarregar && (
+                <Text style={{ paddingHorizontal: 18, paddingVertical: 14, fontSize: 13, color: tema.textoSuave }}>
+                    Ainda não há {TABS.find((t) => t.chave === tab)?.rotulo.toLowerCase()} nesta conversa.
+                </Text>
+            )}
+
+            {/* fotos: grelha 3 colunas */}
+            {tab === 'fotos' && !!anexos?.length && (
+                <View style={estilos.grelha}>
+                    {anexos.map((a) =>
+                        a.url ? (
+                            <Pressable key={a.id} onPress={() => void Linking.openURL(a.url as string).catch(() => undefined)}>
+                                <Image source={{ uri: a.url }} style={{ width: ladoFoto, height: ladoFoto, borderRadius: 8 }} />
+                            </Pressable>
+                        ) : null,
+                    )}
+                </View>
+            )}
+
+            {/* ficheiros: mesma linha das bolhas (baixa 1x, abre com o sistema) */}
+            {tab === 'ficheiros' &&
+                anexos?.map((a) => (
+                    <View key={a.id} style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
+                        <FicheiroAnexo anexo={a} minha={false} corTexto={tema.texto} />
+                    </View>
+                ))}
+
+            {/* áudios: player normal */}
+            {tab === 'audios' &&
+                anexos?.map((a) =>
+                    a.url ? (
+                        <View key={a.id} style={{ paddingHorizontal: 16, paddingVertical: 6 }}>
+                            <ReprodutorAudio url={a.url} mimha={false} duracaoSegundos={a.duracao_segundos} />
+                        </View>
+                    ) : null,
+                )}
+
+            {/* links */}
+            {tab === 'links' &&
+                links?.map((l) => (
+                    <Pressable key={l.id} onPress={() => abrirLink(l)} style={estilos.linkLinha}>
+                        <View style={[estilos.linkIcone, { backgroundColor: `${tema.primaria}1A` }]}>
+                            <Ionicons name="link" size={18} color={tema.primaria} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            {!!l.metadados?.titulo && (
+                                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: tema.texto }}>
+                                    {String(l.metadados.titulo)}
+                                </Text>
+                            )}
+                            <Text numberOfLines={2} style={{ fontSize: 12.5, color: tema.textoSuave }}>
+                                {String(l.metadados?.url ?? l.conteudo ?? '')}
+                            </Text>
+                        </View>
+                    </Pressable>
+                ))}
+
+            {temMais && !aCarregar && (
+                <Pressable
+                    onPress={() => {
+                        const ultimo = tab === 'links' ? links?.at(-1)?.id : anexos?.at(-1)?.id;
+
+                        if (ultimo) void carregar(ultimo);
+                    }}
+                    style={{ alignItems: 'center', paddingVertical: 10 }}
+                >
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: tema.primaria }}>Ver mais</Text>
+                </Pressable>
             )}
         </View>
     );
@@ -330,4 +517,11 @@ const estilos = StyleSheet.create({
     membro: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 8 },
     addIcone: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
     papel: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+    verPerfil: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+    bolinhaMembro: { position: 'absolute', right: -1, bottom: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: '#10b981', borderWidth: 2 },
+    tabsLinha: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
+    tab: { borderRadius: 16, paddingHorizontal: 13, paddingVertical: 6, backgroundColor: 'rgba(100,116,139,0.12)' },
+    grelha: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingHorizontal: 16, paddingBottom: 8 },
+    linkLinha: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 8 },
+    linkIcone: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
