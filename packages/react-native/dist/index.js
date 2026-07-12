@@ -817,6 +817,7 @@ var estilos = StyleSheet.create({
 
 // src/ui/ConversasScreen.tsx
 import { Ionicons as Ionicons2 } from "@expo/vector-icons";
+import { rotuloTipoIdentidade } from "@hongayetu/makachat-core";
 import { useEffect as useEffect4, useMemo as useMemo2, useRef as useRef4, useState as useState3 } from "react";
 import {
   Alert,
@@ -1153,7 +1154,7 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
                 ),
                 /* @__PURE__ */ jsx3(Avatar, { nome: p.nome ?? p.id_externo, url: p.foto ?? null, tamanho: 38 }),
                 /* @__PURE__ */ jsx3(Text2, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo }),
-                /* @__PURE__ */ jsx3(Text2, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
+                /* @__PURE__ */ jsx3(Text2, { style: { fontSize: 12, color: tema.textoSuave }, children: rotuloTipoIdentidade(p.tipo) })
               ]
             }
           );
@@ -2746,7 +2747,7 @@ var estilos6 = StyleSheet6.create({
 
 // src/ui/InfoConversaScreen.tsx
 import { Ionicons as Ionicons7 } from "@expo/vector-icons";
-import { dividirLinks as dividirLinks2 } from "@hongayetu/makachat-core";
+import { dividirLinks as dividirLinks2, rotuloTipoIdentidade as rotuloTipoIdentidade2 } from "@hongayetu/makachat-core";
 import { useEffect as useEffect9, useMemo as useMemo6, useState as useState8 } from "react";
 import { ActivityIndicator as ActivityIndicator2, Alert as Alert3, Image as Image4, Linking as Linking4, Pressable as Pressable7, ScrollView, StatusBar as StatusBar2, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, useWindowDimensions as useWindowDimensions2, View as View7 } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
@@ -2893,7 +2894,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
             ] }),
             /* @__PURE__ */ jsxs7(View7, { style: { flex: 1, minWidth: 0 }, children: [
               /* @__PURE__ */ jsx8(NomeComBadge, { nome: souEuMesmo ? "Tu" : p.nome, metadados: p.metadados, estilo: { fontSize: 15, fontWeight: "600", color: tema.texto } }),
-              /* @__PURE__ */ jsx8(Text7, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
+              /* @__PURE__ */ jsx8(Text7, { style: { fontSize: 12, color: tema.textoSuave }, children: rotuloTipoIdentidade2(p.tipo) })
             ] }),
             (p.papel === "dono" || p.papel === "admin") && /* @__PURE__ */ jsx8(View7, { style: [estilos7.papel, { borderColor: tema.primaria }], children: /* @__PURE__ */ jsx8(Text7, { style: { fontSize: 10.5, fontWeight: "700", color: tema.primaria }, children: p.papel === "dono" ? "Dono" : "Admin" }) })
           ] }, p.identidade_id);

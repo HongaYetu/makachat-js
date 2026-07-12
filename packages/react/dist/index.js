@@ -387,7 +387,7 @@ function useTotalNaoLidasOpcional() {
 
 // src/ui.tsx
 import { Icon as Icon3 } from "@iconify/react";
-import { dividirLinks, idMaiorOuIgual } from "@hongayetu/makachat-core";
+import { dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade } from "@hongayetu/makachat-core";
 import { useEffect as useEffect5, useMemo as useMemo3, useRef as useRef5, useState as useState5 } from "react";
 
 // src/audio.tsx
@@ -1380,7 +1380,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
             ] }),
             /* @__PURE__ */ jsxs3("span", { className: "min-w-0 flex-1", children: [
               /* @__PURE__ */ jsx4("span", { className: "block truncate text-sm font-semibold text-[var(--maka-texto)]", children: souEu ? "Tu" : p.nome }),
-              /* @__PURE__ */ jsx4("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel !== "membro" ? p.papel : p.tipo })
+              /* @__PURE__ */ jsx4("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel === "dono" ? "Dono" : p.papel === "admin" ? "Admin" : rotuloTipoIdentidade(p.tipo) })
             ] }),
             !souEu && aoVerPerfil && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Ver perfil", onClick: () => aoVerPerfil(p), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:user-circle" }) }),
             !souEu && podeCriarConversa && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:message-circle" }) }),

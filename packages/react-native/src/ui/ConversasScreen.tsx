@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { AlvoParticipante, Conversa } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Conversa, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
@@ -484,7 +484,7 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
                                 <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: tema.texto }} numberOfLines={1}>
                                     {p.nome ?? p.id_externo}
                                 </Text>
-                                <Text style={{ fontSize: 12, color: tema.textoSuave }}>{p.tipo}</Text>
+                                <Text style={{ fontSize: 12, color: tema.textoSuave }}>{rotuloTipoIdentidade(p.tipo)}</Text>
                             </Pressable>
                         );
                     }}

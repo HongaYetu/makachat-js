@@ -30,6 +30,7 @@ __export(index_exports, {
   SyncEngine: () => SyncEngine,
   dividirLinks: () => dividirLinks,
   idMaiorOuIgual: () => idMaiorOuIgual,
+  rotuloTipoIdentidade: () => rotuloTipoIdentidade,
   uuid: () => uuid
 });
 module.exports = __toCommonJS(index_exports);
@@ -37,6 +38,17 @@ module.exports = __toCommonJS(index_exports);
 // src/tipos.ts
 function idMaiorOuIgual(a, b) {
   return !!a && a >= b;
+}
+var ROTULOS_TIPO_IDENTIDADE = {
+  cliente: "Cliente",
+  negocio: "Neg\xF3cio",
+  utilizador_kanda: "Utilizador do Kanda",
+  sistema: "Sistema"
+};
+function rotuloTipoIdentidade(tipo) {
+  if (ROTULOS_TIPO_IDENTIDADE[tipo]) return ROTULOS_TIPO_IDENTIDADE[tipo];
+  const legivel = tipo.replaceAll("_", " ").trim();
+  return legivel.charAt(0).toUpperCase() + legivel.slice(1);
 }
 function dividirLinks(texto) {
   const regex = /https?:\/\/[^\s<>"']+/gi;
@@ -1035,6 +1047,7 @@ var SyncEngine = class {
   SyncEngine,
   dividirLinks,
   idMaiorOuIgual,
+  rotuloTipoIdentidade,
   uuid
 });
 //# sourceMappingURL=index.cjs.map

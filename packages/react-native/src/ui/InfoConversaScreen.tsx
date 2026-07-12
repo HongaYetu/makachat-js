@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { AlvoParticipante, Anexo, Conversa, dividirLinks, MensagemLink, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, Conversa, dividirLinks, MensagemLink, ParticipanteConversa, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -200,7 +200,7 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                                 </View>
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                     <NomeComBadge nome={souEuMesmo ? 'Tu' : p.nome} metadados={p.metadados} estilo={{ fontSize: 15, fontWeight: '600', color: tema.texto }} />
-                                    <Text style={{ fontSize: 12, color: tema.textoSuave }}>{p.tipo}</Text>
+                                    <Text style={{ fontSize: 12, color: tema.textoSuave }}>{rotuloTipoIdentidade(p.tipo)}</Text>
                                 </View>
                                 {(p.papel === 'dono' || p.papel === 'admin') && (
                                     <View style={[estilos.papel, { borderColor: tema.primaria }]}>

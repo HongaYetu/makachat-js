@@ -207,6 +207,7 @@ type Ack<T = Record<string, unknown>> = {
  * por watermark: lida ⇔ lido_ate >= mensagem.id.
  */
 declare function idMaiorOuIgual(a: string | null, b: string): boolean;
+declare function rotuloTipoIdentidade(tipo: string): string;
 /** Item da tab Links da info (mensagem com subtipo 'link' no hub). */
 interface MensagemLink {
     id: string;
@@ -607,4 +608,4 @@ declare class SyncEngine {
     private registarEventos;
 }
 
-export { type Ack, type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CredenciaisSessao, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, ErroApi, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type IdentidadeConfig, type ItemOutbox, MakaApi, MakaSocket, type MakaSocketOpcoes, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ObterToken, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, uuid };
+export { type Ack, type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CredenciaisSessao, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, ErroApi, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type IdentidadeConfig, type ItemOutbox, MakaApi, MakaSocket, type MakaSocketOpcoes, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ObterToken, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade, uuid };

@@ -2,6 +2,17 @@
 function idMaiorOuIgual(a, b) {
   return !!a && a >= b;
 }
+var ROTULOS_TIPO_IDENTIDADE = {
+  cliente: "Cliente",
+  negocio: "Neg\xF3cio",
+  utilizador_kanda: "Utilizador do Kanda",
+  sistema: "Sistema"
+};
+function rotuloTipoIdentidade(tipo) {
+  if (ROTULOS_TIPO_IDENTIDADE[tipo]) return ROTULOS_TIPO_IDENTIDADE[tipo];
+  const legivel = tipo.replaceAll("_", " ").trim();
+  return legivel.charAt(0).toUpperCase() + legivel.slice(1);
+}
 function dividirLinks(texto) {
   const regex = /https?:\/\/[^\s<>"']+/gi;
   const partes = [];
@@ -998,6 +1009,7 @@ export {
   SyncEngine,
   dividirLinks,
   idMaiorOuIgual,
+  rotuloTipoIdentidade,
   uuid
 };
 //# sourceMappingURL=index.js.map

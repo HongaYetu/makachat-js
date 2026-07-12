@@ -233,6 +233,23 @@ export function idMaiorOuIgual(a: string | null, b: string): boolean {
     return !!a && a >= b;
 }
 
+/** Rótulos humanos dos tipos de identidade conhecidos — a UI nunca mostra o tipo cru. */
+const ROTULOS_TIPO_IDENTIDADE: Record<string, string> = {
+    cliente: 'Cliente',
+    negocio: 'Negócio',
+    utilizador_kanda: 'Utilizador do Kanda',
+    sistema: 'Sistema',
+};
+
+export function rotuloTipoIdentidade(tipo: string): string {
+    if (ROTULOS_TIPO_IDENTIDADE[tipo]) return ROTULOS_TIPO_IDENTIDADE[tipo];
+
+    // fallback: "entregador_urbano" → "Entregador urbano"
+    const legivel = tipo.replaceAll('_', ' ').trim();
+
+    return legivel.charAt(0).toUpperCase() + legivel.slice(1);
+}
+
 /** Item da tab Links da info (mensagem com subtipo 'link' no hub). */
 export interface MensagemLink {
     id: string;

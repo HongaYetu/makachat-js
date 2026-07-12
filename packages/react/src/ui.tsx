@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { AlvoParticipante, Anexo, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReprodutorAudio } from './audio';
 import { useChamadasOpcional } from './chamadas';
@@ -533,7 +533,9 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                                 </span>
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-semibold text-[var(--maka-texto)]">{souEu ? 'Tu' : p.nome}</span>
-                                    <span className="text-xs text-[var(--maka-texto-suave)]">{p.papel !== 'membro' ? p.papel : p.tipo}</span>
+                                    <span className="text-xs text-[var(--maka-texto-suave)]">
+                                        {p.papel === 'dono' ? 'Dono' : p.papel === 'admin' ? 'Admin' : rotuloTipoIdentidade(p.tipo)}
+                                    </span>
                                 </span>
                                 {!souEu && aoVerPerfil && (
                                     <BotaoIcone titulo="Ver perfil" onClick={() => aoVerPerfil(p)}>

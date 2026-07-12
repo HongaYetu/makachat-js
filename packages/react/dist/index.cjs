@@ -1443,7 +1443,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "min-w-0 flex-1", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block truncate text-sm font-semibold text-[var(--maka-texto)]", children: souEu ? "Tu" : p.nome }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel !== "membro" ? p.papel : p.tipo })
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.papel === "dono" ? "Dono" : p.papel === "admin" ? "Admin" : (0, import_makachat_core2.rotuloTipoIdentidade)(p.tipo) })
             ] }),
             !souEu && aoVerPerfil && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Ver perfil", onClick: () => aoVerPerfil(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:user-circle" }) }),
             !souEu && podeCriarConversa && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-circle" }) }),

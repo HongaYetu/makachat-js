@@ -868,6 +868,7 @@ var estilos = import_react_native2.StyleSheet.create({
 
 // src/ui/ConversasScreen.tsx
 var import_vector_icons2 = require("@expo/vector-icons");
+var import_makachat_core2 = require("@hongayetu/makachat-core");
 var import_react5 = require("react");
 var import_react_native3 = require("react-native");
 var import_jsx_runtime3 = require("react/jsx-runtime");
@@ -1197,7 +1198,7 @@ function NovaConversaSheet({ visivel, aoFechar, conversas, contactos, podeGrupos
                 ),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Avatar, { nome: p.nome ?? p.id_externo, url: p.foto ?? null, tamanho: 38 }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: p.nome ?? p.id_externo }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_react_native3.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: (0, import_makachat_core2.rotuloTipoIdentidade)(p.tipo) })
               ]
             }
           );
@@ -1482,7 +1483,7 @@ var estilos3 = import_react_native4.StyleSheet.create({
 
 // src/ui/Bolha.tsx
 var import_vector_icons5 = require("@expo/vector-icons");
-var import_makachat_core2 = require("@hongayetu/makachat-core");
+var import_makachat_core3 = require("@hongayetu/makachat-core");
 var import_react8 = require("react");
 var import_react_native6 = require("react-native");
 
@@ -1805,7 +1806,7 @@ function CartaoPartilha({ mensagem, minha }) {
   ] });
 }
 function TextoComLinks({ conteudo, cor, minha }) {
-  const partes = (0, import_react8.useMemo)(() => (0, import_makachat_core2.dividirLinks)(conteudo), [conteudo]);
+  const partes = (0, import_react8.useMemo)(() => (0, import_makachat_core3.dividirLinks)(conteudo), [conteudo]);
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 16, lineHeight: 22, color: cor }, children: partes.map(
     (p, i) => p.url ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
       import_react_native6.Text,
@@ -2754,7 +2755,7 @@ var estilos6 = import_react_native7.StyleSheet.create({
 
 // src/ui/InfoConversaScreen.tsx
 var import_vector_icons7 = require("@expo/vector-icons");
-var import_makachat_core3 = require("@hongayetu/makachat-core");
+var import_makachat_core4 = require("@hongayetu/makachat-core");
 var import_react10 = require("react");
 var import_react_native8 = require("react-native");
 var import_react_native_safe_area_context3 = require("react-native-safe-area-context");
@@ -2901,7 +2902,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, minWidth: 0 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(NomeComBadge, { nome: souEuMesmo ? "Tu" : p.nome, metadados: p.metadados, estilo: { fontSize: 15, fontWeight: "600", color: tema.texto } }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: p.tipo })
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: (0, import_makachat_core4.rotuloTipoIdentidade)(p.tipo) })
             ] }),
             (p.papel === "dono" || p.papel === "admin") && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: [estilos7.papel, { borderColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 10.5, fontWeight: "700", color: tema.primaria }, children: p.papel === "dono" ? "Dono" : "Admin" }) })
           ] }, p.identidade_id);
@@ -3013,7 +3014,7 @@ function MediaDaConversa({ conversaId }) {
     void carregar();
   }, [conversaId, tab]);
   const abrirLink = (l) => {
-    const url = l.metadados?.url ?? (0, import_makachat_core3.dividirLinks)(l.conteudo ?? "").find((p) => p.url)?.url;
+    const url = l.metadados?.url ?? (0, import_makachat_core4.dividirLinks)(l.conteudo ?? "").find((p) => p.url)?.url;
     if (url) void import_react_native8.Linking.openURL(String(url)).catch(() => void 0);
   };
   const vazio = tab === "links" ? links !== null && links.length === 0 : anexos !== null && anexos.length === 0;
