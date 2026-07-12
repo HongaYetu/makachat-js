@@ -1746,8 +1746,8 @@ function idMaiorOuIgual(watermark, mensagemId) {
 function Ticks({ mensagem, outros, cor }) {
   if (mensagem.estado_envio === "a_enviar") return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "time-outline", size: 13, color: cor });
   if (mensagem.estado_envio === "falhou") return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "alert-circle-outline", size: 13, color: "#fca5a5" });
-  const entregue = outros.some((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
-  const lida = outros.some((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
+  const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
+  const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
   if (lida) return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "checkmark-done", size: 14, color: "#38bdf8" });
   if (entregue) return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "checkmark-done", size: 14, color: cor });
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "checkmark", size: 14, color: cor });
@@ -2050,6 +2050,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [acoesDe, setAcoesDe] = (0, import_react9.useState)(null);
   const [reacoesDe, setReacoesDe] = (0, import_react9.useState)(null);
   const [encaminhar, setEncaminhar] = (0, import_react9.useState)(null);
+  const [relatorioDe, setRelatorioDe] = (0, import_react9.useState)(null);
   const [menuAberto, setMenuAberto] = (0, import_react9.useState)(false);
   const [anexoMenu, setAnexoMenu] = (0, import_react9.useState)(false);
   const [fotosPendentes, setFotosPendentes] = (0, import_react9.useState)([]);
@@ -2238,6 +2239,9 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       setEditar(m);
       setTexto(m.conteudo ?? "");
     } });
+    if (minha && grupo && !m.eliminada && m.estado_envio !== "a_enviar" && m.estado_envio !== "falhou") {
+      lista2.push({ icone: "checkmark-done-outline", rotulo: "Relat\xF3rio de entrega", acao: () => setRelatorioDe(m) });
+    }
     if (!m.eliminada) {
       lista2.push({
         icone: "trash-outline",
@@ -2284,7 +2288,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 38 }),
         /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flex: 1, minWidth: 0 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(NomeComBadge, { nome: conversa?.titulo ?? "\u2026", metadados: contraparte?.metadados, estilo: { fontSize: 16, fontWeight: "700", color: tema.texto } }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Presenca2, { contraparte, typingAtivo: !!typing?.ativo, grupo, totalMembros: conversa?.participantes.filter((p) => !p.saiu_em).length ?? 0 })
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Presenca2, { contraparte, typingAtivo: !!typing?.ativo, grupo, participantes: conversa?.participantes ?? [], identidadeEu: identidade })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: () => {
@@ -2547,7 +2551,16 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         insets
       }
     ),
-    videoAberto && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null), insets })
+    videoAberto && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null), insets }),
+    relatorioDe && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+      RelatorioEntrega,
+      {
+        conversaId,
+        mensagem: relatorioDe,
+        aoFechar: () => setRelatorioDe(null),
+        insets
+      }
+    )
   ] });
   function itensMenuConversa() {
     const itens2 = [];
@@ -2571,23 +2584,78 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     return itens2;
   }
 }
-function Presenca2({ contraparte, typingAtivo, grupo, totalMembros }) {
-  const { subscreverPresenca, socket } = useMakaChat();
+function Presenca2({ contraparte, typingAtivo, grupo, participantes, identidadeEu }) {
+  const { engine, subscreverPresenca, socket } = useMakaChat();
   const tema = useTema();
   const [online, setOnline] = (0, import_react9.useState)(false);
+  const [tick, setTick] = (0, import_react9.useState)(0);
   (0, import_react9.useEffect)(() => {
-    if (!contraparte) return;
     return subscreverPresenca((p) => {
-      if (p.identidade_id === contraparte.identidade_id) setOnline(p.online);
+      if (contraparte && p.identidade_id === contraparte.identidade_id) setOnline(p.online);
+      setTick((t) => t + 1);
     });
   }, [contraparte, subscreverPresenca, socket]);
+  const totalMembros = participantes.filter((p) => !p.saiu_em && p.tipo !== "sistema").length;
+  const _tick = tick;
+  const membrosOnline = grupo ? participantes.filter(
+    (p) => !p.saiu_em && p.tipo !== "sistema" && !(p.id_externo === identidadeEu.id && p.tipo === identidadeEu.tipo) && engine.presencaDe(p.identidade_id)?.online
+  ).length : 0;
   if (typingAtivo) return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 12, color: tema.primaria, fontWeight: "600" }, children: "a escrever\u2026" });
-  if (grupo) return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: [
-    totalMembros,
-    " membros"
-  ] });
+  if (grupo) {
+    return membrosOnline > 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { fontSize: 12, color: "#10b981", fontWeight: "600" }, children: [
+      membrosOnline,
+      " online"
+    ] }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { fontSize: 12, color: tema.textoSuave }, children: [
+      totalMembros,
+      " membros"
+    ] });
+  }
   if (online) return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { fontSize: 12, color: "#10b981", fontWeight: "600" }, children: "online" });
   return null;
+}
+function RelatorioEntrega({ conversaId, mensagem, aoFechar, insets }) {
+  const { api } = useMakaChat();
+  const tema = useTema();
+  const [recibos, setRecibos] = (0, import_react9.useState)(null);
+  (0, import_react9.useEffect)(() => {
+    let vivo = true;
+    void api.recibosDaMensagem(conversaId, mensagem.id).then((r) => vivo && setRecibos(r.recibos)).catch(() => vivo && setRecibos([]));
+    return () => {
+      vivo = false;
+    };
+  }, [api, conversaId, mensagem.id]);
+  const vistos = (recibos ?? []).filter((r) => r.vista);
+  const entregues = (recibos ?? []).filter((r) => r.entregue && !r.vista);
+  const seccao = (titulo, icone, cor, lista) => lista.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { marginTop: 18 }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: estilos6.relSeccaoTopo, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: icone, size: 16, color: cor }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { style: { fontSize: 12.5, fontWeight: "700", color: tema.textoSuave, textTransform: "uppercase" }, children: [
+        titulo,
+        " \xB7 ",
+        lista.length
+      ] })
+    ] }),
+    lista.map((r) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: estilos6.relLinha, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Avatar, { nome: r.nome, url: r.foto_url, tamanho: 40 }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: r.nome }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: icone, size: 18, color: cor })
+    ] }, r.identidade_id))
+  ] });
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Modal, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.View, { style: [estilos6.relHeader, { backgroundColor: tema.superficie, paddingTop: insets.top + 8 }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Pressable, { onPress: aoFechar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_vector_icons6.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: "Relat\xF3rio de entrega" })
+    ] }),
+    recibos === null ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.ActivityIndicator, { style: { marginTop: 40 }, color: tema.primaria }) : vistos.length === 0 && entregues.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_react_native7.Text, { style: { padding: 24, textAlign: "center", color: tema.textoSuave }, children: "Ainda ningu\xE9m recebeu esta mensagem." }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.ScrollView, { contentContainerStyle: { paddingHorizontal: 16, paddingBottom: insets.bottom + 16 }, children: [
+      mensagem.conteudo ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react_native7.Text, { numberOfLines: 2, style: { marginTop: 12, fontSize: 13.5, color: tema.textoSuave, fontStyle: "italic" }, children: [
+        "\u201C",
+        mensagem.conteudo,
+        "\u201D"
+      ] }) : null,
+      seccao("Visto por", "checkmark-done", "#38bdf8", vistos),
+      seccao("Entregue a", "checkmark-done", tema.textoSuave, entregues)
+    ] })
+  ] }) });
 }
 function TypingBolha() {
   const tema = useTema();
@@ -2723,6 +2791,9 @@ function mesmoDia(a, b) {
 }
 var estilos6 = import_react_native7.StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingTop: 50, paddingBottom: 8, paddingHorizontal: 8, gap: 2 },
+  relHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 10, paddingHorizontal: 8, gap: 4 },
+  relSeccaoTopo: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 6 },
+  relLinha: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 7 },
   headerCentro: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, minWidth: 0 },
   pesquisaBarra: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 14, paddingVertical: 4 },
   bannerChamada: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#059669", paddingHorizontal: 14, paddingVertical: 9 },

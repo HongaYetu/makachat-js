@@ -1257,12 +1257,15 @@ import { Ionicons as Ionicons6 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets2 } from "react-native-safe-area-context";
 import { useCallback as useCallback3, useEffect as useEffect8, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
 import {
+  ActivityIndicator as ActivityIndicator2,
   Alert as Alert2,
   AppState as AppState2,
   KeyboardAvoidingView as KeyboardAvoidingView2,
   Linking as Linking3,
+  Modal as Modal2,
   Platform as Platform2,
   Pressable as Pressable6,
+  ScrollView,
   StatusBar,
   StyleSheet as StyleSheet6,
   Text as Text6,
@@ -1738,8 +1741,8 @@ function idMaiorOuIgual(watermark, mensagemId) {
 function Ticks({ mensagem, outros, cor }) {
   if (mensagem.estado_envio === "a_enviar") return /* @__PURE__ */ jsx6(Ionicons5, { name: "time-outline", size: 13, color: cor });
   if (mensagem.estado_envio === "falhou") return /* @__PURE__ */ jsx6(Ionicons5, { name: "alert-circle-outline", size: 13, color: "#fca5a5" });
-  const entregue = outros.some((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
-  const lida = outros.some((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
+  const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
+  const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
   if (lida) return /* @__PURE__ */ jsx6(Ionicons5, { name: "checkmark-done", size: 14, color: "#38bdf8" });
   if (entregue) return /* @__PURE__ */ jsx6(Ionicons5, { name: "checkmark-done", size: 14, color: cor });
   return /* @__PURE__ */ jsx6(Ionicons5, { name: "checkmark", size: 14, color: cor });
@@ -2042,6 +2045,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [acoesDe, setAcoesDe] = useState7(null);
   const [reacoesDe, setReacoesDe] = useState7(null);
   const [encaminhar, setEncaminhar] = useState7(null);
+  const [relatorioDe, setRelatorioDe] = useState7(null);
   const [menuAberto, setMenuAberto] = useState7(false);
   const [anexoMenu, setAnexoMenu] = useState7(false);
   const [fotosPendentes, setFotosPendentes] = useState7([]);
@@ -2230,6 +2234,9 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       setEditar(m);
       setTexto(m.conteudo ?? "");
     } });
+    if (minha && grupo && !m.eliminada && m.estado_envio !== "a_enviar" && m.estado_envio !== "falhou") {
+      lista2.push({ icone: "checkmark-done-outline", rotulo: "Relat\xF3rio de entrega", acao: () => setRelatorioDe(m) });
+    }
     if (!m.eliminada) {
       lista2.push({
         icone: "trash-outline",
@@ -2276,7 +2283,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         /* @__PURE__ */ jsx7(Avatar, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 38 }),
         /* @__PURE__ */ jsxs6(View6, { style: { flex: 1, minWidth: 0 }, children: [
           /* @__PURE__ */ jsx7(NomeComBadge, { nome: conversa?.titulo ?? "\u2026", metadados: contraparte?.metadados, estilo: { fontSize: 16, fontWeight: "700", color: tema.texto } }),
-          /* @__PURE__ */ jsx7(Presenca2, { contraparte, typingAtivo: !!typing?.ativo, grupo, totalMembros: conversa?.participantes.filter((p) => !p.saiu_em).length ?? 0 })
+          /* @__PURE__ */ jsx7(Presenca2, { contraparte, typingAtivo: !!typing?.ativo, grupo, participantes: conversa?.participantes ?? [], identidadeEu: identidade })
         ] })
       ] }),
       /* @__PURE__ */ jsx7(Pressable6, { onPress: () => {
@@ -2539,7 +2546,16 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         insets
       }
     ),
-    videoAberto && /* @__PURE__ */ jsx7(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null), insets })
+    videoAberto && /* @__PURE__ */ jsx7(VisualizadorVideo, { url: videoAberto, aoFechar: () => setVideoAberto(null), insets }),
+    relatorioDe && /* @__PURE__ */ jsx7(
+      RelatorioEntrega,
+      {
+        conversaId,
+        mensagem: relatorioDe,
+        aoFechar: () => setRelatorioDe(null),
+        insets
+      }
+    )
   ] });
   function itensMenuConversa() {
     const itens2 = [];
@@ -2563,23 +2579,78 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     return itens2;
   }
 }
-function Presenca2({ contraparte, typingAtivo, grupo, totalMembros }) {
-  const { subscreverPresenca, socket } = useMakaChat();
+function Presenca2({ contraparte, typingAtivo, grupo, participantes, identidadeEu }) {
+  const { engine, subscreverPresenca, socket } = useMakaChat();
   const tema = useTema();
   const [online, setOnline] = useState7(false);
+  const [tick, setTick] = useState7(0);
   useEffect8(() => {
-    if (!contraparte) return;
     return subscreverPresenca((p) => {
-      if (p.identidade_id === contraparte.identidade_id) setOnline(p.online);
+      if (contraparte && p.identidade_id === contraparte.identidade_id) setOnline(p.online);
+      setTick((t) => t + 1);
     });
   }, [contraparte, subscreverPresenca, socket]);
+  const totalMembros = participantes.filter((p) => !p.saiu_em && p.tipo !== "sistema").length;
+  const _tick = tick;
+  const membrosOnline = grupo ? participantes.filter(
+    (p) => !p.saiu_em && p.tipo !== "sistema" && !(p.id_externo === identidadeEu.id && p.tipo === identidadeEu.tipo) && engine.presencaDe(p.identidade_id)?.online
+  ).length : 0;
   if (typingAtivo) return /* @__PURE__ */ jsx7(Text6, { style: { fontSize: 12, color: tema.primaria, fontWeight: "600" }, children: "a escrever\u2026" });
-  if (grupo) return /* @__PURE__ */ jsxs6(Text6, { style: { fontSize: 12, color: tema.textoSuave }, children: [
-    totalMembros,
-    " membros"
-  ] });
+  if (grupo) {
+    return membrosOnline > 0 ? /* @__PURE__ */ jsxs6(Text6, { style: { fontSize: 12, color: "#10b981", fontWeight: "600" }, children: [
+      membrosOnline,
+      " online"
+    ] }) : /* @__PURE__ */ jsxs6(Text6, { style: { fontSize: 12, color: tema.textoSuave }, children: [
+      totalMembros,
+      " membros"
+    ] });
+  }
   if (online) return /* @__PURE__ */ jsx7(Text6, { style: { fontSize: 12, color: "#10b981", fontWeight: "600" }, children: "online" });
   return null;
+}
+function RelatorioEntrega({ conversaId, mensagem, aoFechar, insets }) {
+  const { api } = useMakaChat();
+  const tema = useTema();
+  const [recibos, setRecibos] = useState7(null);
+  useEffect8(() => {
+    let vivo = true;
+    void api.recibosDaMensagem(conversaId, mensagem.id).then((r) => vivo && setRecibos(r.recibos)).catch(() => vivo && setRecibos([]));
+    return () => {
+      vivo = false;
+    };
+  }, [api, conversaId, mensagem.id]);
+  const vistos = (recibos ?? []).filter((r) => r.vista);
+  const entregues = (recibos ?? []).filter((r) => r.entregue && !r.vista);
+  const seccao = (titulo, icone, cor, lista) => lista.length > 0 && /* @__PURE__ */ jsxs6(View6, { style: { marginTop: 18 }, children: [
+    /* @__PURE__ */ jsxs6(View6, { style: estilos6.relSeccaoTopo, children: [
+      /* @__PURE__ */ jsx7(Ionicons6, { name: icone, size: 16, color: cor }),
+      /* @__PURE__ */ jsxs6(Text6, { style: { fontSize: 12.5, fontWeight: "700", color: tema.textoSuave, textTransform: "uppercase" }, children: [
+        titulo,
+        " \xB7 ",
+        lista.length
+      ] })
+    ] }),
+    lista.map((r) => /* @__PURE__ */ jsxs6(View6, { style: estilos6.relLinha, children: [
+      /* @__PURE__ */ jsx7(Avatar, { nome: r.nome, url: r.foto_url, tamanho: 40 }),
+      /* @__PURE__ */ jsx7(Text6, { style: { flex: 1, fontSize: 15, fontWeight: "600", color: tema.texto }, numberOfLines: 1, children: r.nome }),
+      /* @__PURE__ */ jsx7(Ionicons6, { name: icone, size: 18, color: cor })
+    ] }, r.identidade_id))
+  ] });
+  return /* @__PURE__ */ jsx7(Modal2, { visible: true, animationType: "slide", onRequestClose: aoFechar, children: /* @__PURE__ */ jsxs6(View6, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ jsxs6(View6, { style: [estilos6.relHeader, { backgroundColor: tema.superficie, paddingTop: insets.top + 8 }], children: [
+      /* @__PURE__ */ jsx7(Pressable6, { onPress: aoFechar, style: { padding: 6 }, children: /* @__PURE__ */ jsx7(Ionicons6, { name: "chevron-back", size: 24, color: tema.texto }) }),
+      /* @__PURE__ */ jsx7(Text6, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: "Relat\xF3rio de entrega" })
+    ] }),
+    recibos === null ? /* @__PURE__ */ jsx7(ActivityIndicator2, { style: { marginTop: 40 }, color: tema.primaria }) : vistos.length === 0 && entregues.length === 0 ? /* @__PURE__ */ jsx7(Text6, { style: { padding: 24, textAlign: "center", color: tema.textoSuave }, children: "Ainda ningu\xE9m recebeu esta mensagem." }) : /* @__PURE__ */ jsxs6(ScrollView, { contentContainerStyle: { paddingHorizontal: 16, paddingBottom: insets.bottom + 16 }, children: [
+      mensagem.conteudo ? /* @__PURE__ */ jsxs6(Text6, { numberOfLines: 2, style: { marginTop: 12, fontSize: 13.5, color: tema.textoSuave, fontStyle: "italic" }, children: [
+        "\u201C",
+        mensagem.conteudo,
+        "\u201D"
+      ] }) : null,
+      seccao("Visto por", "checkmark-done", "#38bdf8", vistos),
+      seccao("Entregue a", "checkmark-done", tema.textoSuave, entregues)
+    ] })
+  ] }) });
 }
 function TypingBolha() {
   const tema = useTema();
@@ -2715,6 +2786,9 @@ function mesmoDia(a, b) {
 }
 var estilos6 = StyleSheet6.create({
   header: { flexDirection: "row", alignItems: "center", paddingTop: 50, paddingBottom: 8, paddingHorizontal: 8, gap: 2 },
+  relHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 10, paddingHorizontal: 8, gap: 4 },
+  relSeccaoTopo: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 6 },
+  relLinha: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 7 },
   headerCentro: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, minWidth: 0 },
   pesquisaBarra: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 14, paddingVertical: 4 },
   bannerChamada: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#059669", paddingHorizontal: 14, paddingVertical: 9 },
@@ -2749,7 +2823,7 @@ var estilos6 = StyleSheet6.create({
 import { Ionicons as Ionicons7 } from "@expo/vector-icons";
 import { dividirLinks as dividirLinks2, rotuloTipoIdentidade as rotuloTipoIdentidade2 } from "@hongayetu/makachat-core";
 import { useEffect as useEffect9, useMemo as useMemo6, useState as useState8 } from "react";
-import { ActivityIndicator as ActivityIndicator2, Alert as Alert3, Image as Image4, Linking as Linking4, Pressable as Pressable7, ScrollView, StatusBar as StatusBar2, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, useWindowDimensions as useWindowDimensions2, View as View7 } from "react-native";
+import { ActivityIndicator as ActivityIndicator3, Alert as Alert3, Image as Image4, Linking as Linking4, Pressable as Pressable7, ScrollView as ScrollView2, StatusBar as StatusBar2, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, useWindowDimensions as useWindowDimensions2, View as View7 } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
@@ -2831,7 +2905,7 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
       onVoltar && /* @__PURE__ */ jsx8(Pressable7, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ jsx8(Ionicons7, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ jsx8(Text7, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })
     ] }),
-    /* @__PURE__ */ jsxs7(ScrollView, { contentContainerStyle: { paddingBottom: insets.bottom + 16 }, children: [
+    /* @__PURE__ */ jsxs7(ScrollView2, { contentContainerStyle: { paddingBottom: insets.bottom + 16 }, children: [
       /* @__PURE__ */ jsxs7(View7, { style: [estilos7.topo, { backgroundColor: tema.superficie }], children: [
         /* @__PURE__ */ jsxs7(Pressable7, { onPress: grupo && souAdmin ? () => void mudarFoto() : void 0, children: [
           /* @__PURE__ */ jsx8(Avatar, { nome: conversa.titulo ?? "?", url: conversa.foto_url, tamanho: 96 }),
@@ -3021,7 +3095,7 @@ function MediaDaConversa({ conversaId }) {
       },
       t.chave
     )) }),
-    aCarregar && anexos === null && links === null && /* @__PURE__ */ jsx8(ActivityIndicator2, { style: { paddingVertical: 18 }, color: tema.primaria }),
+    aCarregar && anexos === null && links === null && /* @__PURE__ */ jsx8(ActivityIndicator3, { style: { paddingVertical: 18 }, color: tema.primaria }),
     vazio && !aCarregar && /* @__PURE__ */ jsxs7(Text7, { style: { paddingHorizontal: 18, paddingVertical: 14, fontSize: 13, color: tema.textoSuave }, children: [
       "Ainda n\xE3o h\xE1 ",
       TABS.find((t) => t.chave === tab)?.rotulo.toLowerCase(),
@@ -3130,7 +3204,7 @@ var estilos7 = StyleSheet7.create({
 // src/ui/NovaConversaScreen.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { useEffect as useEffect10, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
-import { ActivityIndicator as ActivityIndicator3, Alert as Alert4, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, TextInput as TextInput5, View as View8 } from "react-native";
+import { ActivityIndicator as ActivityIndicator4, Alert as Alert4, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, TextInput as TextInput5, View as View8 } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsets4 } from "react-native-safe-area-context";
 import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var DEBOUNCE_MS = 350;
@@ -3243,7 +3317,7 @@ function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSuges
             returnKeyType: "search"
           }
         ),
-        aPesquisar ? /* @__PURE__ */ jsx9(ActivityIndicator3, { size: "small", color: tema.textoSuave }) : busca.length > 0 ? /* @__PURE__ */ jsx9(Pressable8, { onPress: () => setBusca(""), hitSlop: 6, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "close-circle", size: 18, color: tema.textoSuave }) }) : null
+        aPesquisar ? /* @__PURE__ */ jsx9(ActivityIndicator4, { size: "small", color: tema.textoSuave }) : busca.length > 0 ? /* @__PURE__ */ jsx9(Pressable8, { onPress: () => setBusca(""), hitSlop: 6, children: /* @__PURE__ */ jsx9(Ionicons8, { name: "close-circle", size: 18, color: tema.textoSuave }) }) : null
       ] })
     ] }),
     podeGrupos && !modoGrupo && /* @__PURE__ */ jsxs8(Pressable8, { onPress: () => setModoGrupo(true), style: [estilos8.linhaGrupo, { backgroundColor: tema.superficie }], children: [
@@ -3315,7 +3389,7 @@ function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSuges
         disabled: escolhidos.size < 2 || aCriar,
         onPress: () => void criarGrupo(),
         style: [estilos8.botaoCriar, { backgroundColor: tema.primaria, opacity: escolhidos.size >= 2 && !aCriar ? 1 : 0.4 }],
-        children: aCriar ? /* @__PURE__ */ jsx9(ActivityIndicator3, { color: tema.primariaContraste }) : /* @__PURE__ */ jsxs8(Text8, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
+        children: aCriar ? /* @__PURE__ */ jsx9(ActivityIndicator4, { color: tema.primariaContraste }) : /* @__PURE__ */ jsxs8(Text8, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
           "Criar grupo (",
           escolhidos.size,
           ")"
@@ -3396,7 +3470,7 @@ var estilos8 = StyleSheet8.create({
 import { Ionicons as Ionicons9 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets5 } from "react-native-safe-area-context";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect11, useMemo as useMemo8, useRef as useRef9, useState as useState10 } from "react";
-import { AppState as AppState3, Modal as Modal2, Platform as Platform3, Pressable as Pressable9, StatusBar as StatusBar3, StyleSheet as StyleSheet9, Text as Text9, useWindowDimensions as useWindowDimensions3, View as View9 } from "react-native";
+import { AppState as AppState3, Modal as Modal3, Platform as Platform3, Pressable as Pressable9, StatusBar as StatusBar3, StyleSheet as StyleSheet9, Text as Text9, useWindowDimensions as useWindowDimensions3, View as View9 } from "react-native";
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadas() {
@@ -3891,7 +3965,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
   const emCurso = ativa.fase === "em_curso";
   const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
-  return /* @__PURE__ */ jsxs9(Modal2, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
+  return /* @__PURE__ */ jsxs9(Modal3, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
     /* @__PURE__ */ jsx10(StatusBar3, { animated: true, barStyle: "light-content" }),
     /* @__PURE__ */ jsxs9(View9, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
       emCurso && video && VideoTrack && remotos.length > 0 && /* @__PURE__ */ jsx10(View9, { style: { ...StyleSheet9.absoluteFillObject, flexDirection: "row", flexWrap: "wrap" }, children: remotos.map((t) => /* @__PURE__ */ jsxs9(View9, { style: { width: remotos.length === 1 ? width : width / 2, height: remotos.length <= 2 ? height : height / Math.ceil(remotos.length / 2) }, children: [

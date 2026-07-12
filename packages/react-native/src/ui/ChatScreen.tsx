@@ -1,14 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Anexo, Conversa, Mensagem, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { Anexo, Conversa, Mensagem, ParticipanteConversa, ReciboParticipante } from '@hongayetu/makachat-core';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     AppState,
     KeyboardAvoidingView,
     Linking,
+    Modal,
     Platform,
     Pressable,
+    ScrollView,
     StatusBar,
     StyleSheet,
     Text,
@@ -130,6 +133,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const [acoesDe, setAcoesDe] = useState<Mensagem | null>(null);
     const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
     const [encaminhar, setEncaminhar] = useState<Mensagem | null>(null);
+    const [relatorioDe, setRelatorioDe] = useState<Mensagem | null>(null);
     const [menuAberto, setMenuAberto] = useState(false);
     const [anexoMenu, setAnexoMenu] = useState(false);
     const [fotosPendentes, setFotosPendentes] = useState<FicheiroLocal[]>([]);
@@ -386,6 +390,10 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
         if (podeEncaminhar && !m.eliminada) lista.push({ icone: 'arrow-redo-outline', rotulo: 'Encaminhar', acao: () => setEncaminhar(m) });
         if (minha && m.tipo === 'texto' && !m.eliminada) lista.push({ icone: 'pencil-outline', rotulo: 'Editar', acao: () => { setResponderA(null); setEditar(m); setTexto(m.conteudo ?? ''); } });
+        // relatório de entrega: só nas MINHAS mensagens de GRUPO
+        if (minha && grupo && !m.eliminada && m.estado_envio !== 'a_enviar' && m.estado_envio !== 'falhou') {
+            lista.push({ icone: 'checkmark-done-outline', rotulo: 'Relatório de entrega', acao: () => setRelatorioDe(m) });
+        }
 
         if (!m.eliminada) {
             lista.push({
@@ -449,7 +457,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                     <Avatar nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={38} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <NomeComBadge nome={conversa?.titulo ?? '…'} metadados={contraparte?.metadados} estilo={{ fontSize: 16, fontWeight: '700', color: tema.texto }} />
-                        <Presenca contraparte={contraparte} typingAtivo={!!typing?.ativo} grupo={grupo} totalMembros={conversa?.participantes.filter((p) => !p.saiu_em).length ?? 0} />
+                        <Presenca contraparte={contraparte} typingAtivo={!!typing?.ativo} grupo={grupo} participantes={conversa?.participantes ?? []} identidadeEu={identidade} />
                     </View>
                 </Pressable>
                 <Pressable onPress={() => { setPesquisaAberta(!pesquisaAberta); setResultados([]); setPesquisaQ(''); }} style={{ padding: 6 }}>
@@ -779,6 +787,15 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 />
             )}
             {videoAberto && <VisualizadorVideo url={videoAberto} aoFechar={() => setVideoAberto(null)} insets={insets} />}
+
+            {relatorioDe && (
+                <RelatorioEntrega
+                    conversaId={conversaId}
+                    mensagem={relatorioDe}
+                    aoFechar={() => setRelatorioDe(null)}
+                    insets={insets}
+                />
+            )}
         </View>
     );
 
@@ -808,29 +825,134 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
 // ---------------------------------------------------------------- presença no header
 
-function Presenca({ contraparte, typingAtivo, grupo, totalMembros }: {
+function Presenca({ contraparte, typingAtivo, grupo, participantes, identidadeEu }: {
     contraparte: ParticipanteConversa | null;
     typingAtivo: boolean;
     grupo: boolean;
-    totalMembros: number;
+    participantes: ParticipanteConversa[];
+    identidadeEu: { id: string; tipo: string };
 }) {
-    const { subscreverPresenca, socket } = useMakaChat();
+    const { engine, subscreverPresenca, socket } = useMakaChat();
     const tema = useTema();
     const [online, setOnline] = useState(false);
+    // recomputar a contagem online do grupo a cada evento de presença
+    const [tick, setTick] = useState(0);
 
     useEffect(() => {
-        if (!contraparte) return;
-
         return subscreverPresenca((p) => {
-            if (p.identidade_id === contraparte.identidade_id) setOnline(p.online);
+            if (contraparte && p.identidade_id === contraparte.identidade_id) setOnline(p.online);
+
+            setTick((t) => t + 1);
         });
     }, [contraparte, subscreverPresenca, socket]);
 
+    const totalMembros = participantes.filter((p) => !p.saiu_em && p.tipo !== 'sistema').length;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _tick = tick;
+    const membrosOnline = grupo
+        ? participantes.filter(
+              (p) =>
+                  !p.saiu_em &&
+                  p.tipo !== 'sistema' &&
+                  !(p.id_externo === identidadeEu.id && p.tipo === identidadeEu.tipo) &&
+                  engine.presencaDe(p.identidade_id)?.online,
+          ).length
+        : 0;
+
     if (typingAtivo) return <Text style={{ fontSize: 12, color: tema.primaria, fontWeight: '600' }}>a escrever…</Text>;
-    if (grupo) return <Text style={{ fontSize: 12, color: tema.textoSuave }}>{totalMembros} membros</Text>;
+    if (grupo) {
+        return membrosOnline > 0 ? (
+            <Text style={{ fontSize: 12, color: '#10b981', fontWeight: '600' }}>{membrosOnline} online</Text>
+        ) : (
+            <Text style={{ fontSize: 12, color: tema.textoSuave }}>{totalMembros} membros</Text>
+        );
+    }
     if (online) return <Text style={{ fontSize: 12, color: '#10b981', fontWeight: '600' }}>online</Text>;
 
     return null;
+}
+
+// ---------------------------------------------------------------- relatório de entrega
+
+/** Página (modal) do relatório de entrega de uma mensagem de grupo. */
+function RelatorioEntrega({ conversaId, mensagem, aoFechar, insets }: {
+    conversaId: string;
+    mensagem: Mensagem;
+    aoFechar(): void;
+    insets: { top: number; bottom: number };
+}) {
+    const { api } = useMakaChat();
+    const tema = useTema();
+    const [recibos, setRecibos] = useState<ReciboParticipante[] | null>(null);
+
+    useEffect(() => {
+        let vivo = true;
+
+        void api
+            .recibosDaMensagem(conversaId, mensagem.id)
+            .then((r) => vivo && setRecibos(r.recibos))
+            .catch(() => vivo && setRecibos([]));
+
+        return () => {
+            vivo = false;
+        };
+    }, [api, conversaId, mensagem.id]);
+
+    const vistos = (recibos ?? []).filter((r) => r.vista);
+    // "entregue" = recebeu mas ainda não viu (quem viu está em "vistos")
+    const entregues = (recibos ?? []).filter((r) => r.entregue && !r.vista);
+
+    const seccao = (titulo: string, icone: 'checkmark-done' | 'checkmark', cor: string, lista: ReciboParticipante[]) =>
+        lista.length > 0 && (
+            <View style={{ marginTop: 18 }}>
+                <View style={estilos.relSeccaoTopo}>
+                    <Ionicons name={icone} size={16} color={cor} />
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: tema.textoSuave, textTransform: 'uppercase' }}>
+                        {titulo} · {lista.length}
+                    </Text>
+                </View>
+                {lista.map((r) => (
+                    <View key={r.identidade_id} style={estilos.relLinha}>
+                        <Avatar nome={r.nome} url={r.foto_url} tamanho={40} />
+                        <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: tema.texto }} numberOfLines={1}>
+                            {r.nome}
+                        </Text>
+                        <Ionicons name={icone} size={18} color={cor} />
+                    </View>
+                ))}
+            </View>
+        );
+
+    return (
+        <Modal visible animationType="slide" onRequestClose={aoFechar}>
+            <View style={{ flex: 1, backgroundColor: tema.fundo }}>
+                <View style={[estilos.relHeader, { backgroundColor: tema.superficie, paddingTop: insets.top + 8 }]}>
+                    <Pressable onPress={aoFechar} style={{ padding: 6 }}>
+                        <Ionicons name="chevron-back" size={24} color={tema.texto} />
+                    </Pressable>
+                    <Text style={{ flex: 1, fontSize: 17, fontWeight: '700', color: tema.texto }}>Relatório de entrega</Text>
+                </View>
+
+                {recibos === null ? (
+                    <ActivityIndicator style={{ marginTop: 40 }} color={tema.primaria} />
+                ) : vistos.length === 0 && entregues.length === 0 ? (
+                    <Text style={{ padding: 24, textAlign: 'center', color: tema.textoSuave }}>
+                        Ainda ninguém recebeu esta mensagem.
+                    </Text>
+                ) : (
+                    <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 16 }}>
+                        {mensagem.conteudo ? (
+                            <Text numberOfLines={2} style={{ marginTop: 12, fontSize: 13.5, color: tema.textoSuave, fontStyle: 'italic' }}>
+                                “{mensagem.conteudo}”
+                            </Text>
+                        ) : null}
+                        {seccao('Visto por', 'checkmark-done', '#38bdf8', vistos)}
+                        {seccao('Entregue a', 'checkmark-done', tema.textoSuave, entregues)}
+                    </ScrollView>
+                )}
+            </View>
+        </Modal>
+    );
 }
 
 // ---------------------------------------------------------------- typing bolha
@@ -1017,6 +1139,9 @@ function mesmoDia(a: string, b: string): boolean {
 
 const estilos = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', paddingTop: 50, paddingBottom: 8, paddingHorizontal: 8, gap: 2 },
+    relHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 10, paddingHorizontal: 8, gap: 4 },
+    relSeccaoTopo: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 6 },
+    relLinha: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 },
     headerCentro: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 0 },
     pesquisaBarra: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, paddingVertical: 4 },
     bannerChamada: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#059669', paddingHorizontal: 14, paddingVertical: 9 },

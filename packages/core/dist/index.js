@@ -180,6 +180,10 @@ var MakaApi = class {
       `/v1/chat/conversas/${conversaId}/media?${query.toString()}`
     );
   }
+  /** Relatório de entrega de uma mensagem (grupos): quem entregou / quem viu. */
+  recibosDaMensagem(conversaId, mensagemId) {
+    return this.pedir(`/v1/chat/conversas/${conversaId}/mensagens/${mensagemId}/recibos`);
+  }
   listarMensagens(conversaId, opcoes) {
     const query = new URLSearchParams();
     if (opcoes?.antes_de) query.set("antes_de", opcoes.antes_de);

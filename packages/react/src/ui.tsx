@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { AlvoParticipante, Anexo, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa, ReciboParticipante, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReprodutorAudio } from './audio';
 import { useChamadasOpcional } from './chamadas';
@@ -755,6 +755,74 @@ function MediaDaConversaWeb({ conversaId }: { conversaId: string }) {
     );
 }
 
+/** Relatório de entrega de uma mensagem de grupo (quem entregou / quem viu). */
+function RelatorioEntregaWeb({ conversaId, mensagem, aoFechar }: {
+    conversaId: string; mensagem: Mensagem; aoFechar(): void;
+}) {
+    const { api } = useMakaChat();
+    const [recibos, setRecibos] = useState<ReciboParticipante[] | null>(null);
+
+    useEffect(() => {
+        let vivo = true;
+
+        void api
+            .recibosDaMensagem(conversaId, mensagem.id)
+            .then((r) => vivo && setRecibos(r.recibos))
+            .catch(() => vivo && setRecibos([]));
+
+        return () => {
+            vivo = false;
+        };
+    }, [api, conversaId, mensagem.id]);
+
+    const vistos = (recibos ?? []).filter((r) => r.vista);
+    const entregues = (recibos ?? []).filter((r) => r.entregue && !r.vista);
+
+    const seccao = (titulo: string, icone: string, cor: string, lista: ReciboParticipante[]) =>
+        lista.length > 0 && (
+            <div className="mt-4">
+                <div className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase text-[var(--maka-texto-suave)]">
+                    <Icon icon={icone} style={{ color: cor }} /> {titulo} · {lista.length}
+                </div>
+                {lista.map((r) => (
+                    <div key={r.identidade_id} className="flex items-center gap-3 py-2">
+                        <AvatarWeb nome={r.nome} url={r.foto_url} tamanho={36} />
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{r.nome}</span>
+                        <Icon icon={icone} style={{ color: cor }} />
+                    </div>
+                ))}
+            </div>
+        );
+
+    return (
+        <div className="fixed inset-0 z-[10003] grid place-items-center bg-slate-900/50" onClick={aoFechar}>
+            <div className="flex max-h-[74vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="font-bold text-[var(--maka-texto)]">Relatório de entrega</span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
+                </div>
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto px-4 pb-4">
+                    {mensagem.conteudo && (
+                        <div className="truncate text-[13px] italic text-[var(--maka-texto-suave)]">“{mensagem.conteudo}”</div>
+                    )}
+                    {recibos === null ? (
+                        <div className="flex items-center gap-2 py-6 text-sm text-[var(--maka-texto-suave)]">
+                            <Icon icon="tabler:loader-2" className="animate-spin" /> A carregar…
+                        </div>
+                    ) : vistos.length === 0 && entregues.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-[var(--maka-texto-suave)]">Ainda ninguém recebeu esta mensagem.</div>
+                    ) : (
+                        <>
+                            {seccao('Visto por', 'tabler:checks', '#0ea5e9', vistos)}
+                            {seccao('Entregue a', 'tabler:checks', 'var(--maka-texto-suave)', entregues)}
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
     conversa: Conversa; conversas: Conversa[]; contactos: AlvoParticipante[]; aoFechar(): void;
 }) {
@@ -1088,6 +1156,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
     const [menuAnexo, setMenuAnexo] = useState(false);
     const [destacada, setDestacada] = useState<string | null>(null);
     const [eliminarDe, setEliminarDe] = useState<Mensagem | null>(null);
+    const [relatorioDe, setRelatorioDe] = useState<Mensagem | null>(null);
     const [pesquisaAberta, setPesquisaAberta] = useState(false);
     const [pesquisaQ, setPesquisaQ] = useState('');
     const [resultados, setResultados] = useState<Mensagem[]>([]);
@@ -1265,9 +1334,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
         () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
         [conversa, identidade],
     );
-    const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em);
+    const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em && p.tipo !== 'sistema');
+    const grupoHeader = conversa?.tipo === 'grupo';
     const contraparte = conversa?.tipo === 'privada' ? outros[0] : null;
     const presenca = usePresenca(contraparte?.identidade_id ?? null);
+    // recomputa com `versao` (presença bumpa notificar) — online no header do grupo
+    const membrosOnline = grupoHeader ? outros.filter((p) => engine.presencaDe(p.identidade_id)?.online).length : 0;
     // nunca mostrar o "a escrever" da própria identidade (ex.: mesma conta em duas abas)
     const typingOutro = typing && typing.identidade_id !== eu?.identidade_id ? typing : null;
     const nomeTyping = typingOutro
@@ -1432,8 +1504,16 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                     <span className={`block truncate font-bold ${compacto ? 'text-[13px]' : 'text-[15px]'}`}>
                         <NomeComBadge nome={conversa?.titulo ?? '…'} metadados={contraparte?.metadados} />
                     </span>
-                    <span className={`block text-xs ${typingOutro ? 'italic text-[var(--maka-primaria)]' : presenca?.online ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
-                        {typingOutro ? 'a escrever…' : presenca?.online ? 'online' : ''}
+                    <span className={`block text-xs ${typingOutro ? 'italic text-[var(--maka-primaria)]' : (presenca?.online || membrosOnline > 0) ? 'text-emerald-600' : 'text-[var(--maka-texto-suave)]'}`}>
+                        {typingOutro
+                            ? 'a escrever…'
+                            : grupoHeader
+                              ? membrosOnline > 0
+                                  ? `${membrosOnline} online`
+                                  : `${outros.length + 1} membros`
+                              : presenca?.online
+                                ? 'online'
+                                : ''}
                     </span>
                 </span>
                 {/* no dock (compacto) o header é único e estreito: pesquisa e chamadas vivem no menu ⋯ */}
@@ -1571,6 +1651,15 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                                 : undefined,
                             eliminar: !m.eliminada ? () => setEliminarDe(m) : undefined,
                             encaminhar: podeEncaminhar ? () => setEncaminhar(m) : undefined,
+                            // relatório de entrega: só nas MINHAS mensagens de grupo
+                            relatorio:
+                                conversa?.tipo === 'grupo' &&
+                                m.remetente_identidade_id === eu?.identidade_id &&
+                                !m.eliminada &&
+                                m.estado_envio !== 'a_enviar' &&
+                                m.estado_envio !== 'falhou'
+                                    ? () => setRelatorioDe(m)
+                                    : undefined,
                         }}
                         todas={mensagens}
                     />
@@ -1761,6 +1850,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                     ]}
                 />
             )}
+            {relatorioDe && (
+                <RelatorioEntregaWeb conversaId={conversaId} mensagem={relatorioDe} aoFechar={() => setRelatorioDe(null)} />
+            )}
             {confirmarEliminarConversa && (
                 <ConfirmarDialogo
                     titulo="Eliminar conversa?"
@@ -1944,6 +2036,7 @@ interface AcoesBolha {
     editar?: () => void;
     eliminar?: () => void;
     encaminhar?: () => void;
+    relatorio?: () => void;
 }
 
 function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir, primeiraDoBloco = true, ultimaDoBloco = true, autor = null, compacto = false }: {
@@ -2033,6 +2126,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             {menu && (
                 <div data-maka-pop={`bolha-${m.id}`} className={`absolute ${menuCima ? posCima : posBaixo} z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
                     {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="tabler:share-3" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
+                    {acoes.relatorio && <ItemMenu onClick={acoes.relatorio}><Icon icon="tabler:checks" className="inline align-[-2px]" /> Relatório de entrega</ItemMenu>}
                     {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="tabler:pencil" className="inline align-[-2px]" /> Editar</ItemMenu>}
                     {acoes.eliminar && <ItemMenu onClick={acoes.eliminar}><Icon icon="tabler:trash" className="inline align-[-2px]" /> Eliminar</ItemMenu>}
                 </div>

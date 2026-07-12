@@ -208,6 +208,15 @@ type Ack<T = Record<string, unknown>> = {
  */
 declare function idMaiorOuIgual(a: string | null, b: string): boolean;
 declare function rotuloTipoIdentidade(tipo: string): string;
+/** Estado de entrega/leitura de uma mensagem por participante (relatório de entrega). */
+interface ReciboParticipante {
+    identidade_id: string;
+    nome: string;
+    foto_url: string | null;
+    tipo: string;
+    entregue: boolean;
+    vista: boolean;
+}
 /** Item da tab Links da info (mensagem com subtipo 'link' no hub). */
 interface MensagemLink {
     id: string;
@@ -300,6 +309,10 @@ declare class MakaApi {
             mensagem_id: string;
         })[];
         links?: MensagemLink[];
+    }>;
+    /** Relatório de entrega de uma mensagem (grupos): quem entregou / quem viu. */
+    recibosDaMensagem(conversaId: string, mensagemId: string): Promise<{
+        recibos: ReciboParticipante[];
     }>;
     listarMensagens(conversaId: string, opcoes?: {
         antes_de?: string;
@@ -608,4 +621,4 @@ declare class SyncEngine {
     private registarEventos;
 }
 
-export { type Ack, type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CredenciaisSessao, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, ErroApi, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type IdentidadeConfig, type ItemOutbox, MakaApi, MakaSocket, type MakaSocketOpcoes, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ObterToken, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade, uuid };
+export { type Ack, type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CredenciaisSessao, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, ErroApi, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type IdentidadeConfig, type ItemOutbox, MakaApi, MakaSocket, type MakaSocketOpcoes, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ObterToken, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type ReciboParticipante, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade, uuid };

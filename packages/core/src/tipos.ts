@@ -250,6 +250,16 @@ export function rotuloTipoIdentidade(tipo: string): string {
     return legivel.charAt(0).toUpperCase() + legivel.slice(1);
 }
 
+/** Estado de entrega/leitura de uma mensagem por participante (relatório de entrega). */
+export interface ReciboParticipante {
+    identidade_id: string;
+    nome: string;
+    foto_url: string | null;
+    tipo: string;
+    entregue: boolean;
+    vista: boolean;
+}
+
 /** Item da tab Links da info (mensagem com subtipo 'link' no hub). */
 export interface MensagemLink {
     id: string;

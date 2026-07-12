@@ -27,8 +27,10 @@ export function Ticks({ mensagem, outros, cor }: { mensagem: Mensagem; outros: P
     if (mensagem.estado_envio === 'a_enviar') return <Ionicons name="time-outline" size={13} color={cor} />;
     if (mensagem.estado_envio === 'falhou') return <Ionicons name="alert-circle-outline" size={13} color="#fca5a5" />;
 
-    const entregue = outros.some((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
-    const lida = outros.some((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
+    // grupo: entregue/vista só quando TODOS os outros entregaram/viram
+    // (privadas têm 1 outro, portanto every ≡ some) — igual ao TicksWeb
+    const entregue = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_entrega_mensagem_id, mensagem.id));
+    const lida = outros.length > 0 && outros.every((p) => idMaiorOuIgual(p.ultima_leitura_mensagem_id, mensagem.id));
 
     if (lida) return <Ionicons name="checkmark-done" size={14} color="#38bdf8" />;
     if (entregue) return <Ionicons name="checkmark-done" size={14} color={cor} />;

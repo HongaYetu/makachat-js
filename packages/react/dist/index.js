@@ -1541,6 +1541,53 @@ function MediaDaConversaWeb({ conversaId }) {
     )
   ] });
 }
+function RelatorioEntregaWeb({ conversaId, mensagem, aoFechar }) {
+  const { api } = useMakaChat();
+  const [recibos, setRecibos] = useState5(null);
+  useEffect5(() => {
+    let vivo = true;
+    void api.recibosDaMensagem(conversaId, mensagem.id).then((r) => vivo && setRecibos(r.recibos)).catch(() => vivo && setRecibos([]));
+    return () => {
+      vivo = false;
+    };
+  }, [api, conversaId, mensagem.id]);
+  const vistos = (recibos ?? []).filter((r) => r.vista);
+  const entregues = (recibos ?? []).filter((r) => r.entregue && !r.vista);
+  const seccao = (titulo, icone, cor, lista) => lista.length > 0 && /* @__PURE__ */ jsxs3("div", { className: "mt-4", children: [
+    /* @__PURE__ */ jsxs3("div", { className: "mb-1 flex items-center gap-1.5 text-xs font-bold uppercase text-[var(--maka-texto-suave)]", children: [
+      /* @__PURE__ */ jsx4(Icon3, { icon: icone, style: { color: cor } }),
+      " ",
+      titulo,
+      " \xB7 ",
+      lista.length
+    ] }),
+    lista.map((r) => /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-3 py-2", children: [
+      /* @__PURE__ */ jsx4(AvatarWeb, { nome: r.nome, url: r.foto_url, tamanho: 36 }),
+      /* @__PURE__ */ jsx4("span", { className: "min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]", children: r.nome }),
+      /* @__PURE__ */ jsx4(Icon3, { icon: icone, style: { color: cor } })
+    ] }, r.identidade_id))
+  ] });
+  return /* @__PURE__ */ jsx4("div", { className: "fixed inset-0 z-[10003] grid place-items-center bg-slate-900/50", onClick: aoFechar, children: /* @__PURE__ */ jsxs3("div", { className: "flex max-h-[74vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal", onClick: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between px-4 py-3", children: [
+      /* @__PURE__ */ jsx4("span", { className: "font-bold text-[var(--maka-texto)]", children: "Relat\xF3rio de entrega" }),
+      /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Fechar", onClick: aoFechar, children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:x" }) })
+    ] }),
+    /* @__PURE__ */ jsxs3("div", { className: "maka-scroll min-h-0 flex-1 overflow-auto px-4 pb-4", children: [
+      mensagem.conteudo && /* @__PURE__ */ jsxs3("div", { className: "truncate text-[13px] italic text-[var(--maka-texto-suave)]", children: [
+        "\u201C",
+        mensagem.conteudo,
+        "\u201D"
+      ] }),
+      recibos === null ? /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2 py-6 text-sm text-[var(--maka-texto-suave)]", children: [
+        /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:loader-2", className: "animate-spin" }),
+        " A carregar\u2026"
+      ] }) : vistos.length === 0 && entregues.length === 0 ? /* @__PURE__ */ jsx4("div", { className: "py-6 text-center text-sm text-[var(--maka-texto-suave)]", children: "Ainda ningu\xE9m recebeu esta mensagem." }) : /* @__PURE__ */ jsxs3(Fragment2, { children: [
+        seccao("Visto por", "tabler:checks", "#0ea5e9", vistos),
+        seccao("Entregue a", "tabler:checks", "var(--maka-texto-suave)", entregues)
+      ] })
+    ] })
+  ] }) });
+}
 function AdicionarMembros({ conversa, conversas, contactos, aoFechar }) {
   const { api, engine } = useMakaChat();
   const [escolhidos, setEscolhidos] = useState5(/* @__PURE__ */ new Set());
@@ -1792,6 +1839,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const [menuAnexo, setMenuAnexo] = useState5(false);
   const [destacada, setDestacada] = useState5(null);
   const [eliminarDe, setEliminarDe] = useState5(null);
+  const [relatorioDe, setRelatorioDe] = useState5(null);
   const [pesquisaAberta, setPesquisaAberta] = useState5(false);
   const [pesquisaQ, setPesquisaQ] = useState5("");
   const [resultados, setResultados] = useState5([]);
@@ -1913,9 +1961,11 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
     () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
     [conversa, identidade]
   );
-  const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em);
+  const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em && p.tipo !== "sistema");
+  const grupoHeader = conversa?.tipo === "grupo";
   const contraparte = conversa?.tipo === "privada" ? outros[0] : null;
   const presenca = usePresenca(contraparte?.identidade_id ?? null);
+  const membrosOnline = grupoHeader ? outros.filter((p) => engine.presencaDe(p.identidade_id)?.online).length : 0;
   const typingOutro = typing && typing.identidade_id !== eu?.identidade_id ? typing : null;
   const nomeTyping = typingOutro ? conversa?.participantes.find((p) => p.identidade_id === typingOutro.identidade_id)?.nome ?? null : null;
   const aoEnviar = async () => {
@@ -2036,7 +2086,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
       ] }),
       /* @__PURE__ */ jsxs3("span", { className: "min-w-0 flex-1 cursor-pointer", onClick: () => setInfoAberta(true), children: [
         /* @__PURE__ */ jsx4("span", { className: `block truncate font-bold ${compacto ? "text-[13px]" : "text-[15px]"}`, children: /* @__PURE__ */ jsx4(NomeComBadge, { nome: conversa?.titulo ?? "\u2026", metadados: contraparte?.metadados }) }),
-        /* @__PURE__ */ jsx4("span", { className: `block text-xs ${typingOutro ? "italic text-[var(--maka-primaria)]" : presenca?.online ? "text-emerald-600" : "text-[var(--maka-texto-suave)]"}`, children: typingOutro ? "a escrever\u2026" : presenca?.online ? "online" : "" })
+        /* @__PURE__ */ jsx4("span", { className: `block text-xs ${typingOutro ? "italic text-[var(--maka-primaria)]" : presenca?.online || membrosOnline > 0 ? "text-emerald-600" : "text-[var(--maka-texto-suave)]"}`, children: typingOutro ? "a escrever\u2026" : grupoHeader ? membrosOnline > 0 ? `${membrosOnline} online` : `${outros.length + 1} membros` : presenca?.online ? "online" : "" })
       ] }),
       !compacto && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Pesquisar na conversa", onClick: () => {
         setPesquisaAberta(!pesquisaAberta);
@@ -2182,7 +2232,9 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
                   setTexto(m.conteudo ?? "");
                 } : void 0,
                 eliminar: !m.eliminada ? () => setEliminarDe(m) : void 0,
-                encaminhar: podeEncaminhar ? () => setEncaminhar(m) : void 0
+                encaminhar: podeEncaminhar ? () => setEncaminhar(m) : void 0,
+                // relatório de entrega: só nas MINHAS mensagens de grupo
+                relatorio: conversa?.tipo === "grupo" && m.remetente_identidade_id === eu?.identidade_id && !m.eliminada && m.estado_envio !== "a_enviar" && m.estado_envio !== "falhou" ? () => setRelatorioDe(m) : void 0
               },
               todas: mensagens
             },
@@ -2377,6 +2429,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
         ]
       }
     ),
+    relatorioDe && /* @__PURE__ */ jsx4(RelatorioEntregaWeb, { conversaId, mensagem: relatorioDe, aoFechar: () => setRelatorioDe(null) }),
     confirmarEliminarConversa && /* @__PURE__ */ jsx4(
       ConfirmarDialogo,
       {
@@ -2596,6 +2649,10 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
       acoes.encaminhar && /* @__PURE__ */ jsxs3(ItemMenu, { onClick: acoes.encaminhar, children: [
         /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:share-3", className: "inline align-[-2px]" }),
         " Encaminhar"
+      ] }),
+      acoes.relatorio && /* @__PURE__ */ jsxs3(ItemMenu, { onClick: acoes.relatorio, children: [
+        /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:checks", className: "inline align-[-2px]" }),
+        " Relat\xF3rio de entrega"
       ] }),
       acoes.editar && /* @__PURE__ */ jsxs3(ItemMenu, { onClick: acoes.editar, children: [
         /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:pencil", className: "inline align-[-2px]" }),

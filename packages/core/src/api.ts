@@ -9,6 +9,7 @@ import {
     Mensagem,
     MensagemLink,
     ObterToken,
+    ReciboParticipante,
 } from './tipos';
 
 export class ErroApi extends Error {
@@ -124,6 +125,11 @@ export class MakaApi {
         return this.pedir<{ anexos?: (Anexo & { mensagem_id: string })[]; links?: MensagemLink[] }>(
             `/v1/chat/conversas/${conversaId}/media?${query.toString()}`,
         );
+    }
+
+    /** Relatório de entrega de uma mensagem (grupos): quem entregou / quem viu. */
+    recibosDaMensagem(conversaId: string, mensagemId: string) {
+        return this.pedir<{ recibos: ReciboParticipante[] }>(`/v1/chat/conversas/${conversaId}/mensagens/${mensagemId}/recibos`);
     }
 
     listarMensagens(conversaId: string, opcoes?: { antes_de?: string; limite?: number }) {
