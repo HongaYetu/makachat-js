@@ -62,6 +62,8 @@ interface MakaChatProviderProps {
 }
 declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
+/** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
+declare function useMakaChatOpcional(): MakaChatContexto | null;
 
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
 /** Estado da ligação socket (true = online). */
@@ -88,6 +90,8 @@ declare function useFuncionalidadeAtiva(funcionalidade: Funcionalidade, tipoConv
 declare function useMensagemRecebida(handler: (mensagem: Mensagem) => void): void;
 /** Total de mensagens não lidas em todas as conversas — badge global (navbar, título da página...). */
 declare function useTotalNaoLidas(): number;
+/** Total de não lidas SEM exigir o provider — devolve 0 fora dele (badges em layouts). */
+declare function useTotalNaoLidasOpcional(): number;
 
 interface MakaChatConversasProps {
     arquivadas?: boolean;
@@ -208,4 +212,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useChamadas, useChamadasOpcional, useConversas, useDock, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTotalNaoLidas, useTypingConversa, useVersaoChat };
+export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useChamadas, useChamadasOpcional, useConversas, useDock, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };

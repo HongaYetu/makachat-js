@@ -226,3 +226,8 @@ export function useMakaChat(): MakaChatContexto {
 
     return contexto;
 }
+
+/** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
+export function useMakaChatOpcional(): MakaChatContexto | null {
+    return useContext(Contexto);
+}

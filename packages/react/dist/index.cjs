@@ -54,11 +54,13 @@ __export(index_exports, {
   useFuncionalidadeAtiva: () => useFuncionalidadeAtiva,
   useLigacao: () => useLigacao,
   useMakaChat: () => useMakaChat,
+  useMakaChatOpcional: () => useMakaChatOpcional,
   useMensagemRecebida: () => useMensagemRecebida,
   useMensagens: () => useMensagens,
   usePresenca: () => usePresenca,
   useSemLigacao: () => useSemLigacao,
   useTotalNaoLidas: () => useTotalNaoLidas,
+  useTotalNaoLidasOpcional: () => useTotalNaoLidasOpcional,
   useTypingConversa: () => useTypingConversa,
   useVersaoChat: () => useVersaoChat
 });
@@ -296,6 +298,9 @@ function useMakaChat() {
   }
   return contexto;
 }
+function useMakaChatOpcional() {
+  return (0, import_react.useContext)(Contexto);
+}
 
 // src/hooks.ts
 var import_react2 = require("react");
@@ -423,6 +428,21 @@ function useTotalNaoLidas() {
   (0, import_react2.useEffect)(() => {
     void engine.storage.listarConversas(false).then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
   }, [engine, versao]);
+  return total;
+}
+function useTotalNaoLidasOpcional() {
+  const contexto = useMakaChatOpcional();
+  const engine = contexto?.engine ?? null;
+  const [total, setTotal] = (0, import_react2.useState)(0);
+  (0, import_react2.useEffect)(() => {
+    if (!engine) {
+      setTotal(0);
+      return;
+    }
+    const atualizar = () => void engine.storage.listarConversas(false).then((conversas) => setTotal(conversas.reduce((soma, c) => soma + (c.participante?.mensagens_nao_lidas ?? 0), 0)));
+    atualizar();
+    return engine.subscrever(atualizar);
+  }, [engine]);
   return total;
 }
 
@@ -3083,11 +3103,13 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
   useFuncionalidadeAtiva,
   useLigacao,
   useMakaChat,
+  useMakaChatOpcional,
   useMensagemRecebida,
   useMensagens,
   usePresenca,
   useSemLigacao,
   useTotalNaoLidas,
+  useTotalNaoLidasOpcional,
   useTypingConversa,
   useVersaoChat,
   ...require("@hongayetu/makachat-core")

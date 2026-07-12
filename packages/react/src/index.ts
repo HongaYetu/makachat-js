@@ -1,5 +1,5 @@
 export * from '@hongayetu/makachat-core';
-export { MakaChatProvider, useMakaChat, type MakaChatProviderProps, type MakaChatContexto } from './provider';
+export { MakaChatProvider, useMakaChat, useMakaChatOpcional, type MakaChatProviderProps, type MakaChatContexto } from './provider';
 export {
     useVersaoChat,
     useConversas,
@@ -12,6 +12,7 @@ export {
     useSemLigacao,
     useMensagemRecebida,
     useTotalNaoLidas,
+    useTotalNaoLidasOpcional,
 } from './hooks';
 export {
     MakaChatConversas,
