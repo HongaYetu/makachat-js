@@ -105,7 +105,7 @@ export interface MakaChatConversasProps {
 }
 
 export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }: MakaChatConversasProps) {
-    const { engine, api, contactos, identidade } = useMakaChat();
+    const { engine, api, contactos, identidade, obterOnline } = useMakaChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
     // serviços com conversas só de sistema (ex.: via encomenda) não criam
@@ -116,6 +116,7 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const [menuDe, setMenuDe] = useState<string | null>(null);
     const [busca, setBusca] = useState('');
     const [criarGrupo, setCriarGrupo] = useState(false);
+    const [verOnline, setVerOnline] = useState(false);
     const [confirmarEliminar, setConfirmarEliminar] = useState<Conversa | null>(null);
 
     const [menuDirecao, setMenuDirecao] = useState<'cima' | 'baixo'>('baixo');
@@ -214,6 +215,14 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                 <span className="flex-1 text-[15px] font-bold text-[var(--maka-texto)]">
                     {verArquivadas ? 'Arquivadas' : 'Conversas'}
                 </span>
+                {obterOnline && !verArquivadas && (
+                    <BotaoIcone titulo="Pessoas online" onClick={() => setVerOnline(true)}>
+                        <span className="relative grid place-items-center">
+                            <Icon icon="tabler:users" />
+                            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" />
+                        </span>
+                    </BotaoIcone>
+                )}
                 <BotaoIcone titulo={verArquivadas ? 'Voltar às conversas' : 'Arquivadas'} onClick={() => setVerArquivadas(!verArquivadas)}>
                     <Icon icon={verArquivadas ? 'tabler:arrow-left' : 'tabler:archive'} />
                 </BotaoIcone>
@@ -364,6 +373,12 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                     podeGrupos={podeGrupos}
                     aoFechar={() => setCriarGrupo(false)}
                     aoCriada={(c) => { setCriarGrupo(false); onAbrirConversa(c); }}
+                />
+            )}
+            {verOnline && (
+                <OnlineModal
+                    aoFechar={() => setVerOnline(false)}
+                    aoCriada={(c) => { setVerOnline(false); onAbrirConversa(c); }}
                 />
             )}
             {confirmarEliminar && (
@@ -580,6 +595,92 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
                     <button disabled={escolhidos.size === 0} onClick={() => void adicionar()} className="w-full cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] disabled:opacity-40">
                         Adicionar{escolhidos.size > 0 ? ` (${escolhidos.size})` : ''}
                     </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Pessoas online segundo o SERVIÇO (`obterOnline` no provider — ex.: quem
+ * sigo). Refresca a cada 30s enquanto aberto; tap abre/cria a privada.
+ */
+function OnlineModal({ aoFechar, aoCriada }: { aoFechar(): void; aoCriada(c: Conversa): void }) {
+    const { api, engine, obterOnline, identidade } = useMakaChat();
+    const [pessoas, setPessoas] = useState<AlvoParticipante[] | null>(null);
+    const [aCriar, setACriar] = useState(false);
+
+    useEffect(() => {
+        if (!obterOnline) return;
+
+        let vivo = true;
+
+        const carregar = () =>
+            void obterOnline()
+                .then((lista) => {
+                    if (vivo) setPessoas(lista.filter((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)));
+                })
+                .catch(() => {
+                    if (vivo) setPessoas([]);
+                });
+
+        carregar();
+        const timer = setInterval(carregar, 30_000);
+
+        return () => {
+            vivo = false;
+            clearInterval(timer);
+        };
+    }, [obterOnline, identidade]);
+
+    const abrirConversa = async (p: AlvoParticipante) => {
+        if (aCriar) return;
+
+        setACriar(true);
+
+        try {
+            const { conversa } = await api.criarPrivada(p);
+            await engine.atualizarConversas();
+            aoCriada(conversa);
+        } catch {
+            setACriar(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm" onClick={aoFechar}>
+            <div className="flex max-h-[74vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <span className="flex items-center gap-2 font-bold text-[var(--maka-texto)]">
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        Online agora
+                    </span>
+                    <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
+                </div>
+                <div className="maka-scroll min-h-0 flex-1 overflow-auto pb-2">
+                    {pessoas === null && (
+                        <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-[var(--maka-texto-suave)]">
+                            <Icon icon="tabler:loader-2" className="animate-spin" /> A carregar…
+                        </div>
+                    )}
+                    {pessoas !== null && pessoas.length === 0 && (
+                        <div className="px-4 py-8 text-center text-sm text-[var(--maka-texto-suave)]">Ninguém online agora.</div>
+                    )}
+                    {(pessoas ?? []).map((p) => (
+                        <button
+                            key={`${p.tipo}:${p.id_externo}`}
+                            disabled={aCriar}
+                            onClick={() => void abrirConversa(p)}
+                            className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
+                        >
+                            <span className="relative">
+                                <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={38} />
+                                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
+                            <Icon icon="tabler:message-circle" className="text-[var(--maka-texto-suave)]" />
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>

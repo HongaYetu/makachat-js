@@ -33,6 +33,8 @@ interface MakaChatContexto {
     contactos: AlvoParticipante[];
     /** pesquisa de contactos NO serviço (API da app) — usada na nova conversa */
     pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
+    /** contactos ONLINE segundo o serviço (ex.: quem sigo) — botão Online da lista */
+    obterOnline?: () => Promise<AlvoParticipante[]>;
     /** ligação socket ativa? (para barras de estado offline) */
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
@@ -52,6 +54,8 @@ interface MakaChatProviderProps {
     contactos?: AlvoParticipante[];
     /** pesquisa de contactos NO serviço — a nova conversa usa isto com debounce */
     pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
+    /** contactos online segundo o serviço — liga o botão Online na lista de conversas */
+    obterOnline?: () => Promise<AlvoParticipante[]>;
     /** notificações nativas do browser quando a página está em background (default: false, opt-in) */
     notificacoesNativas?: boolean;
     /** clique na notificação — a app decide como abrir a conversa (ex.: useDock().abrir) */
@@ -60,7 +64,7 @@ interface MakaChatProviderProps {
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

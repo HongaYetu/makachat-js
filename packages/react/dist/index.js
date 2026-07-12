@@ -122,7 +122,7 @@ function pararToque() {
 // src/provider.tsx
 import { jsx } from "react/jsx-runtime";
 var Contexto = createContext(null);
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }) {
   const [features, setFeatures] = useState([]);
   const [ligado, setLigado] = useState(false);
   const visiveis = useRef(/* @__PURE__ */ new Map());
@@ -227,7 +227,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     document.addEventListener("visibilitychange", aoVisibilidade);
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
   }, [valor]);
-  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, aoAbrirPartilha }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = useContext(Contexto);
@@ -1037,7 +1037,7 @@ function useFecharFora(ativo, chave, fechar) {
   }, [ativo, chave, fechar]);
 }
 function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }) {
-  const { engine, api, contactos, identidade } = useMakaChat();
+  const { engine, api, contactos, identidade, obterOnline } = useMakaChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
@@ -1047,6 +1047,7 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   const [menuDe, setMenuDe] = useState5(null);
   const [busca, setBusca] = useState5("");
   const [criarGrupo, setCriarGrupo] = useState5(false);
+  const [verOnline, setVerOnline] = useState5(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState5(null);
   const [menuDirecao, setMenuDirecao] = useState5("baixo");
   const [resultadosServidor, setResultadosServidor] = useState5(null);
@@ -1111,6 +1112,10 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   return /* @__PURE__ */ jsxs3("div", { className: "flex h-full flex-col bg-[var(--maka-superficie)]", children: [
     /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1 px-4 pt-2.5 pb-0.5", children: [
       /* @__PURE__ */ jsx4("span", { className: "flex-1 text-[15px] font-bold text-[var(--maka-texto)]", children: verArquivadas ? "Arquivadas" : "Conversas" }),
+      obterOnline && !verArquivadas && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Pessoas online", onClick: () => setVerOnline(true), children: /* @__PURE__ */ jsxs3("span", { className: "relative grid place-items-center", children: [
+        /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:users" }),
+        /* @__PURE__ */ jsx4("span", { className: "absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" })
+      ] }) }),
       /* @__PURE__ */ jsx4(BotaoIcone, { titulo: verArquivadas ? "Voltar \xE0s conversas" : "Arquivadas", onClick: () => setVerArquivadas(!verArquivadas), children: /* @__PURE__ */ jsx4(Icon3, { icon: verArquivadas ? "tabler:arrow-left" : "tabler:archive" }) }),
       podeCriarConversa && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Nova conversa", onClick: () => setCriarGrupo(true), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:message-plus" }) })
     ] }),
@@ -1234,6 +1239,16 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
         aoFechar: () => setCriarGrupo(false),
         aoCriada: (c) => {
           setCriarGrupo(false);
+          onAbrirConversa(c);
+        }
+      }
+    ),
+    verOnline && /* @__PURE__ */ jsx4(
+      OnlineModal,
+      {
+        aoFechar: () => setVerOnline(false),
+        aoCriada: (c) => {
+          setVerOnline(false);
           onAbrirConversa(c);
         }
       }
@@ -1412,6 +1427,70 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }) {
       "Adicionar",
       escolhidos.size > 0 ? ` (${escolhidos.size})` : ""
     ] }) })
+  ] }) });
+}
+function OnlineModal({ aoFechar, aoCriada }) {
+  const { api, engine, obterOnline, identidade } = useMakaChat();
+  const [pessoas, setPessoas] = useState5(null);
+  const [aCriar, setACriar] = useState5(false);
+  useEffect5(() => {
+    if (!obterOnline) return;
+    let vivo = true;
+    const carregar = () => void obterOnline().then((lista) => {
+      if (vivo) setPessoas(lista.filter((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)));
+    }).catch(() => {
+      if (vivo) setPessoas([]);
+    });
+    carregar();
+    const timer = setInterval(carregar, 3e4);
+    return () => {
+      vivo = false;
+      clearInterval(timer);
+    };
+  }, [obterOnline, identidade]);
+  const abrirConversa = async (p) => {
+    if (aCriar) return;
+    setACriar(true);
+    try {
+      const { conversa } = await api.criarPrivada(p);
+      await engine.atualizarConversas();
+      aoCriada(conversa);
+    } catch {
+      setACriar(false);
+    }
+  };
+  return /* @__PURE__ */ jsx4("div", { className: "fixed inset-0 z-[10000] grid place-items-center bg-slate-900/50 backdrop-blur-sm", onClick: aoFechar, children: /* @__PURE__ */ jsxs3("div", { className: "flex max-h-[74vh] w-[360px] animate-maka-subir flex-col overflow-hidden rounded-2xl bg-[var(--maka-superficie)] shadow-maka-modal", onClick: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between px-4 py-3", children: [
+      /* @__PURE__ */ jsxs3("span", { className: "flex items-center gap-2 font-bold text-[var(--maka-texto)]", children: [
+        /* @__PURE__ */ jsx4("span", { className: "h-2.5 w-2.5 rounded-full bg-emerald-500" }),
+        "Online agora"
+      ] }),
+      /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Fechar", onClick: aoFechar, children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:x" }) })
+    ] }),
+    /* @__PURE__ */ jsxs3("div", { className: "maka-scroll min-h-0 flex-1 overflow-auto pb-2", children: [
+      pessoas === null && /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-center gap-2 px-4 py-8 text-sm text-[var(--maka-texto-suave)]", children: [
+        /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:loader-2", className: "animate-spin" }),
+        " A carregar\u2026"
+      ] }),
+      pessoas !== null && pessoas.length === 0 && /* @__PURE__ */ jsx4("div", { className: "px-4 py-8 text-center text-sm text-[var(--maka-texto-suave)]", children: "Ningu\xE9m online agora." }),
+      (pessoas ?? []).map((p) => /* @__PURE__ */ jsxs3(
+        "button",
+        {
+          disabled: aCriar,
+          onClick: () => void abrirConversa(p),
+          className: "flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]",
+          children: [
+            /* @__PURE__ */ jsxs3("span", { className: "relative", children: [
+              /* @__PURE__ */ jsx4(AvatarWeb, { nome: p.nome ?? p.id_externo, url: p.foto, tamanho: 38 }),
+              /* @__PURE__ */ jsx4("span", { className: "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" })
+            ] }),
+            /* @__PURE__ */ jsx4("span", { className: "min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]", children: p.nome ?? p.id_externo }),
+            /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:message-circle", className: "text-[var(--maka-texto-suave)]" })
+          ]
+        },
+        `${p.tipo}:${p.id_externo}`
+      ))
+    ] })
   ] }) });
 }
 function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriada }) {
