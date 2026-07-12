@@ -609,6 +609,7 @@ export class SyncEngine {
 
         this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ADICIONADO, () => void this.atualizarConversas());
         this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_REMOVIDO, () => void this.atualizarConversas());
+        this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ATUALIZADO, () => void this.atualizarConversas());
 
         for (const [nome, evento] of [
             [EVENTOS_SERVIDOR.CHAMADA_INICIADA, 'iniciada'],

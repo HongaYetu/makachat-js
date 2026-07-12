@@ -249,6 +249,7 @@ declare const EVENTOS_SERVIDOR: {
     readonly CONVERSA_ATUALIZADA: "chat:conversa:atualizada";
     readonly PARTICIPANTE_ADICIONADO: "chat:participante:adicionado";
     readonly PARTICIPANTE_REMOVIDO: "chat:participante:removido";
+    readonly PARTICIPANTE_ATUALIZADO: "chat:participante:atualizado";
     readonly CHAMADA_INICIADA: "chat:chamada:iniciada";
     readonly CHAMADA_ATENDIDA: "chat:chamada:atendida";
     readonly CHAMADA_REJEITADA: "chat:chamada:rejeitada";
@@ -323,6 +324,10 @@ declare class MakaApi {
         conversa: Conversa;
     }>;
     adicionarParticipantes(conversaId: string, participantes: AlvoParticipante[]): Promise<{
+        conversa: Conversa;
+    }>;
+    /** Promove/despromove um membro do grupo (papel do dono é intocável). */
+    mudarPapel(conversaId: string, identidadeId: string, papel: 'admin' | 'membro'): Promise<{
         conversa: Conversa;
     }>;
     removerParticipante(conversaId: string, identidadeId: string): Promise<unknown>;

@@ -1384,6 +1384,16 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
             ] }),
             !souEu && aoVerPerfil && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Ver perfil", onClick: () => aoVerPerfil(p), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:user-circle" }) }),
             !souEu && podeCriarConversa && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Mensagem", onClick: () => void mensagemDireta(p), children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:message-circle" }) }),
+            !souEu && souAdmin && p.papel !== "dono" && /* @__PURE__ */ jsx4(
+              BotaoIcone,
+              {
+                titulo: p.papel === "admin" ? "Remover de administrador" : "Tornar administrador",
+                onClick: () => {
+                  void api.mudarPapel(conversa.id, p.identidade_id, p.papel === "admin" ? "membro" : "admin").then(() => engine.atualizarConversas()).catch(() => void 0);
+                },
+                children: /* @__PURE__ */ jsx4(Icon3, { icon: p.papel === "admin" ? "tabler:shield-off" : "tabler:shield-plus" })
+              }
+            ),
             !souEu && souAdmin && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Remover do grupo", onClick: () => {
               void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas());
             }, children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:user-minus", className: "text-red-500" }) })

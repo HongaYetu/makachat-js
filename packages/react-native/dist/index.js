@@ -2928,12 +2928,22 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
               });
             }
           }] : [],
-          ...grupo && souAdmin && membroDe.papel !== "dono" ? [{
-            icone: "person-remove-outline",
-            rotulo: "Remover do grupo",
-            destrutivo: true,
-            acao: () => removerMembro(membroDe)
-          }] : []
+          ...grupo && souAdmin && membroDe.papel !== "dono" ? [
+            {
+              icone: membroDe.papel === "admin" ? "shield-outline" : "shield-checkmark-outline",
+              rotulo: membroDe.papel === "admin" ? "Remover de administrador" : "Tornar administrador",
+              acao: () => {
+                const p = membroDe;
+                void api.mudarPapel(conversaId, p.identidade_id, p.papel === "admin" ? "membro" : "admin").then(atualizar).catch(() => Alert3.alert("Falha", "N\xE3o foi poss\xEDvel alterar o papel."));
+              }
+            },
+            {
+              icone: "person-remove-outline",
+              rotulo: "Remover do grupo",
+              destrutivo: true,
+              acao: () => removerMembro(membroDe)
+            }
+          ] : []
         ] : []
       }
     ),

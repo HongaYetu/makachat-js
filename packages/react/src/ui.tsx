@@ -541,6 +541,19 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                                     </BotaoIcone>
                                 )}
                                 {!souEu && podeCriarConversa && <BotaoIcone titulo="Mensagem" onClick={() => void mensagemDireta(p)}><Icon icon="tabler:message-circle" /></BotaoIcone>}
+                                {!souEu && souAdmin && p.papel !== 'dono' && (
+                                    <BotaoIcone
+                                        titulo={p.papel === 'admin' ? 'Remover de administrador' : 'Tornar administrador'}
+                                        onClick={() => {
+                                            void api
+                                                .mudarPapel(conversa.id, p.identidade_id, p.papel === 'admin' ? 'membro' : 'admin')
+                                                .then(() => engine.atualizarConversas())
+                                                .catch(() => undefined);
+                                        }}
+                                    >
+                                        <Icon icon={p.papel === 'admin' ? 'tabler:shield-off' : 'tabler:shield-plus'} />
+                                    </BotaoIcone>
+                                )}
                                 {!souEu && souAdmin && (
                                     <BotaoIcone titulo="Remover do grupo" onClick={() => { void api.removerParticipante(conversa.id, p.identidade_id).then(() => engine.atualizarConversas()); }}>
                                         <Icon icon="tabler:user-minus" className="text-red-500" />

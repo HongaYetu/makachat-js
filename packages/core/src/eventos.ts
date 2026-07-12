@@ -27,6 +27,7 @@ export const EVENTOS_SERVIDOR = {
     CONVERSA_ATUALIZADA: 'chat:conversa:atualizada',
     PARTICIPANTE_ADICIONADO: 'chat:participante:adicionado',
     PARTICIPANTE_REMOVIDO: 'chat:participante:removido',
+    PARTICIPANTE_ATUALIZADO: 'chat:participante:atualizado',
     CHAMADA_INICIADA: 'chat:chamada:iniciada',
     CHAMADA_ATENDIDA: 'chat:chamada:atendida',
     CHAMADA_REJEITADA: 'chat:chamada:rejeitada',

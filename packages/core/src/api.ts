@@ -167,6 +167,14 @@ export class MakaApi {
         });
     }
 
+    /** Promove/despromove um membro do grupo (papel do dono é intocável). */
+    mudarPapel(conversaId: string, identidadeId: string, papel: 'admin' | 'membro') {
+        return this.pedir<{ conversa: Conversa }>(`/v1/chat/conversas/${conversaId}/participantes/${identidadeId}/papel`, {
+            method: 'PATCH',
+            body: JSON.stringify({ papel }),
+        });
+    }
+
     removerParticipante(conversaId: string, identidadeId: string) {
         return this.pedir(`/v1/chat/conversas/${conversaId}/participantes/${identidadeId}`, { method: 'DELETE' });
     }

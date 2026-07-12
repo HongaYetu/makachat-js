@@ -40,6 +40,7 @@ var EVENTOS_SERVIDOR = {
   CONVERSA_ATUALIZADA: "chat:conversa:atualizada",
   PARTICIPANTE_ADICIONADO: "chat:participante:adicionado",
   PARTICIPANTE_REMOVIDO: "chat:participante:removido",
+  PARTICIPANTE_ATUALIZADO: "chat:participante:atualizado",
   CHAMADA_INICIADA: "chat:chamada:iniciada",
   CHAMADA_ATENDIDA: "chat:chamada:atendida",
   CHAMADA_REJEITADA: "chat:chamada:rejeitada",
@@ -197,6 +198,13 @@ var MakaApi = class {
     return this.pedir(`/v1/chat/conversas/${conversaId}/participantes`, {
       method: "POST",
       body: JSON.stringify({ participantes })
+    });
+  }
+  /** Promove/despromove um membro do grupo (papel do dono é intocável). */
+  mudarPapel(conversaId, identidadeId, papel) {
+    return this.pedir(`/v1/chat/conversas/${conversaId}/participantes/${identidadeId}/papel`, {
+      method: "PATCH",
+      body: JSON.stringify({ papel })
     });
   }
   removerParticipante(conversaId, identidadeId) {
@@ -958,6 +966,7 @@ var SyncEngine = class {
     });
     this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ADICIONADO, () => void this.atualizarConversas());
     this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_REMOVIDO, () => void this.atualizarConversas());
+    this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ATUALIZADO, () => void this.atualizarConversas());
     for (const [nome, evento] of [
       [EVENTOS_SERVIDOR.CHAMADA_INICIADA, "iniciada"],
       [EVENTOS_SERVIDOR.CHAMADA_ATENDIDA, "atendida"],

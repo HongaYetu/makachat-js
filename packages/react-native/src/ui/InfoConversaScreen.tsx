@@ -259,12 +259,25 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                                     }]
                                   : []),
                               ...(grupo && souAdmin && membroDe.papel !== 'dono'
-                                  ? [{
-                                        icone: 'person-remove-outline' as const,
-                                        rotulo: 'Remover do grupo',
-                                        destrutivo: true,
-                                        acao: () => removerMembro(membroDe),
-                                    }]
+                                  ? [
+                                        {
+                                            icone: (membroDe.papel === 'admin' ? 'shield-outline' : 'shield-checkmark-outline') as 'shield-outline' | 'shield-checkmark-outline',
+                                            rotulo: membroDe.papel === 'admin' ? 'Remover de administrador' : 'Tornar administrador',
+                                            acao: () => {
+                                                const p = membroDe;
+                                                void api
+                                                    .mudarPapel(conversaId, p.identidade_id, p.papel === 'admin' ? 'membro' : 'admin')
+                                                    .then(atualizar)
+                                                    .catch(() => Alert.alert('Falha', 'Não foi possível alterar o papel.'));
+                                            },
+                                        },
+                                        {
+                                            icone: 'person-remove-outline' as const,
+                                            rotulo: 'Remover do grupo',
+                                            destrutivo: true,
+                                            acao: () => removerMembro(membroDe),
+                                        },
+                                    ]
                                   : []),
                           ]
                         : []
