@@ -21,7 +21,7 @@ export {
     type MakaChatConversasProps,
 } from './ui';
 export { ChamadasProvider, useChamadas, useChamadasOpcional } from './chamadas';
-export { MakaChatBoxFull, MakaChatBoxMin, MakaChatDock, useDock, type MakaChatDockProps, type BoxProps } from './boxes';
+export { MakaChatBoxFull, MakaChatBoxMin, MakaChatDock, useDock, useDockOpcional, type MakaChatDockProps, type BoxProps } from './boxes';
 export { type MakaTema } from './tema';
 export { pedirPermissaoNotificacoes, notificacoesSuportadas, mostrarNotificacao } from './notificacoes';
 export { tocarSom, comecarToque, pararToque, type NomeSom } from './sons';

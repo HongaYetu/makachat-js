@@ -2897,6 +2897,9 @@ function useDock() {
   if (!ctx) throw new Error("useDock requer <MakaChatDock>");
   return ctx;
 }
+function useDockOpcional() {
+  return useContext3(DockCtx);
+}
 function boxesQueCabem() {
   if (typeof window === "undefined") return 1;
   return Math.max(1, Math.floor((window.innerWidth - 96) / 348));
@@ -3036,6 +3039,7 @@ export {
   useChamadasOpcional,
   useConversas,
   useDock,
+  useDockOpcional,
   useEnviarMensagem,
   useFuncionalidadeAtiva,
   useLigacao,

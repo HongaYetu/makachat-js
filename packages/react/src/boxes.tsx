@@ -123,6 +123,11 @@ export function useDock(): DockApi {
     return ctx;
 }
 
+/** Como useDock, mas devolve null fora do Dock (páginas sem sessão/provider). */
+export function useDockOpcional(): DockApi | null {
+    return useContext(DockCtx);
+}
+
 export interface MakaChatDockProps {
     /** abre uma box automaticamente quando chega mensagem nova (default true) */
     autoAbrir?: boolean;

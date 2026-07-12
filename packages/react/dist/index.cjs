@@ -50,6 +50,7 @@ __export(index_exports, {
   useChamadasOpcional: () => useChamadasOpcional,
   useConversas: () => useConversas,
   useDock: () => useDock,
+  useDockOpcional: () => useDockOpcional,
   useEnviarMensagem: () => useEnviarMensagem,
   useFuncionalidadeAtiva: () => useFuncionalidadeAtiva,
   useLigacao: () => useLigacao,
@@ -2959,6 +2960,9 @@ function useDock() {
   if (!ctx) throw new Error("useDock requer <MakaChatDock>");
   return ctx;
 }
+function useDockOpcional() {
+  return (0, import_react10.useContext)(DockCtx);
+}
 function boxesQueCabem() {
   if (typeof window === "undefined") return 1;
   return Math.max(1, Math.floor((window.innerWidth - 96) / 348));
@@ -3099,6 +3103,7 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
   useChamadasOpcional,
   useConversas,
   useDock,
+  useDockOpcional,
   useEnviarMensagem,
   useFuncionalidadeAtiva,
   useLigacao,
