@@ -96,9 +96,15 @@ export interface MakaChatConversasProps {
     arquivadas?: boolean;
     conversaAtivaId?: string | null;
     onAbrirConversa(conversa: Conversa): void;
+    /** título do estado vazio (padrão: "Ainda sem conversas") */
+    tituloVazio?: string;
+    /** subtítulo do estado vazio */
+    textoVazio?: string;
+    /** estado vazio COMPLETAMENTE custom da app — substitui o do SDK */
+    renderVazio?(): React.ReactNode;
 }
 
-export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa }: MakaChatConversasProps) {
+export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }: MakaChatConversasProps) {
     const { engine, api, contactos, identidade } = useMakaChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
@@ -240,10 +246,33 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                         <Icon icon="tabler:loader-2" className="animate-spin text-3xl text-[var(--maka-primaria)]" />
                         <span className="text-sm">A carregar conversas…</span>
                     </div>
+                ) : busca.trim() ? (
+                    <div className="pt-16 text-center text-sm text-[var(--maka-texto-suave)]">Sem resultados.</div>
+                ) : renderVazio ? (
+                    <>{renderVazio()}</>
                 ) : (
-                    <div className="flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]">
-                        <Icon icon="tabler:message-circle" className="text-4xl opacity-40" />
-                        <span className="text-sm">Sem conversas</span>
+                    <div className="flex flex-col items-center px-8 pt-14 text-center">
+                        <div className="mb-4 grid h-20 w-20 place-items-center rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--maka-primaria) 10%, transparent)' }}>
+                            <Icon icon={verArquivadas ? 'tabler:archive' : 'tabler:messages'} className="text-4xl text-[var(--maka-primaria)]" />
+                        </div>
+                        <span className="mb-1 text-[15px] font-extrabold text-[var(--maka-texto)]">
+                            {tituloVazio ?? (verArquivadas ? 'Nada arquivado' : 'Ainda sem conversas')}
+                        </span>
+                        <span className="text-[13px] leading-snug text-[var(--maka-texto-suave)]">
+                            {textoVazio ??
+                                (verArquivadas
+                                    ? 'As conversas que arquivares aparecem aqui.'
+                                    : 'Quando começares a falar com alguém, as conversas aparecem aqui.')}
+                        </span>
+                        {!verArquivadas && podeCriarConversa && (
+                            <button
+                                onClick={() => setCriarGrupo(true)}
+                                className="mt-4 flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-[var(--maka-primaria)] px-4 py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-md"
+                            >
+                                <Icon icon="tabler:plus" />
+                                Começar conversa
+                            </button>
+                        )}
                     </div>
                 )
             )}
@@ -560,12 +589,58 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }: {
 function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriada }: {
     conversas: Conversa[]; contactos: AlvoParticipante[]; podeGrupos: boolean; aoFechar(): void; aoCriada(c: Conversa): void;
 }) {
-    const { api, engine, identidade } = useMakaChat();
+    const { api, engine, identidade, pesquisarContactos } = useMakaChat();
     const [nome, setNome] = useState('');
-    const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
-    const pessoas = pessoasConhecidas(conversas, contactos, new Set([`${identidade.tipo}:${identidade.id}`]));
+    const [busca, setBusca] = useState('');
+    const [resultados, setResultados] = useState<AlvoParticipante[] | null>(null);
+    const [aPesquisar, setAPesquisar] = useState(false);
+    // Map (não Set): os escolhidos têm de sobreviver a pesquisas que mudam a lista
+    const [escolhidos, setEscolhidos] = useState<Map<string, AlvoParticipante>>(new Map());
+    const pedidoAtual = useRef(0);
+    const sugestoes = pessoasConhecidas(conversas, contactos, new Set([`${identidade.tipo}:${identidade.id}`]));
+
+    // pesquisa NO serviço (debounce) quando a app fornece; senão filtro local
+    useEffect(() => {
+        const q = busca.trim();
+
+        if (!q) {
+            setResultados(null);
+            setAPesquisar(false);
+
+            return;
+        }
+
+        if (!pesquisarContactos) {
+            const ql = q.toLowerCase();
+            setResultados(sugestoes.filter((p) => (p.nome ?? p.id_externo).toLowerCase().includes(ql)));
+
+            return;
+        }
+
+        setAPesquisar(true);
+        const pedido = ++pedidoAtual.current;
+        const timer = setTimeout(() => {
+            void pesquisarContactos(q)
+                .then((lista) => {
+                    if (pedidoAtual.current !== pedido) return; // resposta obsoleta
+
+                    setResultados(lista.filter((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)));
+                })
+                .catch(() => {
+                    if (pedidoAtual.current === pedido) setResultados([]);
+                })
+                .finally(() => {
+                    if (pedidoAtual.current === pedido) setAPesquisar(false);
+                });
+        }, 350);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [busca, pesquisarContactos]);
+
+    const pessoas = busca.trim() ? (resultados ?? []) : sugestoes;
     const grupo = escolhidos.size > 1;
-    const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
+    const membros = [...escolhidos.values()];
     // sem nome escrito, o grupo nasce com os primeiros nomes dos membros
     const nomePadrao = membros.map((p) => (p.nome ?? p.id_externo).split(' ')[0]).join(', ');
 
@@ -574,7 +649,7 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
 
         const { conversa } = grupo
             ? await api.criarGrupo(nome.trim() || nomePadrao, membros)
-            : await api.criarPrivada({ id_externo: membros[0].id_externo, tipo: membros[0].tipo, nome: membros[0].nome });
+            : await api.criarPrivada({ id_externo: membros[0].id_externo, tipo: membros[0].tipo, nome: membros[0].nome, foto: membros[0].foto });
         await engine.atualizarConversas();
         aoCriada(conversa);
     };
@@ -586,7 +661,20 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                     <span className="font-bold text-[var(--maka-texto)]">Nova conversa</span>
                     <BotaoIcone titulo="Fechar" onClick={aoFechar}><Icon icon="tabler:x" /></BotaoIcone>
                 </div>
-                {podeGrupos && (
+                <div className="px-4 pb-2">
+                    <div className="flex items-center gap-2 rounded-full bg-[var(--maka-fundo)] px-3.5">
+                        <Icon icon="tabler:search" className="shrink-0 text-[var(--maka-texto-suave)]" />
+                        <input
+                            autoFocus
+                            className="w-full border-0 bg-transparent py-2.5 text-sm text-[var(--maka-texto)] outline-none"
+                            placeholder="Pesquisar pessoas"
+                            value={busca}
+                            onChange={(e) => setBusca(e.target.value)}
+                        />
+                        {aPesquisar && <Icon icon="tabler:loader-2" className="shrink-0 animate-spin text-[var(--maka-texto-suave)]" />}
+                    </div>
+                </div>
+                {podeGrupos && !busca.trim() && (
                     <div className="px-4 pb-1 text-xs text-[var(--maka-texto-suave)]">
                         Escolhe uma pessoa — ou várias para criar um grupo.
                     </div>
@@ -594,7 +682,6 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                 {grupo && (
                     <div className="px-4 pb-2 pt-1">
                         <input
-                            autoFocus
                             className="w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]"
                             placeholder={`Nome do grupo (padrão: ${nomePadrao})`}
                             value={nome}
@@ -603,7 +690,11 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                     </div>
                 )}
                 <div className="maka-scroll min-h-0 flex-1 overflow-auto">
-                    {pessoas.length === 0 && <div className="px-4 py-6 text-sm text-[var(--maka-texto-suave)]">Sem contactos conhecidos.</div>}
+                    {pessoas.length === 0 && (
+                        <div className="px-4 py-6 text-sm text-[var(--maka-texto-suave)]">
+                            {busca.trim() ? (aPesquisar ? 'A pesquisar…' : 'Sem resultados.') : 'Sem contactos conhecidos — usa a pesquisa.'}
+                        </div>
+                    )}
                     {pessoas.map((p) => {
                         const chave = `${p.tipo}:${p.id_externo}`;
                         const marcado = escolhidos.has(chave);
@@ -612,17 +703,16 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
                             <button
                                 key={chave}
                                 onClick={() => setEscolhidos((a) => {
-                                    if (marcado) { const n = new Set(a); n.delete(chave); return n; }
+                                    if (marcado) { const n = new Map(a); n.delete(chave); return n; }
 
                                     // sem flag de grupos, só uma pessoa de cada vez
-                                    return podeGrupos ? new Set(a).add(chave) : new Set([chave]);
+                                    return podeGrupos ? new Map(a).set(chave, p) : new Map([[chave, p]]);
                                 })}
                                 className="flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]"
                             >
                                 <Icon icon={marcado ? 'tabler:circle-check-filled' : 'tabler:circle'} className={`text-xl ${marcado ? 'text-[var(--maka-primaria)]' : 'text-[var(--maka-texto-suave)]'}`} />
                                 <AvatarWeb nome={p.nome ?? p.id_externo} url={p.foto} tamanho={34} />
                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]">{p.nome ?? p.id_externo}</span>
-                                <span className="text-xs text-[var(--maka-texto-suave)]">{p.tipo}</span>
                             </button>
                         );
                     })}

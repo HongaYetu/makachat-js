@@ -182,7 +182,7 @@ function pararToque() {
 // src/provider.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
 var Contexto = (0, import_react.createContext)(null);
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }) {
   const [features, setFeatures] = (0, import_react.useState)([]);
   const [ligado, setLigado] = (0, import_react.useState)(false);
   const visiveis = (0, import_react.useRef)(/* @__PURE__ */ new Map());
@@ -287,7 +287,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     document.addEventListener("visibilitychange", aoVisibilidade);
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
   }, [valor]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], aoAbrirPartilha }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, aoAbrirPartilha }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
@@ -1078,7 +1078,7 @@ function useFecharFora(ativo, chave, fechar) {
     return () => document.removeEventListener("mousedown", aoMousedown);
   }, [ativo, chave, fechar]);
 }
-function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa }) {
+function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }) {
   const { engine, api, contactos, identidade } = useMakaChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
@@ -1173,9 +1173,21 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
       conversas.length === 0 && (aCarregar ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:loader-2", className: "animate-spin text-3xl text-[var(--maka-primaria)]" }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-sm", children: "A carregar conversas\u2026" })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col items-center gap-2 pt-16 text-[var(--maka-texto-suave)]", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:message-circle", className: "text-4xl opacity-40" }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-sm", children: "Sem conversas" })
+      ] }) : busca.trim() ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "pt-16 text-center text-sm text-[var(--maka-texto-suave)]", children: "Sem resultados." }) : renderVazio ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_jsx_runtime4.Fragment, { children: renderVazio() }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col items-center px-8 pt-14 text-center", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mb-4 grid h-20 w-20 place-items-center rounded-full", style: { backgroundColor: "color-mix(in srgb, var(--maka-primaria) 10%, transparent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: verArquivadas ? "tabler:archive" : "tabler:messages", className: "text-4xl text-[var(--maka-primaria)]" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mb-1 text-[15px] font-extrabold text-[var(--maka-texto)]", children: tituloVazio ?? (verArquivadas ? "Nada arquivado" : "Ainda sem conversas") }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[13px] leading-snug text-[var(--maka-texto-suave)]", children: textoVazio ?? (verArquivadas ? "As conversas que arquivares aparecem aqui." : "Quando come\xE7ares a falar com algu\xE9m, as conversas aparecem aqui.") }),
+        !verArquivadas && podeCriarConversa && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+          "button",
+          {
+            onClick: () => setCriarGrupo(true),
+            className: "mt-4 flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-[var(--maka-primaria)] px-4 py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-md",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:plus" }),
+              "Come\xE7ar conversa"
+            ]
+          }
+        )
       ] })),
       (busca.trim() && resultadosServidor ? resultadosServidor : conversas.filter((c) => !busca.trim() || (c.titulo ?? "").toLowerCase().includes(busca.trim().toLowerCase()))).map((c) => {
         const ativa = c.id === conversaAtivaId;
@@ -1445,16 +1457,47 @@ function AdicionarMembros({ conversa, conversas, contactos, aoFechar }) {
   ] }) });
 }
 function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriada }) {
-  const { api, engine, identidade } = useMakaChat();
+  const { api, engine, identidade, pesquisarContactos } = useMakaChat();
   const [nome, setNome] = (0, import_react8.useState)("");
-  const [escolhidos, setEscolhidos] = (0, import_react8.useState)(/* @__PURE__ */ new Set());
-  const pessoas = pessoasConhecidas(conversas, contactos, /* @__PURE__ */ new Set([`${identidade.tipo}:${identidade.id}`]));
+  const [busca, setBusca] = (0, import_react8.useState)("");
+  const [resultados, setResultados] = (0, import_react8.useState)(null);
+  const [aPesquisar, setAPesquisar] = (0, import_react8.useState)(false);
+  const [escolhidos, setEscolhidos] = (0, import_react8.useState)(/* @__PURE__ */ new Map());
+  const pedidoAtual = (0, import_react8.useRef)(0);
+  const sugestoes = pessoasConhecidas(conversas, contactos, /* @__PURE__ */ new Set([`${identidade.tipo}:${identidade.id}`]));
+  (0, import_react8.useEffect)(() => {
+    const q = busca.trim();
+    if (!q) {
+      setResultados(null);
+      setAPesquisar(false);
+      return;
+    }
+    if (!pesquisarContactos) {
+      const ql = q.toLowerCase();
+      setResultados(sugestoes.filter((p) => (p.nome ?? p.id_externo).toLowerCase().includes(ql)));
+      return;
+    }
+    setAPesquisar(true);
+    const pedido = ++pedidoAtual.current;
+    const timer = setTimeout(() => {
+      void pesquisarContactos(q).then((lista) => {
+        if (pedidoAtual.current !== pedido) return;
+        setResultados(lista.filter((p) => !(p.id_externo === identidade.id && p.tipo === identidade.tipo)));
+      }).catch(() => {
+        if (pedidoAtual.current === pedido) setResultados([]);
+      }).finally(() => {
+        if (pedidoAtual.current === pedido) setAPesquisar(false);
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [busca, pesquisarContactos]);
+  const pessoas = busca.trim() ? resultados ?? [] : sugestoes;
   const grupo = escolhidos.size > 1;
-  const membros = pessoas.filter((p) => escolhidos.has(`${p.tipo}:${p.id_externo}`));
+  const membros = [...escolhidos.values()];
   const nomePadrao = membros.map((p) => (p.nome ?? p.id_externo).split(" ")[0]).join(", ");
   const criar = async () => {
     if (escolhidos.size === 0) return;
-    const { conversa } = grupo ? await api.criarGrupo(nome.trim() || nomePadrao, membros) : await api.criarPrivada({ id_externo: membros[0].id_externo, tipo: membros[0].tipo, nome: membros[0].nome });
+    const { conversa } = grupo ? await api.criarGrupo(nome.trim() || nomePadrao, membros) : await api.criarPrivada({ id_externo: membros[0].id_externo, tipo: membros[0].tipo, nome: membros[0].nome, foto: membros[0].foto });
     await engine.atualizarConversas();
     aoCriada(conversa);
   };
@@ -1463,11 +1506,24 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "font-bold text-[var(--maka-texto)]", children: "Nova conversa" }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Fechar", onClick: aoFechar, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:x" }) })
     ] }),
-    podeGrupos && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-4 pb-1 text-xs text-[var(--maka-texto-suave)]", children: "Escolhe uma pessoa \u2014 ou v\xE1rias para criar um grupo." }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-4 pb-2", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2 rounded-full bg-[var(--maka-fundo)] px-3.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:search", className: "shrink-0 text-[var(--maka-texto-suave)]" }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "input",
+        {
+          autoFocus: true,
+          className: "w-full border-0 bg-transparent py-2.5 text-sm text-[var(--maka-texto)] outline-none",
+          placeholder: "Pesquisar pessoas",
+          value: busca,
+          onChange: (e) => setBusca(e.target.value)
+        }
+      ),
+      aPesquisar && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:loader-2", className: "shrink-0 animate-spin text-[var(--maka-texto-suave)]" })
+    ] }) }),
+    podeGrupos && !busca.trim() && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-4 pb-1 text-xs text-[var(--maka-texto-suave)]", children: "Escolhe uma pessoa \u2014 ou v\xE1rias para criar um grupo." }),
     grupo && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-4 pb-2 pt-1", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       "input",
       {
-        autoFocus: true,
         className: "w-full rounded-full border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm text-[var(--maka-texto)] outline-none focus:ring-2 focus:ring-[var(--maka-primaria)]",
         placeholder: `Nome do grupo (padr\xE3o: ${nomePadrao})`,
         value: nome,
@@ -1475,7 +1531,7 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
       }
     ) }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "maka-scroll min-h-0 flex-1 overflow-auto", children: [
-      pessoas.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-4 py-6 text-sm text-[var(--maka-texto-suave)]", children: "Sem contactos conhecidos." }),
+      pessoas.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "px-4 py-6 text-sm text-[var(--maka-texto-suave)]", children: busca.trim() ? aPesquisar ? "A pesquisar\u2026" : "Sem resultados." : "Sem contactos conhecidos \u2014 usa a pesquisa." }),
       pessoas.map((p) => {
         const chave = `${p.tipo}:${p.id_externo}`;
         const marcado = escolhidos.has(chave);
@@ -1484,18 +1540,17 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
           {
             onClick: () => setEscolhidos((a) => {
               if (marcado) {
-                const n = new Set(a);
+                const n = new Map(a);
                 n.delete(chave);
                 return n;
               }
-              return podeGrupos ? new Set(a).add(chave) : /* @__PURE__ */ new Set([chave]);
+              return podeGrupos ? new Map(a).set(chave, p) : /* @__PURE__ */ new Map([[chave, p]]);
             }),
             className: "flex w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-black/[.04]",
             children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: marcado ? "tabler:circle-check-filled" : "tabler:circle", className: `text-xl ${marcado ? "text-[var(--maka-primaria)]" : "text-[var(--maka-texto-suave)]"}` }),
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AvatarWeb, { nome: p.nome ?? p.id_externo, url: p.foto, tamanho: 34 }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]", children: p.nome ?? p.id_externo }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-xs text-[var(--maka-texto-suave)]", children: p.tipo })
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "min-w-0 flex-1 truncate text-sm font-semibold text-[var(--maka-texto)]", children: p.nome ?? p.id_externo })
             ]
           },
           chave

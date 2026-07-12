@@ -33,6 +33,8 @@ export interface MakaChatContexto {
     subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
     /** contactos fornecidos pela app (para criar grupos/conversas) */
     contactos: AlvoParticipante[];
+    /** pesquisa de contactos NO serviço (API da app) — usada na nova conversa */
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
     /** ligação socket ativa? (para barras de estado offline) */
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
@@ -53,6 +55,8 @@ export interface MakaChatProviderProps {
     tema?: MakaTema;
     /** contactos conhecidos do serviço (opcional) — usados em criar grupo/adicionar membros */
     contactos?: AlvoParticipante[];
+    /** pesquisa de contactos NO serviço — a nova conversa usa isto com debounce */
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
     /** notificações nativas do browser quando a página está em background (default: false, opt-in) */
     notificacoesNativas?: boolean;
     /** clique na notificação — a app decide como abrir a conversa (ex.: useDock().abrir) */
@@ -62,7 +66,7 @@ export interface MakaChatProviderProps {
     children: React.ReactNode;
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
     const [ligado, setLigado] = useState(false);
     const visiveis = useRef(new Map<string, number>());
@@ -207,7 +211,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     }, [valor]);
 
     return (
-        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [], aoAbrirPartilha }}>
+        <Contexto.Provider value={{ ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, aoAbrirPartilha }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

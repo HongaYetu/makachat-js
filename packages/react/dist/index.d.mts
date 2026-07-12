@@ -31,6 +31,8 @@ interface MakaChatContexto {
     subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
     /** contactos fornecidos pela app (para criar grupos/conversas) */
     contactos: AlvoParticipante[];
+    /** pesquisa de contactos NO serviço (API da app) — usada na nova conversa */
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
     /** ligação socket ativa? (para barras de estado offline) */
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
@@ -48,6 +50,8 @@ interface MakaChatProviderProps {
     tema?: MakaTema;
     /** contactos conhecidos do serviço (opcional) — usados em criar grupo/adicionar membros */
     contactos?: AlvoParticipante[];
+    /** pesquisa de contactos NO serviço — a nova conversa usa isto com debounce */
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
     /** notificações nativas do browser quando a página está em background (default: false, opt-in) */
     notificacoesNativas?: boolean;
     /** clique na notificação — a app decide como abrir a conversa (ex.: useDock().abrir) */
@@ -56,7 +60,7 @@ interface MakaChatProviderProps {
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, children }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
@@ -89,8 +93,14 @@ interface MakaChatConversasProps {
     arquivadas?: boolean;
     conversaAtivaId?: string | null;
     onAbrirConversa(conversa: Conversa): void;
+    /** título do estado vazio (padrão: "Ainda sem conversas") */
+    tituloVazio?: string;
+    /** subtítulo do estado vazio */
+    textoVazio?: string;
+    /** estado vazio COMPLETAMENTE custom da app — substitui o do SDK */
+    renderVazio?(): React.ReactNode;
 }
-declare function MakaChatConversas({ arquivadas, conversaAtivaId, onAbrirConversa }: MakaChatConversasProps): React.JSX.Element;
+declare function MakaChatConversas({ arquivadas, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }: MakaChatConversasProps): React.JSX.Element;
 interface ConversaPainelProps {
     conversaId: string;
     compacto?: boolean;
