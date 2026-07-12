@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AlvoParticipante, Anexo, Conversa, dividirLinks, MensagemLink, ParticipanteConversa } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFuncionalidadeAtiva, useVersaoChat } from '../hooks';
 import { useMakaChat, useTema } from '../provider';
 import { ReprodutorAudio } from './audio';
@@ -23,6 +24,7 @@ export interface InfoConversaScreenProps {
 export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = 'escura' }: InfoConversaScreenProps) {
     const { engine, api, identidade, contactos, aoVerPerfil } = useMakaChat();
     const tema = useTema();
+    const insets = useSafeAreaInsets();
     const versao = useVersaoChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
@@ -113,7 +115,7 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
             {barraEstado != null && (
                 <StatusBar animated barStyle={barraEstado === 'clara' ? 'light-content' : 'dark-content'} />
             )}
-            <View style={[estilos.header, { backgroundColor: tema.superficie }]}>
+            <View style={[estilos.header, { backgroundColor: tema.superficie, paddingTop: insets.top + 8 }]}>
                 {onVoltar && (
                     <Pressable onPress={onVoltar} style={{ padding: 6 }}>
                         <Ionicons name="chevron-back" size={24} color={tema.texto} />
@@ -124,7 +126,7 @@ export function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraC
                 </Text>
             </View>
 
-            <ScrollView>
+            <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
                 {/* topo: foto + nome */}
                 <View style={[estilos.topo, { backgroundColor: tema.superficie }]}>
                     <Pressable onPress={grupo && souAdmin ? () => void mudarFoto() : undefined}>
@@ -508,7 +510,8 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }: {
 }
 
 const estilos = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', paddingTop: 50, paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
+    // paddingTop dinâmico (insets.top) aplicado inline no render
+    header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
     topo: { alignItems: 'center', paddingVertical: 22, marginBottom: 10 },
     mudarFoto: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
     inputNome: { minWidth: 200, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, fontSize: 16, fontWeight: '700' },

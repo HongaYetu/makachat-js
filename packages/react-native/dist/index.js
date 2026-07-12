@@ -2749,10 +2749,12 @@ import { Ionicons as Ionicons7 } from "@expo/vector-icons";
 import { dividirLinks as dividirLinks2 } from "@hongayetu/makachat-core";
 import { useEffect as useEffect9, useMemo as useMemo6, useState as useState8 } from "react";
 import { ActivityIndicator as ActivityIndicator2, Alert as Alert3, Image as Image4, Linking as Linking4, Pressable as Pressable7, ScrollView, StatusBar as StatusBar2, StyleSheet as StyleSheet7, Text as Text7, TextInput as TextInput4, useWindowDimensions as useWindowDimensions2, View as View7 } from "react-native";
+import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
   const { engine, api, identidade, contactos, aoVerPerfil } = useMakaChat();
   const tema = useTema();
+  const insets = useSafeAreaInsets3();
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
@@ -2824,11 +2826,11 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   if (!conversa) return /* @__PURE__ */ jsx8(View7, { style: { flex: 1, backgroundColor: tema.fundo } });
   return /* @__PURE__ */ jsxs7(View7, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
     barraEstado != null && /* @__PURE__ */ jsx8(StatusBar2, { animated: true, barStyle: barraEstado === "clara" ? "light-content" : "dark-content" }),
-    /* @__PURE__ */ jsxs7(View7, { style: [estilos7.header, { backgroundColor: tema.superficie }], children: [
+    /* @__PURE__ */ jsxs7(View7, { style: [estilos7.header, { backgroundColor: tema.superficie, paddingTop: insets.top + 8 }], children: [
       onVoltar && /* @__PURE__ */ jsx8(Pressable7, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ jsx8(Ionicons7, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ jsx8(Text7, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })
     ] }),
-    /* @__PURE__ */ jsxs7(ScrollView, { children: [
+    /* @__PURE__ */ jsxs7(ScrollView, { contentContainerStyle: { paddingBottom: insets.bottom + 16 }, children: [
       /* @__PURE__ */ jsxs7(View7, { style: [estilos7.topo, { backgroundColor: tema.superficie }], children: [
         /* @__PURE__ */ jsxs7(Pressable7, { onPress: grupo && souAdmin ? () => void mudarFoto() : void 0, children: [
           /* @__PURE__ */ jsx8(Avatar, { nome: conversa.titulo ?? "?", url: conversa.foto_url, tamanho: 96 }),
@@ -3095,7 +3097,8 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }) {
   ] });
 }
 var estilos7 = StyleSheet7.create({
-  header: { flexDirection: "row", alignItems: "center", paddingTop: 50, paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
+  // paddingTop dinâmico (insets.top) aplicado inline no render
+  header: { flexDirection: "row", alignItems: "center", paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
   topo: { alignItems: "center", paddingVertical: 22, marginBottom: 10 },
   mudarFoto: { position: "absolute", right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   inputNome: { minWidth: 200, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, fontSize: 16, fontWeight: "700" },
@@ -3117,13 +3120,13 @@ var estilos7 = StyleSheet7.create({
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
 import { useEffect as useEffect10, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
 import { ActivityIndicator as ActivityIndicator3, Alert as Alert4, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, TextInput as TextInput5, View as View8 } from "react-native";
-import { useSafeAreaInsets as useSafeAreaInsets3 } from "react-native-safe-area-context";
+import { useSafeAreaInsets as useSafeAreaInsets4 } from "react-native-safe-area-context";
 import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var DEBOUNCE_MS = 350;
 function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes = "Sugest\xF5es" }) {
   const { api, engine, contactos, identidade } = useMakaChat();
   const tema = useTema();
-  const insets = useSafeAreaInsets3();
+  const insets = useSafeAreaInsets4();
   const conversas = useConversas(false);
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const [busca, setBusca] = useState9("");
@@ -3380,7 +3383,7 @@ var estilos8 = StyleSheet8.create({
 
 // src/chamadas.tsx
 import { Ionicons as Ionicons9 } from "@expo/vector-icons";
-import { useSafeAreaInsets as useSafeAreaInsets4 } from "react-native-safe-area-context";
+import { useSafeAreaInsets as useSafeAreaInsets5 } from "react-native-safe-area-context";
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect11, useMemo as useMemo8, useRef as useRef9, useState as useState10 } from "react";
 import { AppState as AppState3, Modal as Modal2, Platform as Platform3, Pressable as Pressable9, StatusBar as StatusBar3, StyleSheet as StyleSheet9, Text as Text9, useWindowDimensions as useWindowDimensions3, View as View9 } from "react-native";
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
@@ -3864,7 +3867,7 @@ function ChamadasProvider({ children }) {
 }
 function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }) {
   const { width, height } = useWindowDimensions3();
-  const insets = useSafeAreaInsets4();
+  const insets = useSafeAreaInsets5();
   const [alturaBandeja, setAlturaBandeja] = useState10(0);
   const acimaControlos = insets.bottom + 24 + (alturaBandeja || 84) + 14;
   const video = ativa.chamada.tipo === "video";

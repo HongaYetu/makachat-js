@@ -2757,10 +2757,12 @@ var import_vector_icons7 = require("@expo/vector-icons");
 var import_makachat_core3 = require("@hongayetu/makachat-core");
 var import_react10 = require("react");
 var import_react_native8 = require("react-native");
+var import_react_native_safe_area_context3 = require("react-native-safe-area-context");
 var import_jsx_runtime8 = require("react/jsx-runtime");
 function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado = "escura" }) {
   const { engine, api, identidade, contactos, aoVerPerfil } = useMakaChat();
   const tema = useTema();
+  const insets = (0, import_react_native_safe_area_context3.useSafeAreaInsets)();
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
@@ -2832,11 +2834,11 @@ function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa
   if (!conversa) return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.View, { style: { flex: 1, backgroundColor: tema.fundo } });
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
     barraEstado != null && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.StatusBar, { animated: true, barStyle: barraEstado === "clara" ? "light-content" : "dark-content" }),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.header, { backgroundColor: tema.superficie }], children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.header, { backgroundColor: tema.superficie, paddingTop: insets.top + 8 }], children: [
       onVoltar && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Pressable, { onPress: onVoltar, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: "chevron-back", size: 24, color: tema.texto }) }),
       /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { flex: 1, fontSize: 17, fontWeight: "700", color: tema.texto }, children: grupo ? "Info do grupo" : "Contacto" })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.ScrollView, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.ScrollView, { contentContainerStyle: { paddingBottom: insets.bottom + 16 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.View, { style: [estilos7.topo, { backgroundColor: tema.superficie }], children: [
         /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react_native8.Pressable, { onPress: grupo && souAdmin ? () => void mudarFoto() : void 0, children: [
           /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Avatar, { nome: conversa.titulo ?? "?", url: conversa.foto_url, tamanho: 96 }),
@@ -3103,7 +3105,8 @@ function AdicionarMembrosSheet({ conversa, contactos, aoFechar, aoAdicionar }) {
   ] });
 }
 var estilos7 = import_react_native8.StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", paddingTop: 50, paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
+  // paddingTop dinâmico (insets.top) aplicado inline no render
+  header: { flexDirection: "row", alignItems: "center", paddingBottom: 10, paddingHorizontal: 10, gap: 6 },
   topo: { alignItems: "center", paddingVertical: 22, marginBottom: 10 },
   mudarFoto: { position: "absolute", right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   inputNome: { minWidth: 200, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, fontSize: 16, fontWeight: "700" },
@@ -3125,13 +3128,13 @@ var estilos7 = import_react_native8.StyleSheet.create({
 var import_vector_icons8 = require("@expo/vector-icons");
 var import_react11 = require("react");
 var import_react_native9 = require("react-native");
-var import_react_native_safe_area_context3 = require("react-native-safe-area-context");
+var import_react_native_safe_area_context4 = require("react-native-safe-area-context");
 var import_jsx_runtime9 = require("react/jsx-runtime");
 var DEBOUNCE_MS = 350;
 function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes = "Sugest\xF5es" }) {
   const { api, engine, contactos, identidade } = useMakaChat();
   const tema = useTema();
-  const insets = (0, import_react_native_safe_area_context3.useSafeAreaInsets)();
+  const insets = (0, import_react_native_safe_area_context4.useSafeAreaInsets)();
   const conversas = useConversas(false);
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const [busca, setBusca] = (0, import_react11.useState)("");
@@ -3388,7 +3391,7 @@ var estilos8 = import_react_native9.StyleSheet.create({
 
 // src/chamadas.tsx
 var import_vector_icons9 = require("@expo/vector-icons");
-var import_react_native_safe_area_context4 = require("react-native-safe-area-context");
+var import_react_native_safe_area_context5 = require("react-native-safe-area-context");
 var import_react12 = require("react");
 var import_react_native10 = require("react-native");
 var import_jsx_runtime10 = require("react/jsx-runtime");
@@ -3872,7 +3875,7 @@ function ChamadasProvider({ children }) {
 }
 function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, altifalante, ecra, livekit, aoAtender, aoDesligar, aoMudo, aoCamara, aoTrocarCamara, aoAltifalante, aoEcra, aoMinimizar, tema }) {
   const { width, height } = (0, import_react_native10.useWindowDimensions)();
-  const insets = (0, import_react_native_safe_area_context4.useSafeAreaInsets)();
+  const insets = (0, import_react_native_safe_area_context5.useSafeAreaInsets)();
   const [alturaBandeja, setAlturaBandeja] = (0, import_react12.useState)(0);
   const acimaControlos = insets.bottom + 24 + (alturaBandeja || 84) + 14;
   const video = ativa.chamada.tipo === "video";
