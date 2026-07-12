@@ -22,6 +22,9 @@ export class MakaSocket {
     /** evita dois sockets vivos quando ligar() é chamado em concorrência (ex.: StrictMode) */
     private aLigar: Promise<void> | null = null;
     private geracao = 0;
+    /** falhas seguidas do 1º connect (obterToken) — controla o backoff do retry */
+    private tentativasArranque = 0;
+    private retryAgendado: ReturnType<typeof setTimeout> | null = null;
 
     constructor(opcoes: MakaSocketOpcoes) {
         this.opcoes = opcoes;
@@ -53,7 +56,18 @@ export class MakaSocket {
 
     private async ligarInterno(): Promise<void> {
         const geracao = this.geracao;
-        const credenciais = await this.opcoes.obterToken();
+
+        let credenciais: Awaited<ReturnType<ObterToken>>;
+
+        try {
+            credenciais = await this.opcoes.obterToken();
+        } catch {
+            // 1º connect falhado (sem rede/backend em baixo): o socket.io ainda
+            // não existe para religar sozinho — agendamos nós o retry com backoff.
+            this.agendarRetryArranque(geracao);
+
+            return;
+        }
 
         // desligar() foi chamado durante o await — não deixar nascer um socket órfão
         if (geracao !== this.geracao) {
@@ -71,7 +85,10 @@ export class MakaSocket {
             this.socket.on(evento, handler);
         }
 
-        this.socket.on('connect', () => this.opcoes.aoLigar?.());
+        this.socket.on('connect', () => {
+            this.tentativasArranque = 0;
+            this.opcoes.aoLigar?.();
+        });
         this.socket.on('disconnect', () => this.opcoes.aoDesligar?.());
 
         this.socket.on('connect_error', async () => {
@@ -86,18 +103,53 @@ export class MakaSocket {
 
     desligar(): void {
         this.geracao += 1;
+        this.tentativasArranque = 0;
+
+        if (this.retryAgendado) {
+            clearTimeout(this.retryAgendado);
+            this.retryAgendado = null;
+        }
+
         this.socket?.disconnect();
         this.socket = null;
     }
 
     /**
      * Reconexão imediata (ex.: app volta do background — Android mata websockets
-     * e o backoff do socket.io demoraria a notar). No-op se já ligado/sem socket.
+     * e o backoff do socket.io demoraria a notar). Se o 1º connect falhou (socket
+     * ainda nulo), re-arranca do zero em vez de ficar morto até reiniciar a app.
      */
     garantirLigado(): void {
-        if (this.socket && !this.socket.connected) {
+        if (!this.socket) {
+            void this.ligar();
+
+            return;
+        }
+
+        if (!this.socket.connected) {
             this.socket.connect();
         }
+    }
+
+    /** Backoff (1s→30s) para re-tentar o 1º connect enquanto o socket não existe. */
+    private agendarRetryArranque(geracao: number): void {
+        if (geracao !== this.geracao || this.retryAgendado) {
+            return;
+        }
+
+        const atraso = Math.min(1_000 * 2 ** this.tentativasArranque, 30_000);
+        this.tentativasArranque += 1;
+
+        this.retryAgendado = setTimeout(() => {
+            this.retryAgendado = null;
+
+            // desligar() entretanto? socket já nasceu por outra via? não re-tentar.
+            if (geracao !== this.geracao || this.socket) {
+                return;
+            }
+
+            void this.ligar();
+        }, atraso);
     }
 
     on(evento: string, handler: (payload: never) => void): void {

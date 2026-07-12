@@ -424,6 +424,9 @@ declare class MakaSocket {
     /** evita dois sockets vivos quando ligar() é chamado em concorrência (ex.: StrictMode) */
     private aLigar;
     private geracao;
+    /** falhas seguidas do 1º connect (obterToken) — controla o backoff do retry */
+    private tentativasArranque;
+    private retryAgendado;
     constructor(opcoes: MakaSocketOpcoes);
     get ligado(): boolean;
     get bruto(): Socket | null;
@@ -432,9 +435,12 @@ declare class MakaSocket {
     desligar(): void;
     /**
      * Reconexão imediata (ex.: app volta do background — Android mata websockets
-     * e o backoff do socket.io demoraria a notar). No-op se já ligado/sem socket.
+     * e o backoff do socket.io demoraria a notar). Se o 1º connect falhou (socket
+     * ainda nulo), re-arranca do zero em vez de ficar morto até reiniciar a app.
      */
     garantirLigado(): void;
+    /** Backoff (1s→30s) para re-tentar o 1º connect enquanto o socket não existe. */
+    private agendarRetryArranque;
     on(evento: string, handler: (payload: never) => void): void;
     private emitirComAck;
     enviarMensagem(dados: DadosEnvioMensagem & {

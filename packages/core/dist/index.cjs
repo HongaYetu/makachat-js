@@ -342,6 +342,9 @@ var MakaSocket = class {
   /** evita dois sockets vivos quando ligar() é chamado em concorrência (ex.: StrictMode) */
   aLigar = null;
   geracao = 0;
+  /** falhas seguidas do 1º connect (obterToken) — controla o backoff do retry */
+  tentativasArranque = 0;
+  retryAgendado = null;
   constructor(opcoes) {
     this.opcoes = opcoes;
   }
@@ -365,7 +368,13 @@ var MakaSocket = class {
   }
   async ligarInterno() {
     const geracao = this.geracao;
-    const credenciais = await this.opcoes.obterToken();
+    let credenciais;
+    try {
+      credenciais = await this.opcoes.obterToken();
+    } catch {
+      this.agendarRetryArranque(geracao);
+      return;
+    }
     if (geracao !== this.geracao) {
       return;
     }
@@ -378,7 +387,10 @@ var MakaSocket = class {
     for (const [evento, handler] of this.handlers) {
       this.socket.on(evento, handler);
     }
-    this.socket.on("connect", () => this.opcoes.aoLigar?.());
+    this.socket.on("connect", () => {
+      this.tentativasArranque = 0;
+      this.opcoes.aoLigar?.();
+    });
     this.socket.on("disconnect", () => this.opcoes.aoDesligar?.());
     this.socket.on("connect_error", async () => {
       const novas = await this.opcoes.obterToken().catch(() => null);
@@ -389,17 +401,42 @@ var MakaSocket = class {
   }
   desligar() {
     this.geracao += 1;
+    this.tentativasArranque = 0;
+    if (this.retryAgendado) {
+      clearTimeout(this.retryAgendado);
+      this.retryAgendado = null;
+    }
     this.socket?.disconnect();
     this.socket = null;
   }
   /**
    * Reconexão imediata (ex.: app volta do background — Android mata websockets
-   * e o backoff do socket.io demoraria a notar). No-op se já ligado/sem socket.
+   * e o backoff do socket.io demoraria a notar). Se o 1º connect falhou (socket
+   * ainda nulo), re-arranca do zero em vez de ficar morto até reiniciar a app.
    */
   garantirLigado() {
-    if (this.socket && !this.socket.connected) {
+    if (!this.socket) {
+      void this.ligar();
+      return;
+    }
+    if (!this.socket.connected) {
       this.socket.connect();
     }
+  }
+  /** Backoff (1s→30s) para re-tentar o 1º connect enquanto o socket não existe. */
+  agendarRetryArranque(geracao) {
+    if (geracao !== this.geracao || this.retryAgendado) {
+      return;
+    }
+    const atraso = Math.min(1e3 * 2 ** this.tentativasArranque, 3e4);
+    this.tentativasArranque += 1;
+    this.retryAgendado = setTimeout(() => {
+      this.retryAgendado = null;
+      if (geracao !== this.geracao || this.socket) {
+        return;
+      }
+      void this.ligar();
+    }, atraso);
   }
   on(evento, handler) {
     this.handlers.push([evento, handler]);
