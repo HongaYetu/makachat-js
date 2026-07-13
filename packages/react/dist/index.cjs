@@ -2274,7 +2274,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
                 else refsBolhas.current.delete(m.id);
               },
               mensagem: m,
-              minha: m.remetente_identidade_id === eu?.identidade_id || m.estado_envio === "a_enviar",
+              minha: m.remetente_identidade_id === "eu" || m.remetente_identidade_id === eu?.identidade_id,
               grupo: conversa?.tipo === "grupo",
               participantes: conversa?.participantes ?? [],
               outros,
@@ -2296,6 +2296,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
                 } : void 0,
                 eliminar: !m.eliminada ? () => setEliminarDe(m) : void 0,
                 encaminhar: podeEncaminhar ? () => setEncaminhar(m) : void 0,
+                reenviar: m.estado_envio === "falhou" ? () => void engine.reenviar(conversaId, m.id) : void 0,
                 // relatório de entrega: só nas MINHAS mensagens de grupo
                 relatorio: conversa?.tipo === "grupo" && m.remetente_identidade_id === eu?.identidade_id && !m.eliminada && m.estado_envio !== "a_enviar" && m.estado_envio !== "falhou" ? () => setRelatorioDe(m) : void 0
               },
@@ -2709,6 +2710,10 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
       e
     )) }),
     menu && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { "data-maka-pop": `bolha-${m.id}`, className: `absolute ${menuCima ? posCima : posBaixo} z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? "right-0" : "left-0"}`, children: [
+      acoes.reenviar && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(ItemMenu, { onClick: acoes.reenviar, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:refresh", className: "inline align-[-2px]" }),
+        " Tentar de novo"
+      ] }),
       acoes.encaminhar && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(ItemMenu, { onClick: acoes.encaminhar, children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:share-3", className: "inline align-[-2px]" }),
         " Encaminhar"

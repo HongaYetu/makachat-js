@@ -2229,7 +2229,13 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   };
   const itens = useMemo5(() => itensLista(mensagens, typing, eu?.identidade_id ?? null), [mensagens, typing, eu?.identidade_id]);
   const itensAcoes = (m) => {
-    const minha = m.remetente_identidade_id === eu?.identidade_id;
+    const minha = m.remetente_identidade_id === eu?.identidade_id || m.remetente_identidade_id === "eu";
+    if (m.estado_envio === "falhou") {
+      return [
+        { icone: "refresh-outline", rotulo: "Tentar de novo", acao: () => void engine.reenviar(conversaId, m.id) },
+        { icone: "trash-outline", rotulo: "Eliminar", destrutivo: true, acao: () => void engine.eliminarMensagem(conversaId, m.id, false) }
+      ];
+    }
     const lista2 = [
       { icone: "arrow-undo-outline", rotulo: "Responder", acao: () => {
         setEditar(null);
@@ -2242,7 +2248,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       setEditar(m);
       setTexto(m.conteudo ?? "");
     } });
-    if (minha && grupo && !m.eliminada && m.estado_envio !== "a_enviar" && m.estado_envio !== "falhou") {
+    if (minha && grupo && !m.eliminada && m.estado_envio !== "a_enviar") {
       lista2.push({ icone: "checkmark-done-outline", rotulo: "Relat\xF3rio de entrega", acao: () => setRelatorioDe(m) });
     }
     if (!m.eliminada) {
@@ -4149,4 +4155,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-D7O26Y5T.js.map
+//# sourceMappingURL=chunk-742TGO7C.js.map

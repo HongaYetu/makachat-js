@@ -614,6 +614,12 @@ declare class SyncEngine {
     /** Flush idempotente: reenvio com o mesmo ref_cliente nunca duplica no servidor. */
     flushOutbox(): Promise<void>;
     private marcarFalhada;
+    /**
+     * "Tentar de novo" numa mensagem falhada: reconstrói o pedido a partir da
+     * cópia local, volta a pô-la no outbox como `a_enviar` e faz flush. Idempotente
+     * (mesmo ref_cliente) — se o servidor já a tinha, devolve a existente.
+     */
+    reenviar(conversaId: string, mensagemId: string): Promise<void>;
     /** identidade_id desta identidade na conversa (público — a UI usa p/ atribuição de chamadas). */
     minhaIdentidadeId(conversaId: string): Promise<string | null>;
     alternarReacao(conversaId: string, mensagemId: string, emoji: string): Promise<void>;

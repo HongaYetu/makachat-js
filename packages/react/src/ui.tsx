@@ -1634,7 +1634,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                             else refsBolhas.current.delete(m.id);
                         }}
                         mensagem={m}
-                        minha={m.remetente_identidade_id === eu?.identidade_id || m.estado_envio === 'a_enviar'}
+                        minha={m.remetente_identidade_id === 'eu' || m.remetente_identidade_id === eu?.identidade_id}
                         grupo={conversa?.tipo === 'grupo'}
                         participantes={conversa?.participantes ?? []}
                         outros={outros}
@@ -1651,6 +1651,7 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                                 : undefined,
                             eliminar: !m.eliminada ? () => setEliminarDe(m) : undefined,
                             encaminhar: podeEncaminhar ? () => setEncaminhar(m) : undefined,
+                            reenviar: m.estado_envio === 'falhou' ? () => void engine.reenviar(conversaId, m.id) : undefined,
                             // relatório de entrega: só nas MINHAS mensagens de grupo
                             relatorio:
                                 conversa?.tipo === 'grupo' &&
@@ -2037,6 +2038,7 @@ interface AcoesBolha {
     eliminar?: () => void;
     encaminhar?: () => void;
     relatorio?: () => void;
+    reenviar?: () => void;
 }
 
 function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas, destacada, registarRef, aoAbrirFoto, aoClicarCitacao, aoVerReacoes, podeReagir, primeiraDoBloco = true, ultimaDoBloco = true, autor = null, compacto = false }: {
@@ -2125,6 +2127,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
             )}
             {menu && (
                 <div data-maka-pop={`bolha-${m.id}`} className={`absolute ${menuCima ? posCima : posBaixo} z-[3] min-w-[150px] overflow-hidden rounded-xl bg-[var(--maka-superficie)] shadow-maka-pop ring-1 ring-black/[.05] ${minha ? 'right-0' : 'left-0'}`}>
+                    {acoes.reenviar && <ItemMenu onClick={acoes.reenviar}><Icon icon="tabler:refresh" className="inline align-[-2px]" /> Tentar de novo</ItemMenu>}
                     {acoes.encaminhar && <ItemMenu onClick={acoes.encaminhar}><Icon icon="tabler:share-3" className="inline align-[-2px]" /> Encaminhar</ItemMenu>}
                     {acoes.relatorio && <ItemMenu onClick={acoes.relatorio}><Icon icon="tabler:checks" className="inline align-[-2px]" /> Relatório de entrega</ItemMenu>}
                     {acoes.editar && <ItemMenu onClick={acoes.editar}><Icon icon="tabler:pencil" className="inline align-[-2px]" /> Editar</ItemMenu>}

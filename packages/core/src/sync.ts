@@ -409,6 +409,42 @@ export class SyncEngine {
         this.notificar();
     }
 
+    /**
+     * "Tentar de novo" numa mensagem falhada: reconstrói o pedido a partir da
+     * cópia local, volta a pô-la no outbox como `a_enviar` e faz flush. Idempotente
+     * (mesmo ref_cliente) — se o servidor já a tinha, devolve a existente.
+     */
+    async reenviar(conversaId: string, mensagemId: string): Promise<void> {
+        const lista = await this.storage.listarMensagens(conversaId, { limite: 500 });
+        const m = lista.find((x) => x.id === mensagemId);
+
+        if (!m || m.estado_envio !== 'falhou') {
+            return;
+        }
+
+        const dados: DadosEnvioMensagem = {
+            conversa_id: conversaId,
+            tipo: m.tipo,
+            conteudo: m.conteudo ?? undefined,
+            resposta_a_id: m.resposta_a_id ?? undefined,
+            encaminhada_de_id: m.encaminhada_de_id ?? undefined,
+            anexo_ids: m.anexos?.length ? m.anexos.map((a) => a.id) : undefined,
+            metadados: m.metadados ?? undefined,
+        };
+
+        await this.storage.upsertMensagens([{ ...m, estado_envio: 'a_enviar' }]);
+        await this.storage.adicionarOutbox({
+            ref_cliente: m.ref_cliente,
+            conversa_id: conversaId,
+            dados,
+            criado_em: m.criada_em,
+            tentativas: 0,
+        });
+        this.notificar();
+
+        void this.flushOutbox();
+    }
+
     // ---- ações com aplicação local (o gateway exclui o remetente do broadcast) ----
 
     /** identidade_id desta identidade na conversa (público — a UI usa p/ atribuição de chamadas). */

@@ -383,15 +383,24 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const itens = useMemo(() => itensLista(mensagens, typing, eu?.identidade_id ?? null), [mensagens, typing, eu?.identidade_id]);
 
     const itensAcoes = (m: Mensagem): ItemSheet[] => {
-        const minha = m.remetente_identidade_id === eu?.identidade_id;
+        const minha = m.remetente_identidade_id === eu?.identidade_id || m.remetente_identidade_id === 'eu';
+
+        // mensagem que falhou a enviar: só faz sentido reenviar ou eliminar
+        if (m.estado_envio === 'falhou') {
+            return [
+                { icone: 'refresh-outline', rotulo: 'Tentar de novo', acao: () => void engine.reenviar(conversaId, m.id) },
+                { icone: 'trash-outline', rotulo: 'Eliminar', destrutivo: true, acao: () => void engine.eliminarMensagem(conversaId, m.id, false) },
+            ];
+        }
+
         const lista: ItemSheet[] = [
             { icone: 'arrow-undo-outline', rotulo: 'Responder', acao: () => { setEditar(null); setResponderA(m); } },
         ];
 
         if (podeEncaminhar && !m.eliminada) lista.push({ icone: 'arrow-redo-outline', rotulo: 'Encaminhar', acao: () => setEncaminhar(m) });
         if (minha && m.tipo === 'texto' && !m.eliminada) lista.push({ icone: 'pencil-outline', rotulo: 'Editar', acao: () => { setResponderA(null); setEditar(m); setTexto(m.conteudo ?? ''); } });
-        // relatório de entrega: só nas MINHAS mensagens de GRUPO
-        if (minha && grupo && !m.eliminada && m.estado_envio !== 'a_enviar' && m.estado_envio !== 'falhou') {
+        // relatório de entrega: só nas MINHAS mensagens de GRUPO (falhadas já retornaram acima)
+        if (minha && grupo && !m.eliminada && m.estado_envio !== 'a_enviar') {
             lista.push({ icone: 'checkmark-done-outline', rotulo: 'Relatório de entrega', acao: () => setRelatorioDe(m) });
         }
 
