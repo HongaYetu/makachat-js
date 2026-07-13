@@ -1203,6 +1203,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
+  const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
   const [conversa, setConversa] = (0, import_react9.useState)(null);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
@@ -1746,6 +1747,17 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         rotulo: conversa.participante?.arquivada ? "Desarquivar" : "Arquivar",
         acao: () => void api.atualizarPreferencias(conversaId, { arquivada: !conversa.participante?.arquivada }).then(() => engine.atualizarConversas())
       });
+      if (podeEliminar) {
+        itens2.push({
+          icone: "trash-outline",
+          rotulo: "Eliminar conversa",
+          destrutivo: true,
+          acao: () => import_react_native7.Alert.alert("Eliminar conversa?", "O hist\xF3rico desaparece para ti. A outra pessoa mant\xE9m a conversa dela.", [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Eliminar", style: "destructive", onPress: () => void engine.eliminarConversa(conversaId).then(() => onVoltar?.()) }
+          ])
+        });
+      }
     }
     return itens2;
   }

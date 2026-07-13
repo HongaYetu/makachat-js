@@ -14,7 +14,7 @@ import {
     Recibo,
     Typing,
 } from './tipos';
-import { uuid } from './uuid';
+import { uuid, uuidv7 } from './uuid';
 
 export interface SyncEngineOpcoes {
     identidade: IdentidadeConfig;
@@ -332,8 +332,9 @@ export class SyncEngine {
         const agora = new Date().toISOString();
 
         const otimista: Mensagem = {
-            // id provisório ordenável no fim da lista local; substituído pelo id do servidor
-            id: `zz-local-${agora}-${refCliente}`,
+            // id local uuidv7 (ordenável no tempo, como o do servidor) — fica na
+            // posição cronológica; substituído pelo id do servidor ao confirmar
+            id: uuidv7(),
             conversa_id: dados.conversa_id,
             remetente_identidade_id: 'eu',
             tipo: dados.tipo ?? 'texto',

@@ -2046,6 +2046,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
+  const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
   const [conversa, setConversa] = useState7(null);
   const [texto, setTexto] = useState7("");
   const [responderA, setResponderA] = useState7(null);
@@ -2589,6 +2590,17 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
         rotulo: conversa.participante?.arquivada ? "Desarquivar" : "Arquivar",
         acao: () => void api.atualizarPreferencias(conversaId, { arquivada: !conversa.participante?.arquivada }).then(() => engine.atualizarConversas())
       });
+      if (podeEliminar) {
+        itens2.push({
+          icone: "trash-outline",
+          rotulo: "Eliminar conversa",
+          destrutivo: true,
+          acao: () => Alert2.alert("Eliminar conversa?", "O hist\xF3rico desaparece para ti. A outra pessoa mant\xE9m a conversa dela.", [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Eliminar", style: "destructive", onPress: () => void engine.eliminarConversa(conversaId).then(() => onVoltar?.()) }
+          ])
+        });
+      }
     }
     return itens2;
   }
@@ -4155,4 +4167,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-742TGO7C.js.map
+//# sourceMappingURL=chunk-UKYBF7YH.js.map

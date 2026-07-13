@@ -125,6 +125,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const podeAudioChamada = useFuncionalidadeAtiva('chamadas.audio');
     const podeVideoChamada = useFuncionalidadeAtiva('chamadas.video');
     const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
+    const podeEliminar = useFuncionalidadeAtiva('conversas.eliminar');
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [texto, setTexto] = useState('');
@@ -828,6 +829,19 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                 rotulo: conversa.participante?.arquivada ? 'Desarquivar' : 'Arquivar',
                 acao: () => void api.atualizarPreferencias(conversaId, { arquivada: !conversa.participante?.arquivada }).then(() => engine.atualizarConversas()),
             });
+
+            if (podeEliminar) {
+                itens.push({
+                    icone: 'trash-outline',
+                    rotulo: 'Eliminar conversa',
+                    destrutivo: true,
+                    acao: () =>
+                        Alert.alert('Eliminar conversa?', 'O histórico desaparece para ti. A outra pessoa mantém a conversa dela.', [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Eliminar', style: 'destructive', onPress: () => void engine.eliminarConversa(conversaId).then(() => onVoltar?.()) },
+                        ]),
+                });
+            }
         }
 
         return itens;

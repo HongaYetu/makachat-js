@@ -128,6 +128,30 @@ function uuid() {
   }
   bytes[6] = bytes[6] & 15 | 64;
   bytes[8] = bytes[8] & 63 | 128;
+  return formatar(bytes);
+}
+function uuidv7() {
+  const cripto = globalThis.crypto;
+  const bytes = new Uint8Array(16);
+  if (cripto?.getRandomValues) {
+    cripto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  const ms = Date.now();
+  bytes[0] = Math.floor(ms / 2 ** 40) & 255;
+  bytes[1] = Math.floor(ms / 2 ** 32) & 255;
+  bytes[2] = Math.floor(ms / 2 ** 24) & 255;
+  bytes[3] = Math.floor(ms / 2 ** 16) & 255;
+  bytes[4] = Math.floor(ms / 2 ** 8) & 255;
+  bytes[5] = ms & 255;
+  bytes[6] = bytes[6] & 15 | 112;
+  bytes[8] = bytes[8] & 63 | 128;
+  return formatar(bytes);
+}
+function formatar(bytes) {
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
@@ -843,8 +867,9 @@ var SyncEngine = class {
     const refCliente = uuid();
     const agora = (/* @__PURE__ */ new Date()).toISOString();
     const otimista = {
-      // id provisório ordenável no fim da lista local; substituído pelo id do servidor
-      id: `zz-local-${agora}-${refCliente}`,
+      // id local uuidv7 (ordenável no tempo, como o do servidor) — fica na
+      // posição cronológica; substituído pelo id do servidor ao confirmar
+      id: uuidv7(),
       conversa_id: dados.conversa_id,
       remetente_identidade_id: "eu",
       tipo: dados.tipo ?? "texto",
