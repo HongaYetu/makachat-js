@@ -2083,6 +2083,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
+  const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const [conversa, setConversa] = (0, import_react9.useState)(null);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
@@ -2276,7 +2277,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     if (m.estado_envio === "falhou") {
       return [
         { icone: "refresh-outline", rotulo: "Tentar de novo", acao: () => void engine.reenviar(conversaId, m.id) },
-        { icone: "trash-outline", rotulo: "Eliminar", destrutivo: true, acao: () => void engine.eliminarMensagem(conversaId, m.id, false) }
+        { icone: "trash-outline", rotulo: "Descartar", destrutivo: true, acao: () => void engine.descartarMensagemLocal(conversaId, m.id) }
       ];
     }
     const lista2 = [
@@ -2294,7 +2295,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     if (minha && grupo && !m.eliminada && m.estado_envio !== "a_enviar") {
       lista2.push({ icone: "checkmark-done-outline", rotulo: "Relat\xF3rio de entrega", acao: () => setRelatorioDe(m) });
     }
-    if (!m.eliminada) {
+    if (!m.eliminada && podeEliminarMsg) {
       lista2.push({
         icone: "trash-outline",
         rotulo: minha ? "Eliminar\u2026" : "Eliminar para mim",

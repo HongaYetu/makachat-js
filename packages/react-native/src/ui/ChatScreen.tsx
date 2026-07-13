@@ -126,6 +126,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const podeVideoChamada = useFuncionalidadeAtiva('chamadas.video');
     const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
     const podeEliminar = useFuncionalidadeAtiva('conversas.eliminar');
+    const podeEliminarMsg = useFuncionalidadeAtiva('mensagens.eliminar');
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [texto, setTexto] = useState('');
@@ -398,11 +399,12 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const itensAcoes = (m: Mensagem): ItemSheet[] => {
         const minha = m.remetente_identidade_id === eu?.identidade_id || m.remetente_identidade_id === 'eu';
 
-        // mensagem que falhou a enviar: só faz sentido reenviar ou eliminar
+        // mensagem que falhou a enviar (nunca chegou ao servidor): reenviar ou
+        // descartar LOCALMENTE — não é "eliminar mensagem" (não depende da flag)
         if (m.estado_envio === 'falhou') {
             return [
                 { icone: 'refresh-outline', rotulo: 'Tentar de novo', acao: () => void engine.reenviar(conversaId, m.id) },
-                { icone: 'trash-outline', rotulo: 'Eliminar', destrutivo: true, acao: () => void engine.eliminarMensagem(conversaId, m.id, false) },
+                { icone: 'trash-outline', rotulo: 'Descartar', destrutivo: true, acao: () => void engine.descartarMensagemLocal(conversaId, m.id) },
             ];
         }
 
@@ -417,7 +419,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
             lista.push({ icone: 'checkmark-done-outline', rotulo: 'Relatório de entrega', acao: () => setRelatorioDe(m) });
         }
 
-        if (!m.eliminada) {
+        if (!m.eliminada && podeEliminarMsg) {
             lista.push({
                 icone: 'trash-outline',
                 rotulo: minha ? 'Eliminar…' : 'Eliminar para mim',

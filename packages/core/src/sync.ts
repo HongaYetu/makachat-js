@@ -500,6 +500,17 @@ export class SyncEngine {
         this.notificar();
     }
 
+    /** Descarta LOCALMENTE uma mensagem que nunca chegou ao servidor (falhada/pendente) — sem tocar no hub, sem flag. */
+    async descartarMensagemLocal(conversaId: string, mensagemId: string): Promise<void> {
+        const lista = await this.storage.listarMensagens(conversaId, { limite: 500 });
+        const alvo = lista.find((m) => m.id === mensagemId);
+
+        await this.storage.removerMensagem(conversaId, mensagemId);
+        if (alvo?.ref_cliente) await this.storage.removerOutbox(alvo.ref_cliente);
+
+        this.notificar();
+    }
+
     async eliminarConversa(conversaId: string): Promise<void> {
         await this.api.eliminarConversa(conversaId);
         await this.storage.removerConversa(conversaId);

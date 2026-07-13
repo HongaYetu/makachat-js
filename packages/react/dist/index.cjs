@@ -1888,6 +1888,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const podeReagir = useFuncionalidadeAtiva("reacoes");
   const podeEncaminhar = useFuncionalidadeAtiva("encaminhar");
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
+  const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const podeMedia = podeFicheiro || podeFoto;
   const [conversa, setConversa] = (0, import_react8.useState)(null);
   const [contexto, setContexto] = (0, import_react8.useState)(null);
@@ -2294,7 +2295,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
                   setEditar(m);
                   setTexto(m.conteudo ?? "");
                 } : void 0,
-                eliminar: !m.eliminada ? () => setEliminarDe(m) : void 0,
+                eliminar: !m.eliminada && podeEliminarMsg ? () => setEliminarDe(m) : void 0,
                 encaminhar: podeEncaminhar ? () => setEncaminhar(m) : void 0,
                 reenviar: m.estado_envio === "falhou" ? () => void engine.reenviar(conversaId, m.id) : void 0,
                 // relatório de entrega: só nas MINHAS mensagens de grupo

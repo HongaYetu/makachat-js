@@ -107,6 +107,7 @@ var FUNCIONALIDADES = [
   "chamadas.video",
   "chamadas.partilha_ecra",
   "conversas.eliminar",
+  "mensagens.eliminar",
   // criação de conversas pelo utilizador (nova conversa/mensagem direta);
   // serviços com conversas só de sistema (ex.: via encomenda) não a ativam
   "conversas.criar"
@@ -999,6 +1000,14 @@ var SyncEngine = class {
     } else {
       await this.storage.removerMensagem(conversaId, mensagemId);
     }
+    this.notificar();
+  }
+  /** Descarta LOCALMENTE uma mensagem que nunca chegou ao servidor (falhada/pendente) — sem tocar no hub, sem flag. */
+  async descartarMensagemLocal(conversaId, mensagemId) {
+    const lista = await this.storage.listarMensagens(conversaId, { limite: 500 });
+    const alvo = lista.find((m) => m.id === mensagemId);
+    await this.storage.removerMensagem(conversaId, mensagemId);
+    if (alvo?.ref_cliente) await this.storage.removerOutbox(alvo.ref_cliente);
     this.notificar();
   }
   async eliminarConversa(conversaId) {

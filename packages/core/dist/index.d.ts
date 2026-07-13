@@ -266,7 +266,7 @@ declare const EVENTOS_SERVIDOR: {
     readonly CHAMADA_TERMINADA: "chat:chamada:terminada";
     readonly CHAMADA_PARTICIPANTE_SAIU: "chat:chamada:participante_saiu";
 };
-declare const FUNCIONALIDADES: readonly ["media.foto", "media.video", "media.ficheiro", "media.audio", "reacoes", "encaminhar", "grupos", "chamadas.audio", "chamadas.video", "chamadas.partilha_ecra", "conversas.eliminar", "conversas.criar"];
+declare const FUNCIONALIDADES: readonly ["media.foto", "media.video", "media.ficheiro", "media.audio", "reacoes", "encaminhar", "grupos", "chamadas.audio", "chamadas.video", "chamadas.partilha_ecra", "conversas.eliminar", "mensagens.eliminar", "conversas.criar"];
 type Funcionalidade = (typeof FUNCIONALIDADES)[number];
 
 declare function uuid(): string;
@@ -625,6 +625,8 @@ declare class SyncEngine {
     alternarReacao(conversaId: string, mensagemId: string, emoji: string): Promise<void>;
     editarMensagem(mensagemId: string, conteudo: string): Promise<void>;
     eliminarMensagem(conversaId: string, mensagemId: string, paraTodos: boolean): Promise<void>;
+    /** Descarta LOCALMENTE uma mensagem que nunca chegou ao servidor (falhada/pendente) — sem tocar no hub, sem flag. */
+    descartarMensagemLocal(conversaId: string, mensagemId: string): Promise<void>;
     eliminarConversa(conversaId: string): Promise<void>;
     /** Silencia (ISO ou '9999-12-31T00:00:00Z' para sempre) ou reativa (null) as notificações da conversa. */
     silenciarConversa(conversaId: string, ate: string | null): Promise<void>;
