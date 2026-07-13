@@ -1274,10 +1274,10 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
   (0, import_react9.useEffect)(() => {
-    if (!responderA && !editar) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    if (!responderA && !editar || acoesDe !== null) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
     return () => clearTimeout(t);
-  }, [responderA, editar]);
+  }, [responderA, editar, acoesDe]);
   (0, import_react9.useEffect)(() => {
     const sub = import_react_native7.AppState.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();

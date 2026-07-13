@@ -2118,10 +2118,10 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
   useEffect8(() => {
-    if (!responderA && !editar) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    if (!responderA && !editar || acoesDe !== null) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
     return () => clearTimeout(t);
-  }, [responderA, editar]);
+  }, [responderA, editar, acoesDe]);
   useEffect8(() => {
     const sub = AppState2.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();
@@ -4184,4 +4184,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-FYEF2AAI.js.map
+//# sourceMappingURL=chunk-3GOHFCKR.js.map
