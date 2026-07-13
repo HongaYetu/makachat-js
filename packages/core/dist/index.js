@@ -688,9 +688,22 @@ var SyncEngine = class {
     await this.carregarMensagens(conversaId).catch(() => 0);
   }
   async atualizarConversas() {
-    const { conversas } = await this.api.listarConversas({ limite: 100 });
-    const arquivadas = await this.api.listarConversas({ arquivadas: true, limite: 100 });
-    await this.storage.upsertConversas([...conversas, ...arquivadas.conversas]);
+    const ativa = await this.api.listarConversas({ limite: 100 });
+    const arquivada = await this.api.listarConversas({ arquivadas: true, limite: 100 });
+    await this.storage.upsertConversas([...ativa.conversas, ...arquivada.conversas]);
+    if (!ativa.proximo_cursor && !arquivada.proximo_cursor) {
+      const idsServidor = new Set([...ativa.conversas, ...arquivada.conversas].map((c) => c.id));
+      const pendentes = new Set((await this.storage.listarOutbox()).map((o) => o.conversa_id));
+      const locais = [
+        ...await this.storage.listarConversas(false),
+        ...await this.storage.listarConversas(true)
+      ];
+      for (const c of locais) {
+        if (!idsServidor.has(c.id) && !pendentes.has(c.id)) {
+          await this.storage.removerConversa(c.id);
+        }
+      }
+    }
     this.notificar();
   }
   /**
