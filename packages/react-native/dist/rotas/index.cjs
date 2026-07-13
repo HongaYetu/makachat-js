@@ -1534,7 +1534,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
               return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(TypingBolha, {});
             }
             const m = item.mensagem;
-            const minha = m.remetente_identidade_id === eu?.identidade_id || m.estado_envio === "a_enviar";
+            const minha = m.remetente_identidade_id === "eu" || m.remetente_identidade_id === eu?.identidade_id;
             const autor = conversa?.participantes.find((p) => p.identidade_id === m.remetente_identidade_id) ?? null;
             const respondida = m.resposta_a_id ? mensagens.find((x) => x.id === m.resposta_a_id) ?? null : null;
             return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
@@ -1979,7 +1979,7 @@ var estilos6 = import_react_native7.StyleSheet.create({
   previa: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 8 },
   fechada: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
   inputLinha: { flexDirection: "row", alignItems: "flex-end", gap: 6, paddingHorizontal: 8, paddingVertical: 7 },
-  input: { flex: 1, borderRadius: 21, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, fontSize: 15.5, maxHeight: 120 },
+  input: { flex: 1, borderRadius: 21, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, fontSize: 16.5, maxHeight: 120 },
   enviar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   emojis: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 16, paddingVertical: 6 }
 });

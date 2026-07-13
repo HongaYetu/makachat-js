@@ -48,7 +48,7 @@ import {
   useTotalNaoLidasOpcional,
   useTypingConversa,
   useVersaoChat
-} from "./chunk-ELAPIBOI.js";
+} from "./chunk-D7O26Y5T.js";
 
 // src/index.ts
 export * from "@hongayetu/makachat-core";
