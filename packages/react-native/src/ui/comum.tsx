@@ -3,6 +3,7 @@ import { Conversa, IdentidadeConfig, ParticipanteConversa } from '@hongayetu/mak
 import React, { useCallback, useEffect, useRef } from 'react';
 import {
     Animated,
+    BackHandler,
     FlatList,
     FlatListProps,
     Image,
@@ -149,6 +150,21 @@ export function Sheet({
     useEffect(() => {
         if (visivel) ref.current?.present();
         else ref.current?.dismiss();
+    }, [visivel]);
+
+    // botão físico de voltar (Android) FECHA o sheet em vez de sair da página.
+    // registado só enquanto aberto → fica no topo da pilha de handlers e
+    // intercepta antes do back do navegador; removido ao fechar.
+    useEffect(() => {
+        if (!visivel) return;
+
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+            ref.current?.dismiss();
+
+            return true;
+        });
+
+        return () => sub.remove();
     }, [visivel]);
 
     const backdrop = useCallback(

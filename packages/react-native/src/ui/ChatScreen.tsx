@@ -130,6 +130,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [texto, setTexto] = useState('');
     const [responderA, setResponderA] = useState<Mensagem | null>(null);
+    const inputRef = useRef<{ focus(): void } | null>(null);
     const [editar, setEditar] = useState<Mensagem | null>(null);
     const [acoesDe, setAcoesDe] = useState<Mensagem | null>(null);
     const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
@@ -203,6 +204,17 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     useEffect(() => {
         void engine.storage.obterConversa(conversaId).then(setConversa);
     }, [engine, conversaId, versao]);
+
+    // ao entrar em modo responder/editar, abrir o teclado com foco no input.
+    // pequeno atraso: deixa o bottom sheet das ações terminar o dismiss (senão
+    // ainda tem o foco e o teclado não abre)
+    useEffect(() => {
+        if (!responderA && !editar) return;
+
+        const t = setTimeout(() => inputRef.current?.focus(), 120);
+
+        return () => clearTimeout(t);
+    }, [responderA, editar]);
 
     useEffect(() => {
         const sub = AppState.addEventListener('change', (estado) => setAppAtiva(estado === 'active'));
@@ -674,6 +686,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
                             </Pressable>
                         )}
                         <TextInput
+                            ref={inputRef}
                             value={texto}
                             onChangeText={aoEscrever}
                             placeholder="Mensagem"

@@ -670,6 +670,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCallback as useCallback2, useEffect as useEffect3, useRef as useRef3 } from "react";
 import {
   Animated,
+  BackHandler,
   FlatList,
   Image,
   Pressable,
@@ -753,6 +754,14 @@ function Sheet({
   useEffect3(() => {
     if (visivel) ref.current?.present();
     else ref.current?.dismiss();
+  }, [visivel]);
+  useEffect3(() => {
+    if (!visivel) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      ref.current?.dismiss();
+      return true;
+    });
+    return () => sub.remove();
   }, [visivel]);
   const backdrop = useCallback2(
     (props) => /* @__PURE__ */ jsx2(BottomSheetBackdrop, { ...props, appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" }),
@@ -1441,7 +1450,7 @@ var estilos3 = StyleSheet3.create({
 import { Ionicons as Ionicons4 } from "@expo/vector-icons";
 import { useEffect as useEffect6, useState as useState5 } from "react";
 import {
-  BackHandler,
+  BackHandler as BackHandler2,
   Image as Image2,
   KeyboardAvoidingView,
   Linking,
@@ -1574,7 +1583,7 @@ function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, a
   const { width } = useWindowDimensions();
   const lado = (width - 48) / 3;
   useEffect6(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+    const sub = BackHandler2.addEventListener("hardwareBackPress", () => {
       aoFechar();
       return true;
     });
@@ -2050,6 +2059,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [conversa, setConversa] = useState7(null);
   const [texto, setTexto] = useState7("");
   const [responderA, setResponderA] = useState7(null);
+  const inputRef = useRef7(null);
   const [editar, setEditar] = useState7(null);
   const [acoesDe, setAcoesDe] = useState7(null);
   const [reacoesDe, setReacoesDe] = useState7(null);
@@ -2106,6 +2116,11 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   useEffect8(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
+  useEffect8(() => {
+    if (!responderA && !editar) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, [responderA, editar]);
   useEffect8(() => {
     const sub = AppState2.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();
@@ -2459,6 +2474,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           /* @__PURE__ */ jsx7(
             TextInput3,
             {
+              ref: inputRef,
               value: texto,
               onChangeText: aoEscrever,
               placeholder: "Mensagem",
@@ -4167,4 +4183,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-UKYBF7YH.js.map
+//# sourceMappingURL=chunk-KASK5CUP.js.map

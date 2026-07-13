@@ -824,6 +824,14 @@ function Sheet({
     if (visivel) ref.current?.present();
     else ref.current?.dismiss();
   }, [visivel]);
+  (0, import_react4.useEffect)(() => {
+    if (!visivel) return;
+    const sub = import_react_native2.BackHandler.addEventListener("hardwareBackPress", () => {
+      ref.current?.dismiss();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visivel]);
   const backdrop = (0, import_react4.useCallback)(
     (props) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_bottom_sheet2.BottomSheetBackdrop, { ...props, appearsOnIndex: 0, disappearsOnIndex: -1, pressBehavior: "close" }),
     []
@@ -2078,6 +2086,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [conversa, setConversa] = (0, import_react9.useState)(null);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
+  const inputRef = (0, import_react9.useRef)(null);
   const [editar, setEditar] = (0, import_react9.useState)(null);
   const [acoesDe, setAcoesDe] = (0, import_react9.useState)(null);
   const [reacoesDe, setReacoesDe] = (0, import_react9.useState)(null);
@@ -2134,6 +2143,11 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   (0, import_react9.useEffect)(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
   }, [engine, conversaId, versao]);
+  (0, import_react9.useEffect)(() => {
+    if (!responderA && !editar) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, [responderA, editar]);
   (0, import_react9.useEffect)(() => {
     const sub = import_react_native7.AppState.addEventListener("change", (estado) => setAppAtiva(estado === "active"));
     return () => sub.remove();
@@ -2487,6 +2501,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             import_react_native7.TextInput,
             {
+              ref: inputRef,
               value: texto,
               onChangeText: aoEscrever,
               placeholder: "Mensagem",
