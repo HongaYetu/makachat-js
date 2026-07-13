@@ -131,7 +131,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const [conversa, setConversa] = useState<Conversa | null>(null);
     const [texto, setTexto] = useState('');
     const [responderA, setResponderA] = useState<Mensagem | null>(null);
-    const inputRef = useRef<{ focus(): void } | null>(null);
+    const inputRef = useRef<{ focus(): void; blur(): void } | null>(null);
     const [editar, setEditar] = useState<Mensagem | null>(null);
     const [acoesDe, setAcoesDe] = useState<Mensagem | null>(null);
     const [reacoesDe, setReacoesDe] = useState<Mensagem | null>(null);
@@ -212,7 +212,13 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     useEffect(() => {
         if ((!responderA && !editar) || acoesDe !== null) return;
 
-        const t = setTimeout(() => inputRef.current?.focus(), 60);
+        // blur + focus: se o input já estava focado (2ª resposta seguida), um
+        // focus() simples é no-op e o teclado não volta a subir. O blur limpa o
+        // foco para o focus seguinte levantar o teclado de novo.
+        const t = setTimeout(() => {
+            inputRef.current?.blur();
+            requestAnimationFrame(() => inputRef.current?.focus());
+        }, 60);
 
         return () => clearTimeout(t);
     }, [responderA, editar, acoesDe]);

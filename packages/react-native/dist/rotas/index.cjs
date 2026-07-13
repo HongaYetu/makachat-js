@@ -1275,7 +1275,10 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   }, [engine, conversaId, versao]);
   (0, import_react9.useEffect)(() => {
     if (!responderA && !editar || acoesDe !== null) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    const t = setTimeout(() => {
+      inputRef.current?.blur();
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }, 60);
     return () => clearTimeout(t);
   }, [responderA, editar, acoesDe]);
   (0, import_react9.useEffect)(() => {
