@@ -153,7 +153,8 @@ function tocarSom(nome) {
 
 // src/provider.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
-var Contexto = (0, import_react.createContext)(null);
+var alcanceGlobal = globalThis;
+var Contexto = alcanceGlobal.__makaChatCtx ??= (0, import_react.createContext)(null);
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
   if (!contexto) {
@@ -421,7 +422,8 @@ var estilos = import_react_native2.StyleSheet.create({
 
 // src/chamadas.tsx
 var import_jsx_runtime3 = require("react/jsx-runtime");
-var Ctx = (0, import_react5.createContext)(null);
+var alcanceGlobalChamadas = globalThis;
+var Ctx = alcanceGlobalChamadas.__makaChatChamadasCtx ??= (0, import_react5.createContext)(null);
 function useChamadasOpcional() {
   return (0, import_react5.useContext)(Ctx);
 }

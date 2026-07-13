@@ -37,7 +37,11 @@ export interface ChamadasApi {
     suportado: boolean;
 }
 
-const Ctx = createContext<ChamadasApi | null>(null);
+// singleton global (ver nota no provider.tsx): o bundle CJS de `/rotas` duplica
+// este módulo; sem o cache global, o useChamadasOpcional das rotas leria outro
+// Contexto que o do ChamadasProvider.
+const alcanceGlobalChamadas = globalThis as unknown as { __makaChatChamadasCtx?: React.Context<ChamadasApi | null> };
+const Ctx = (alcanceGlobalChamadas.__makaChatChamadasCtx ??= createContext<ChamadasApi | null>(null));
 
 export function useChamadas(): ChamadasApi {
     const ctx = useContext(Ctx);

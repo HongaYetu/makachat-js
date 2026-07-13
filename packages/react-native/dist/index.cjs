@@ -451,7 +451,8 @@ function pararToque() {
 
 // src/provider.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
-var Contexto = (0, import_react.createContext)(null);
+var alcanceGlobal = globalThis;
+var Contexto = alcanceGlobal.__makaChatCtx ??= (0, import_react.createContext)(null);
 function abrirStoragePadrao(serviceKey, identity) {
   const sqlite = require("expo-sqlite");
   const nome = `makachat_${serviceKey}_${identity.tipo}_${identity.id}.db`.replace(/[^a-zA-Z0-9_.]/g, "_");
@@ -3507,7 +3508,8 @@ var import_react_native_safe_area_context5 = require("react-native-safe-area-con
 var import_react12 = require("react");
 var import_react_native10 = require("react-native");
 var import_jsx_runtime10 = require("react/jsx-runtime");
-var Ctx = (0, import_react12.createContext)(null);
+var alcanceGlobalChamadas = globalThis;
+var Ctx = alcanceGlobalChamadas.__makaChatChamadasCtx ??= (0, import_react12.createContext)(null);
 function useChamadas() {
   const ctx = (0, import_react12.useContext)(Ctx);
   if (!ctx) throw new Error("useChamadas requer <ChamadasProvider>");

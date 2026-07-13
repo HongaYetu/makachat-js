@@ -373,7 +373,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { AppState } from "react-native";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { jsx } from "react/jsx-runtime";
-var Contexto = createContext(null);
+var alcanceGlobal = globalThis;
+var Contexto = alcanceGlobal.__makaChatCtx ??= createContext(null);
 function abrirStoragePadrao(serviceKey, identity) {
   const sqlite = __require("expo-sqlite");
   const nome = `makachat_${serviceKey}_${identity.tipo}_${identity.id}.db`.replace(/[^a-zA-Z0-9_.]/g, "_");
@@ -3479,7 +3480,8 @@ import { useSafeAreaInsets as useSafeAreaInsets5 } from "react-native-safe-area-
 import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect11, useMemo as useMemo8, useRef as useRef9, useState as useState10 } from "react";
 import { AppState as AppState3, Modal as Modal3, Platform as Platform3, Pressable as Pressable9, StatusBar as StatusBar3, StyleSheet as StyleSheet9, Text as Text9, useWindowDimensions as useWindowDimensions3, View as View9 } from "react-native";
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
-var Ctx = createContext2(null);
+var alcanceGlobalChamadas = globalThis;
+var Ctx = alcanceGlobalChamadas.__makaChatChamadasCtx ??= createContext2(null);
 function useChamadas() {
   const ctx = useContext2(Ctx);
   if (!ctx) throw new Error("useChamadas requer <ChamadasProvider>");
@@ -4147,4 +4149,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-6DT7ZAE2.js.map
+//# sourceMappingURL=chunk-ELAPIBOI.js.map

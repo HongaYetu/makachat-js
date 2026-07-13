@@ -55,7 +55,12 @@ export interface MakaChatContexto {
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
 }
 
-const Contexto = createContext<MakaChatContexto | null>(null);
+// singleton global: o subcaminho `/rotas` é um bundle CJS separado (esbuild não
+// faz code-splitting p/ CJS), pelo que este módulo é DUPLICADO nesse bundle —
+// sem o cache global, o MakaChatProvider e o useMakaChat das rotas usariam
+// Contextos diferentes (→ ecrã em branco na conversa).
+const alcanceGlobal = globalThis as unknown as { __makaChatCtx?: React.Context<MakaChatContexto | null> };
+const Contexto = (alcanceGlobal.__makaChatCtx ??= createContext<MakaChatContexto | null>(null));
 
 export interface MakaChatProviderProps {
     serviceKey: string;
