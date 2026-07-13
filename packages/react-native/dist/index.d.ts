@@ -1,4 +1,4 @@
-import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ParticipanteConversa, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
+import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, ParticipanteConversa, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,6 +67,59 @@ interface MakaTema {
 }
 type TemaResolvido = Required<MakaTema>;
 
+/** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
+interface HeaderChatContexto {
+    conversa: Conversa | null;
+    /** o outro participante numa conversa 1:1 (null em grupos) */
+    contraparte: ParticipanteConversa | null;
+    grupo: boolean;
+    typingAtivo: boolean;
+    totalMembros: number;
+    /** conversa fechada (só leitura) */
+    fechada: boolean;
+    onVoltar?(): void;
+    abrirInfo(): void;
+    alternarPesquisa(): void;
+    abrirMenu(): void;
+    /** undefined quando indisponível (sem ChamadasProvider/flag ou conversa fechada) */
+    ligarAudio?(): void;
+    ligarVideo?(): void;
+}
+interface ChatScreenProps {
+    conversaId: string;
+    /** voltar à lista (header) */
+    onVoltar?(): void;
+    /** abrir info da conversa/grupo */
+    onAbrirInfo?(conversa: Conversa): void;
+    /** abrir outra conversa (ex.: mensagem direta a partir das reações) */
+    onAbrirOutraConversa?(conversaId: string): void;
+    /** iniciar/entrar em chamadas — liga ao ChamadasProvider da app */
+    chamadas?: {
+        iniciar(conversaId: string, tipo: 'audio' | 'video'): Promise<void>;
+        entrar(chamadaId: string, tipo: 'audio' | 'video'): Promise<void>;
+    } | null;
+    /** compat: abrir anexos fora (por omissão usa galeria/player internos) */
+    onAbrirAnexo?(url: string, tipo: string): void;
+    /**
+     * O ecrã está em foco de NAVEGAÇÃO? (ex.: useIsFocused do react-navigation).
+     * Ecrãs montados em stacks/tabs inativos não devem marcar mensagens como lidas.
+     */
+    emFoco?: boolean;
+    /**
+     * Ícones da status bar enquanto o chat está em foco: 'escura' (ícones
+     * escuros — default, o chat tem fundo claro), 'clara' (ícones claros,
+     * para temas escuros) ou null para a app gerir sozinha.
+     */
+    barraEstado?: 'escura' | 'clara' | null;
+    /**
+     * Header CUSTOM da app (ex.: cores próprias ao navegar via router): recebe
+     * a conversa, presença e as ações (voltar/info/pesquisa/menu/chamadas).
+     * Sem isto, o header interno padrão é usado.
+     */
+    renderHeader?(ctx: HeaderChatContexto): React.ReactNode;
+}
+declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco, barraEstado, renderHeader }: ChatScreenProps): React.JSX.Element;
+
 interface MakaChatContexto {
     engine: SyncEngine;
     api: MakaApi;
@@ -91,6 +144,12 @@ interface MakaChatContexto {
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    /** pesquisa server-side de contactos (nova conversa/partilha) — API da app */
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
+    /** rótulo da secção de sugestões na nova conversa (padrão: "Sugestões") */
+    textoSugestoes?: string;
+    /** header custom da conversa (RotaConversa usa-o — ex.: Humbi laranja); a barra de estado passa a ser gerida pelo próprio header */
+    renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
 }
 interface MakaChatProviderProps {
     serviceKey: string;
@@ -102,9 +161,12 @@ interface MakaChatProviderProps {
     contactos?: AlvoParticipante[];
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
+    textoSugestoes?: string;
+    renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoVerPerfil, children, }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa, children, }: MakaChatProviderProps): React.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam antes do login). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;
@@ -216,59 +278,6 @@ interface ConversasScreenProps {
 declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }: ConversasScreenProps): React.JSX.Element;
 declare function previewConversa(c: Conversa): string;
 
-/** Tudo o que o header (default ou custom) precisa — passado ao renderHeader. */
-interface HeaderChatContexto {
-    conversa: Conversa | null;
-    /** o outro participante numa conversa 1:1 (null em grupos) */
-    contraparte: ParticipanteConversa | null;
-    grupo: boolean;
-    typingAtivo: boolean;
-    totalMembros: number;
-    /** conversa fechada (só leitura) */
-    fechada: boolean;
-    onVoltar?(): void;
-    abrirInfo(): void;
-    alternarPesquisa(): void;
-    abrirMenu(): void;
-    /** undefined quando indisponível (sem ChamadasProvider/flag ou conversa fechada) */
-    ligarAudio?(): void;
-    ligarVideo?(): void;
-}
-interface ChatScreenProps {
-    conversaId: string;
-    /** voltar à lista (header) */
-    onVoltar?(): void;
-    /** abrir info da conversa/grupo */
-    onAbrirInfo?(conversa: Conversa): void;
-    /** abrir outra conversa (ex.: mensagem direta a partir das reações) */
-    onAbrirOutraConversa?(conversaId: string): void;
-    /** iniciar/entrar em chamadas — liga ao ChamadasProvider da app */
-    chamadas?: {
-        iniciar(conversaId: string, tipo: 'audio' | 'video'): Promise<void>;
-        entrar(chamadaId: string, tipo: 'audio' | 'video'): Promise<void>;
-    } | null;
-    /** compat: abrir anexos fora (por omissão usa galeria/player internos) */
-    onAbrirAnexo?(url: string, tipo: string): void;
-    /**
-     * O ecrã está em foco de NAVEGAÇÃO? (ex.: useIsFocused do react-navigation).
-     * Ecrãs montados em stacks/tabs inativos não devem marcar mensagens como lidas.
-     */
-    emFoco?: boolean;
-    /**
-     * Ícones da status bar enquanto o chat está em foco: 'escura' (ícones
-     * escuros — default, o chat tem fundo claro), 'clara' (ícones claros,
-     * para temas escuros) ou null para a app gerir sozinha.
-     */
-    barraEstado?: 'escura' | 'clara' | null;
-    /**
-     * Header CUSTOM da app (ex.: cores próprias ao navegar via router): recebe
-     * a conversa, presença e as ações (voltar/info/pesquisa/menu/chamadas).
-     * Sem isto, o header interno padrão é usado.
-     */
-    renderHeader?(ctx: HeaderChatContexto): React.ReactNode;
-}
-declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco, barraEstado, renderHeader }: ChatScreenProps): React.JSX.Element;
-
 interface InfoConversaScreenProps {
     conversaId: string;
     onVoltar?(): void;
@@ -358,11 +367,15 @@ interface FicheiroLocal {
     altura?: number;
     duracao_segundos?: number;
 }
+/** Deriva o tipo MakaChat de um mime do SO (partilha/upload). Sem match → ficheiro. */
+declare function tipoDeMime(mime?: string | null): FicheiroLocal['tipo'];
 declare function escolherFotosEVideos(): Promise<FicheiroLocal[]>;
 declare function escolherFicheiro(): Promise<FicheiroLocal | null>;
 declare function enviarAnexoLocal(api: MakaApi, ficheiro: FicheiroLocal, opcoes?: {
     duravel?: boolean;
 }): Promise<Anexo>;
+/** Regista um uri local para o anexo (ex.: o próprio ficheiro que acabei de enviar). */
+declare function registarFicheiroLocal(storage: StorageAdapter, anexoId: string, uri: string): Promise<void>;
 declare function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoFechar, aEnviar, insets }: {
     ficheiros: FicheiroLocal[];
     aoMudar(novos: FicheiroLocal[]): void;
@@ -396,6 +409,34 @@ declare function VisualizadorVideo({ url, aoFechar, insets }: {
         bottom: number;
     };
 }): React.JSX.Element | null;
+
+/**
+ * Deteta conteúdo partilhado do SO (via `expo-share-intent`, peer opcional) e
+ * normaliza para `FicheiroLocal[]` + texto. Devolve null se o peer não existir
+ * ou não houver partilha pendente. Para apps só-chat ligarem partilha→mensagem.
+ */
+declare function usePartilhaRecebida(): {
+    itens: FicheiroLocal[];
+    texto: string | null;
+    limpar(): void;
+} | null;
+interface PartilharScreenProps {
+    /** media/ficheiros já em uri local (partilha do SO ou seleção) */
+    itens: FicheiroLocal[];
+    /** texto/link partilhado — pré-preenche a legenda */
+    texto?: string;
+    onFechar(): void;
+    /** ids das conversas para onde foi enviado (a app pode abrir a 1ª) */
+    onEnviado(conversaIds: string[]): void;
+    /** pesquisa server-side de contactos (opcional — senão filtra sugestões) */
+    pesquisarContactos?(q: string): Promise<AlvoParticipante[]>;
+}
+/**
+ * Ecrã do SDK "Partilhar com…": escolhe uma ou várias conversas/contactos,
+ * faz upload das media/ficheiros e envia com legenda. Reutilizável por qualquer
+ * serviço — a app só entrega os `itens` (ex.: do share intent do SO).
+ */
+declare function PartilharParaConversaScreen({ itens, texto, onFechar, onEnviado, pesquisarContactos }: PartilharScreenProps): React.JSX.Element;
 
 declare function CartaoRegistoChamada({ mensagem, aoLigar }: {
     mensagem: Mensagem;
@@ -463,4 +504,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, NovaConversaScreen, type NovaConversaScreenProps, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, rotuloDia, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, type FicheiroLocal, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, NovaConversaScreen, type NovaConversaScreenProps, PartilharParaConversaScreen, type PartilharScreenProps, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, registarFicheiroLocal, rotuloDia, tipoDeMime, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePartilhaRecebida, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };

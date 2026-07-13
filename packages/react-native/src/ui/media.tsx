@@ -34,6 +34,15 @@ export interface FicheiroLocal {
     duracao_segundos?: number;
 }
 
+/** Deriva o tipo MakaChat de um mime do SO (partilha/upload). Sem match → ficheiro. */
+export function tipoDeMime(mime?: string | null): FicheiroLocal['tipo'] {
+    if (mime?.startsWith('image/')) return 'foto';
+    if (mime?.startsWith('video/')) return 'video';
+    if (mime?.startsWith('audio/')) return 'audio';
+
+    return 'ficheiro';
+}
+
 // ---------------------------------------------------------------- pickers
 
 export async function escolherFotosEVideos(): Promise<FicheiroLocal[]> {

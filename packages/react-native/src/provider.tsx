@@ -21,6 +21,7 @@ import { obterPushMakaChat } from './opcionais';
 import { SqliteStorage } from './sqlite-storage';
 import { MakaTema, resolverTema, TemaResolvido } from './tema';
 import { tocarSom } from './sons';
+import type { HeaderChatContexto } from './ui/ChatScreen';
 
 export interface MakaChatContexto {
     engine: SyncEngine;
@@ -46,6 +47,12 @@ export interface MakaChatContexto {
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    /** pesquisa server-side de contactos (nova conversa/partilha) — API da app */
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
+    /** rótulo da secção de sugestões na nova conversa (padrão: "Sugestões") */
+    textoSugestoes?: string;
+    /** header custom da conversa (RotaConversa usa-o — ex.: Humbi laranja); a barra de estado passa a ser gerida pelo próprio header */
+    renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -60,6 +67,9 @@ export interface MakaChatProviderProps {
     contactos?: AlvoParticipante[];
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
+    textoSugestoes?: string;
+    renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
     children: React.ReactNode;
 }
 
@@ -87,6 +97,9 @@ export function MakaChatProvider({
     contactos,
     aoAbrirPartilha,
     aoVerPerfil,
+    pesquisarContactos,
+    textoSugestoes,
+    renderHeaderConversa,
     children,
 }: MakaChatProviderProps) {
     const [features, setFeatures] = useState<FlagFuncionalidade[]>([]);
@@ -235,7 +248,7 @@ export function MakaChatProvider({
 
     return (
         <Contexto.Provider
-            value={{ ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil }}
+            value={{ ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa }}
         >
             <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
         </Contexto.Provider>

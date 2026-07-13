@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-    entry: ['src/index.ts'],
+    entry: ['src/index.ts', 'src/rotas/index.tsx'],
     format: ['esm', 'cjs'],
     dts: true,
     sourcemap: true,
@@ -9,6 +9,9 @@ export default defineConfig({
     external: [
         'react',
         'react-native',
+        'expo-router',
+        'expo-share-intent',
+        '@react-navigation/native',
         'expo-sqlite',
         '@expo/vector-icons',
         '@shopify/flash-list',

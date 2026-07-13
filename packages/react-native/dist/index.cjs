@@ -1,7 +1,9 @@
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -16,6 +18,14 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __reExport = (target, mod, secondTarget) => (__copyProps(target, mod, "default"), secondTarget && __copyProps(secondTarget, mod, "default"));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/index.ts
@@ -36,6 +46,7 @@ __export(index_exports, {
   NomeComBadge: () => NomeComBadge,
   NotificacoesLocais: () => NotificacoesLocais,
   NovaConversaScreen: () => NovaConversaScreen,
+  PartilharParaConversaScreen: () => PartilharParaConversaScreen,
   ReprodutorAudio: () => ReprodutorAudio,
   Sheet: () => Sheet,
   SqliteStorage: () => SqliteStorage,
@@ -48,7 +59,9 @@ __export(index_exports, {
   ligarPushNativo: () => ligarPushNativo,
   pararToque: () => pararToque,
   previewConversa: () => previewConversa,
+  registarFicheiroLocal: () => registarFicheiroLocal,
   rotuloDia: () => rotuloDia,
+  tipoDeMime: () => tipoDeMime,
   tocarSom: () => tocarSom,
   useChamadas: () => useChamadas,
   useChamadasOpcional: () => useChamadasOpcional,
@@ -60,6 +73,7 @@ __export(index_exports, {
   useMakaChatOpcional: () => useMakaChatOpcional,
   useMensagemRecebida: () => useMensagemRecebida,
   useMensagens: () => useMensagens,
+  usePartilhaRecebida: () => usePartilhaRecebida,
   usePresenca: () => usePresenca,
   useSemLigacao: () => useSemLigacao,
   useTema: () => useTema,
@@ -310,6 +324,13 @@ var obterSharing = () => {
     return null;
   }
 };
+var obterShareIntent = () => {
+  try {
+    return require("expo-share-intent");
+  } catch {
+    return null;
+  }
+};
 var obterIntentLauncher = () => {
   try {
     return require("expo-intent-launcher");
@@ -445,6 +466,9 @@ function MakaChatProvider({
   contactos,
   aoAbrirPartilha,
   aoVerPerfil,
+  pesquisarContactos,
+  textoSugestoes,
+  renderHeaderConversa,
   children
 }) {
   const [features, setFeatures] = (0, import_react.useState)([]);
@@ -549,7 +573,7 @@ function MakaChatProvider({
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     Contexto.Provider,
     {
-      value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil },
+      value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa },
       children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_bottom_sheet.BottomSheetModalProvider, { children })
     }
   );
@@ -1494,6 +1518,12 @@ var import_react_native5 = require("react-native");
 var import_jsx_runtime5 = require("react/jsx-runtime");
 var KCLobby = obterKeyboardController();
 var TecladoLobby = KCLobby?.KeyboardAvoidingView ?? import_react_native5.KeyboardAvoidingView;
+function tipoDeMime(mime) {
+  if (mime?.startsWith("image/")) return "foto";
+  if (mime?.startsWith("video/")) return "video";
+  if (mime?.startsWith("audio/")) return "audio";
+  return "ficheiro";
+}
 async function escolherFotosEVideos() {
   const picker = obterImagePicker();
   if (!picker) return [];
@@ -4094,6 +4124,226 @@ var estilos9 = import_react_native10.StyleSheet.create({
   pill: { position: "absolute", top: 58, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0f172a", borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }
 });
 
+// src/ui/PartilharScreen.tsx
+var import_vector_icons10 = require("@expo/vector-icons");
+var import_react13 = __toESM(require("react"));
+var import_react_native11 = require("react-native");
+var import_react_native_safe_area_context6 = require("react-native-safe-area-context");
+var import_jsx_runtime11 = require("react/jsx-runtime");
+var shareIntentMod = obterShareIntent();
+function usePartilhaRecebida() {
+  if (!shareIntentMod?.useShareIntent) return null;
+  const { hasShareIntent, shareIntent, resetShareIntent } = shareIntentMod.useShareIntent({ resetOnBackground: true });
+  return (0, import_react13.useMemo)(() => {
+    if (!hasShareIntent) return null;
+    const itens = (shareIntent?.files ?? []).map(
+      (f) => ({
+        uri: f.path,
+        mime: f.mimeType ?? "application/octet-stream",
+        nome: f.fileName ?? "partilha",
+        tipo: tipoDeMime(f.mimeType),
+        largura: f.width ?? void 0,
+        altura: f.height ?? void 0,
+        duracao_segundos: f.duration != null ? Math.round(f.duration / 1e3) : void 0
+      })
+    );
+    const txt = shareIntent?.text ?? shareIntent?.webUrl ?? null;
+    if (!itens.length && !txt) return null;
+    return { itens, texto: txt, limpar: resetShareIntent };
+  }, [hasShareIntent, shareIntent, resetShareIntent]);
+}
+var chaveDestino = (d) => "conversa" in d ? `c:${d.conversa.id}` : `u:${d.contacto.tipo}:${d.contacto.id_externo}`;
+function PartilharParaConversaScreen({ itens, texto, onFechar, onEnviado, pesquisarContactos }) {
+  const { api, engine, contactos, identidade } = useMakaChat();
+  const tema = useTema();
+  const insets = (0, import_react_native_safe_area_context6.useSafeAreaInsets)();
+  const conversas = useConversas(false);
+  const [busca, setBusca] = (0, import_react13.useState)("");
+  const [legenda, setLegenda] = (0, import_react13.useState)(texto ?? "");
+  const [escolhidos, setEscolhidos] = (0, import_react13.useState)(/* @__PURE__ */ new Map());
+  const [aEnviar, setAEnviar] = (0, import_react13.useState)(false);
+  const conversasFiltradas = (0, import_react13.useMemo)(() => {
+    const q = busca.trim().toLowerCase();
+    return q ? conversas.filter((c) => (c.titulo ?? "").toLowerCase().includes(q)) : conversas;
+  }, [conversas, busca]);
+  const [resultadosPesquisa, setResultadosPesquisa] = (0, import_react13.useState)(null);
+  const contactosFiltrados = (0, import_react13.useMemo)(() => {
+    const q = busca.trim().toLowerCase();
+    const comConversa = new Set(conversas.flatMap((c) => c.participantes.map((p) => `${p.tipo}:${p.id_externo}`)));
+    const base = resultadosPesquisa ?? contactos;
+    return base.filter((ct) => !(ct.id_externo === identidade.id && ct.tipo === identidade.tipo)).filter((ct) => !comConversa.has(`${ct.tipo}:${ct.id_externo}`)).filter((ct) => !q || (ct.nome ?? "").toLowerCase().includes(q));
+  }, [contactos, conversas, busca, resultadosPesquisa, identidade]);
+  import_react13.default.useEffect(() => {
+    const q = busca.trim();
+    if (!q || !pesquisarContactos) {
+      setResultadosPesquisa(null);
+      return;
+    }
+    let vivo = true;
+    const t = setTimeout(() => {
+      void pesquisarContactos(q).then((l) => vivo && setResultadosPesquisa(l)).catch(() => vivo && setResultadosPesquisa([]));
+    }, 350);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [busca, pesquisarContactos]);
+  const alternar = (d) => {
+    const chave = chaveDestino(d);
+    setEscolhidos((atual) => {
+      const novo = new Map(atual);
+      if (novo.has(chave)) novo.delete(chave);
+      else novo.set(chave, d);
+      return novo;
+    });
+  };
+  const enviarParaConversa = async (conversaId) => {
+    const fotosVideos = itens.filter((i) => i.tipo === "foto" || i.tipo === "video");
+    const ficheiros = itens.filter((i) => i.tipo === "ficheiro" || i.tipo === "audio");
+    let legendaPorUsar = legenda.trim() || void 0;
+    const consumirLegenda = () => {
+      const l = legendaPorUsar;
+      legendaPorUsar = void 0;
+      return l;
+    };
+    if (fotosVideos.length) {
+      const anexos = [];
+      for (const f of fotosVideos) anexos.push(await enviarAnexoLocal(api, f));
+      await engine.enviarMensagem(
+        {
+          conversa_id: conversaId,
+          tipo: fotosVideos.some((f) => f.tipo === "video") ? "video" : "foto",
+          anexo_ids: anexos.map((a) => a.id),
+          conteudo: consumirLegenda()
+        },
+        anexos
+      );
+    }
+    for (const f of ficheiros) {
+      const anexo = await enviarAnexoLocal(api, f, { duravel: f.tipo === "ficheiro" });
+      if (f.tipo === "ficheiro") await registarFicheiroLocal(engine.storage, anexo.id, f.uri);
+      await engine.enviarMensagem({ conversa_id: conversaId, tipo: f.tipo, anexo_ids: [anexo.id], conteudo: consumirLegenda() }, [anexo]);
+    }
+    if (!itens.length && legendaPorUsar) {
+      await engine.enviarMensagem({ conversa_id: conversaId, tipo: "texto", conteudo: consumirLegenda() });
+    }
+  };
+  const enviar = async () => {
+    if (aEnviar || escolhidos.size === 0) return;
+    setAEnviar(true);
+    try {
+      const ids = [];
+      for (const d of escolhidos.values()) {
+        const conversaId = "conversa" in d ? d.conversa.id : (await api.criarPrivada(d.contacto)).conversa.id;
+        await enviarParaConversa(conversaId);
+        ids.push(conversaId);
+      }
+      await engine.atualizarConversas().catch(() => void 0);
+      onEnviado(ids);
+    } catch (e) {
+      import_react_native11.Alert.alert("Falha ao partilhar", e?.message ?? "Tenta de novo.");
+    } finally {
+      setAEnviar(false);
+    }
+  };
+  const dados = [...conversasFiltradas.map((c) => ({ conversa: c })), ...contactosFiltrados.map((ct) => ({ contacto: ct }))];
+  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.View, { style: { flex: 1, backgroundColor: tema.fundo }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.View, { style: [estilos10.header, { paddingTop: insets.top + 8, backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Pressable, { onPress: onFechar, hitSlop: 8, style: { padding: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_vector_icons10.Ionicons, { name: "close", size: 26, color: tema.texto }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Text, { style: { fontSize: 18, fontWeight: "700", color: tema.texto, flex: 1 }, children: "Partilhar com\u2026" })
+    ] }),
+    itens.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.ScrollView, { horizontal: true, showsHorizontalScrollIndicator: false, style: { flexGrow: 0 }, contentContainerStyle: estilos10.previews, children: itens.map((it, i) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.View, { style: [estilos10.preview, { backgroundColor: tema.superficie }], children: it.tipo === "foto" || it.tipo === "video" ? /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_jsx_runtime11.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Image, { source: { uri: it.uri }, style: estilos10.previewImg }),
+      it.tipo === "video" && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.View, { style: estilos10.previewBadge, children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_vector_icons10.Ionicons, { name: "play", size: 14, color: "#fff" }) })
+    ] }) : /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.View, { style: estilos10.previewFicheiro, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_vector_icons10.Ionicons, { name: it.tipo === "audio" ? "musical-notes" : "document-text", size: 22, color: tema.primaria }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Text, { numberOfLines: 2, style: { fontSize: 10.5, color: tema.textoSuave, textAlign: "center" }, children: it.nome })
+    ] }) }, i)) }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.View, { style: [estilos10.legenda, { backgroundColor: tema.superficie }], children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      import_react_native11.TextInput,
+      {
+        value: legenda,
+        onChangeText: setLegenda,
+        placeholder: "Adicionar legenda\u2026",
+        placeholderTextColor: tema.textoSuave,
+        style: { flex: 1, color: tema.texto, fontSize: 15, paddingVertical: 6 },
+        multiline: true
+      }
+    ) }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.View, { style: [estilos10.pesquisa, { backgroundColor: tema.superficie }], children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_vector_icons10.Ionicons, { name: "search", size: 17, color: tema.textoSuave }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+        import_react_native11.TextInput,
+        {
+          value: busca,
+          onChangeText: setBusca,
+          placeholder: "Pesquisar conversas e pessoas",
+          placeholderTextColor: tema.textoSuave,
+          style: { flex: 1, color: tema.texto, paddingVertical: 8, fontSize: 15 }
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      ListaPerformante,
+      {
+        data: dados,
+        keyExtractor: (d) => chaveDestino(d),
+        estimatedItemSize: 64,
+        renderItem: ({ item: d }) => {
+          const marcado = escolhidos.has(chaveDestino(d));
+          const conversa = "conversa" in d ? d.conversa : null;
+          const nome = conversa ? conversa.titulo ?? "Conversa" : d.contacto.nome ?? "Utilizador";
+          const foto = conversa ? conversa.foto_url : d.contacto.foto ?? null;
+          const sub = conversa ? previewConversa(conversa) : "Come\xE7ar conversa";
+          return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.Pressable, { disabled: aEnviar, onPress: () => alternar(d), style: estilos10.linha, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+              import_vector_icons10.Ionicons,
+              {
+                name: marcado ? "checkmark-circle" : "ellipse-outline",
+                size: 22,
+                color: marcado ? tema.primaria : tema.textoSuave
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Avatar, { nome, url: foto, tamanho: 46 }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.View, { style: { flex: 1, minWidth: 0 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Text, { numberOfLines: 1, style: { fontSize: 15.5, fontWeight: "600", color: tema.texto }, children: nome }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Text, { numberOfLines: 1, style: { fontSize: 12.5, color: tema.textoSuave, marginTop: 1 }, children: sub })
+            ] })
+          ] });
+        },
+        ListEmptyComponent: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.Text, { style: { color: tema.textoSuave, textAlign: "center", marginTop: 40 }, children: "Sem resultados." }),
+        contentContainerStyle: { paddingBottom: 96 }
+      }
+    ),
+    escolhidos.size > 0 && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.View, { style: [estilos10.rodape, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: tema.superficie }], children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      import_react_native11.Pressable,
+      {
+        disabled: aEnviar,
+        onPress: () => void enviar(),
+        style: [estilos10.botaoEnviar, { backgroundColor: tema.primaria, opacity: aEnviar ? 0.5 : 1 }],
+        children: aEnviar ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react_native11.ActivityIndicator, { color: tema.primariaContraste }) : /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react_native11.Text, { style: { color: tema.primariaContraste, fontWeight: "700", fontSize: 15 }, children: [
+          "Enviar (",
+          escolhidos.size,
+          ")"
+        ] })
+      }
+    ) })
+  ] });
+}
+var estilos10 = import_react_native11.StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingBottom: 8 },
+  previews: { gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  preview: { width: 72, height: 72, borderRadius: 10, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  previewImg: { width: "100%", height: "100%" },
+  previewBadge: { position: "absolute", backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 12, padding: 4 },
+  previewFicheiro: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4, padding: 6 },
+  legenda: { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2 },
+  pesquisa: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 12, marginHorizontal: 14, marginBottom: 8 },
+  linha: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  rodape: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 10 },
+  botaoEnviar: { alignItems: "center", justifyContent: "center", borderRadius: 14, paddingVertical: 13 }
+});
+
 // src/push-nativo.ts
 async function ligarPushNativo(api, identidade, tokenFcm, plataforma = "android") {
   const push = obterPushMakaChat();
@@ -4111,15 +4361,15 @@ async function ligarPushNativo(api, identidade, tokenFcm, plataforma = "android"
 }
 
 // src/notificacoes-locais.tsx
-var import_react13 = require("react");
-var import_react_native11 = require("react-native");
+var import_react14 = require("react");
+var import_react_native12 = require("react-native");
 function NotificacoesLocais({ avatarPadrao } = {}) {
   const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
-  (0, import_react13.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     const notifee = obterNotifee();
     if (!notifee?.displayNotification) return;
     return subscreverMensagens((mensagem) => {
-      if (estaVisivel(mensagem.conversa_id) && import_react_native11.AppState.currentState === "active") return;
+      if (estaVisivel(mensagem.conversa_id) && import_react_native12.AppState.currentState === "active") return;
       void (async () => {
         try {
           const conversa = await engine.storage.obterConversa(mensagem.conversa_id);
@@ -4210,6 +4460,7 @@ function previewDe(mensagem) {
   NomeComBadge,
   NotificacoesLocais,
   NovaConversaScreen,
+  PartilharParaConversaScreen,
   ReprodutorAudio,
   Sheet,
   SqliteStorage,
@@ -4222,7 +4473,9 @@ function previewDe(mensagem) {
   ligarPushNativo,
   pararToque,
   previewConversa,
+  registarFicheiroLocal,
   rotuloDia,
+  tipoDeMime,
   tocarSom,
   useChamadas,
   useChamadasOpcional,
@@ -4234,6 +4487,7 @@ function previewDe(mensagem) {
   useMakaChatOpcional,
   useMensagemRecebida,
   useMensagens,
+  usePartilhaRecebida,
   usePresenca,
   useSemLigacao,
   useTema,

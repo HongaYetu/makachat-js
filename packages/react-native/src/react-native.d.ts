@@ -72,6 +72,21 @@ declare module 'react-native-safe-area-context' {
     export function useSafeAreaInsets(): { top: number; bottom: number; left: number; right: number };
 }
 
+declare module 'expo-router' {
+    export const Stack: any;
+    export const router: {
+        push(rota: string): void;
+        replace(rota: string): void;
+        back(): void;
+        canGoBack(): boolean;
+    };
+    export function useLocalSearchParams<T = Record<string, string>>(): T;
+}
+
+declare module '@react-navigation/native' {
+    export function useIsFocused(): boolean;
+}
+
 declare module '@gorhom/bottom-sheet' {
     // tipo (para useRef) + valor (componente) com o mesmo nome
     export type BottomSheetModal = { present(): void; dismiss(): void };

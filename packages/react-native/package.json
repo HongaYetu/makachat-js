@@ -21,6 +21,12 @@
             "react-native": "./dist/index.cjs",
             "import": "./dist/index.js",
             "require": "./dist/index.cjs"
+        },
+        "./rotas": {
+            "types": "./dist/rotas/index.d.ts",
+            "react-native": "./dist/rotas/index.cjs",
+            "import": "./dist/rotas/index.js",
+            "require": "./dist/rotas/index.cjs"
         }
     },
     "files": [
@@ -56,7 +62,9 @@
         "expo-video": ">=2.0.0",
         "livekit-client": ">=2.0.0",
         "@notifee/react-native": ">=7.0.0",
-        "@hongayetu/expo-makachat-push": ">=0.1.0"
+        "@hongayetu/expo-makachat-push": ">=0.1.0",
+        "expo-router": ">=3.0.0",
+        "expo-share-intent": ">=3.0.0"
     },
     "devDependencies": {
         "@types/react": "^18.3.0",
@@ -64,6 +72,12 @@
         "typescript": "^5.7.0"
     },
     "peerDependenciesMeta": {
+        "expo-router": {
+            "optional": true
+        },
+        "expo-share-intent": {
+            "optional": true
+        },
         "react-native-keyboard-controller": {
             "optional": true
         },

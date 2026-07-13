@@ -24,7 +24,8 @@ export { InfoConversaScreen, type InfoConversaScreenProps } from './ui/InfoConve
 export { NovaConversaScreen, type NovaConversaScreenProps } from './ui/NovaConversaScreen';
 export { ChamadasProvider, useChamadas, useChamadasOpcional, type ChamadasApi } from './chamadas';
 export { ReprodutorAudio, GravadorAudio } from './ui/audio';
-export { Galeria, LobbyFotos, VisualizadorVideo, enviarAnexoLocal, escolherFotosEVideos, escolherFicheiro } from './ui/media';
+export { Galeria, LobbyFotos, VisualizadorVideo, enviarAnexoLocal, escolherFotosEVideos, escolherFicheiro, registarFicheiroLocal, tipoDeMime, type FicheiroLocal } from './ui/media';
+export { PartilharParaConversaScreen, usePartilhaRecebida, type PartilharScreenProps } from './ui/PartilharScreen';
 export { Bolha, CartaoRegistoChamada } from './ui/Bolha';
 export { ligarPushNativo } from './push-nativo';
 export { NotificacoesLocais } from './notificacoes-locais';

@@ -66,6 +66,14 @@ export const obterSharing = (): any => {
     }
 };
 
+export const obterShareIntent = (): any => {
+    try {
+        return require('expo-share-intent');
+    } catch {
+        return null;
+    }
+};
+
 export const obterIntentLauncher = (): any => {
     try {
         return require('expo-intent-launcher');
