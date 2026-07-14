@@ -10,6 +10,7 @@ export {
     useFuncionalidadeAtiva,
     useLigacao,
     useSemLigacao,
+    useCanalHub,
     useMensagemRecebida,
     useTotalNaoLidas,
     useTotalNaoLidasOpcional,

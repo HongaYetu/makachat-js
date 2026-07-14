@@ -32,6 +32,12 @@ export interface MakaChatContexto {
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
     /** mensagens novas recebidas (deduplicadas, sem as próprias) — chega em QUALQUER página, sem UI de chat montada */
     subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
+    /**
+     * Subscreve um CANAL genérico do hub (chamadas, bloqueio, notificações do
+     * serviço...) reutilizando o MESMO socket do chat. Equivalente ao
+     * Echo.private(canal).listen(evento). Devolve uma função para cancelar.
+     */
+    subscribeToChannel(canal: string, evento: string, handler: (payload: any) => void): () => void;
     /** contactos fornecidos pela app (para criar grupos/conversas) */
     contactos: AlvoParticipante[];
     /** pesquisa de contactos NO serviço (API da app) — usada na nova conversa */
@@ -165,6 +171,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
 
                 return () => ouvintesMensagens.current.delete(ouvinte);
             },
+            subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
             ligado: false,
             contactos: [],
             aoAbrirPartilha: undefined,

@@ -9,6 +9,19 @@ export function useLigacao(): boolean {
 }
 
 /**
+ * Subscreve um canal genérico do hub (chamadas, bloqueio, notificações...) e
+ * chama `handler` a cada `evento`. O handler é estável via ref — só re-subscreve
+ * se `canal`/`evento` mudarem, não a cada render.
+ */
+export function useCanalHub(canal: string, evento: string, handler: (payload: any) => void): void {
+    const { subscribeToChannel } = useMakaChat();
+    const ref = useRef(handler);
+    ref.current = handler;
+
+    useEffect(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
+}
+
+/**
  * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
  * positivos do banner "sem ligação" em reconexões normais (arranque, voltar
  * do background); desliga no instante em que a ligação volta.

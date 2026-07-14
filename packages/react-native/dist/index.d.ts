@@ -137,6 +137,12 @@ interface MakaChatContexto {
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
     /** mensagens novas recebidas (deduplicadas, sem as próprias) — em qualquer ecrã da app */
     subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
+    /**
+     * Subscreve um CANAL genérico do hub (chamadas, bloqueio, notificações do
+     * serviço...) reutilizando o MESMO socket do chat. Equivalente ao
+     * Echo.private(canal).listen(evento). Devolve uma função para cancelar.
+     */
+    subscribeToChannel(canal: string, evento: string, handler: (payload: any) => void): () => void;
     /** ChatScreen regista-se como visível — marcar-lidas e badges respeitam isto */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -173,6 +179,12 @@ declare function useMakaChatOpcional(): MakaChatContexto | null;
 /** Tema resolvido (cores) — todos os componentes MakaChat leem daqui. */
 declare function useTema(): TemaResolvido;
 
+/**
+ * Subscreve um canal genérico do hub (chamadas, bloqueio, notificações...) e
+ * chama `handler` a cada `evento`. O handler é estável via ref — só re-subscreve
+ * se `canal`/`evento` mudarem, não a cada render.
+ */
+declare function useCanalHub(canal: string, evento: string, handler: (payload: any) => void): void;
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
 declare function useVersaoChat(): number;
 declare function useConversas(arquivadas?: boolean): Conversa[];
@@ -504,4 +516,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, type FicheiroLocal, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, NovaConversaScreen, type NovaConversaScreenProps, PartilharParaConversaScreen, type PartilharScreenProps, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, registarFicheiroLocal, rotuloDia, tipoDeMime, tocarSom, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePartilhaRecebida, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };
+export { Avatar, Bolha, CartaoRegistoChamada, type ChamadasApi, ChamadasProvider, ChatScreen, type ChatScreenProps, ConversasScreen, type ConversasScreenProps, type FicheiroLocal, Galeria, GravadorAudio, type HeaderChatContexto, InfoConversaScreen, type InfoConversaScreenProps, ListaPerformante, LobbyFotos, type MakaChatContexto, MakaChatProvider, type MakaChatProviderProps, type MakaTema, NomeComBadge, type NomeSom, NotificacoesLocais, NovaConversaScreen, type NovaConversaScreenProps, PartilharParaConversaScreen, type PartilharScreenProps, ReprodutorAudio, type SQLiteDatabaseLike, Sheet, SqliteStorage, type TopoConversasContexto, VisualizadorVideo, comecarToque, enviarAnexoLocal, escolherFicheiro, escolherFotosEVideos, horaCurta, ligarPushNativo, pararToque, previewConversa, registarFicheiroLocal, rotuloDia, tipoDeMime, tocarSom, useCanalHub, useChamadas, useChamadasOpcional, useConversas, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePartilhaRecebida, usePresenca, useSemLigacao, useTema, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };

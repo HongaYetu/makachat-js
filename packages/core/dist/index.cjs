@@ -364,6 +364,8 @@ var MakaSocket = class {
   opcoes;
   /** handlers registados antes de ligar() — aplicados quando o socket nasce */
   handlers = [];
+  /** canais nomeados subscritos (canal → handlers de evento) — re-subscritos no reconnect */
+  canais = /* @__PURE__ */ new Map();
   /** evita dois sockets vivos quando ligar() é chamado em concorrência (ex.: StrictMode) */
   aLigar = null;
   geracao = 0;
@@ -412,9 +414,13 @@ var MakaSocket = class {
     for (const [evento, handler] of this.handlers) {
       this.socket.on(evento, handler);
     }
+    for (const [, set] of this.canais) {
+      for (const { evento, handler } of set) this.socket.on(evento, handler);
+    }
     this.socket.on("connect", () => {
       this.tentativasArranque = 0;
       this.opcoes.aoLigar?.();
+      this.reidratarCanais();
     });
     this.socket.on("disconnect", () => this.opcoes.aoDesligar?.());
     this.socket.on("connect_error", async () => {
@@ -466,6 +472,45 @@ var MakaSocket = class {
   on(evento, handler) {
     this.handlers.push([evento, handler]);
     this.socket?.on(evento, handler);
+  }
+  /**
+   * Subscreve um CANAL nomeado do hub (estilo Pusher/Echo) reutilizando o
+   * MESMO socket do chat: faz join no canal e ouve `evento` nesse socket. O
+   * hub autoriza o canal (delega ao serviço). Devolve uma função de cancelar
+   * que sai do canal quando fica sem handlers. Re-subscreve sozinho no
+   * reconnect (ver reidratarCanais).
+   */
+  subscreverCanal(canal, evento, handler) {
+    const entrada = { evento, handler };
+    let set = this.canais.get(canal);
+    const primeira = !set;
+    if (!set) {
+      set = /* @__PURE__ */ new Set();
+      this.canais.set(canal, set);
+    }
+    set.add(entrada);
+    this.socket?.on(evento, entrada.handler);
+    if (primeira && this.socket?.connected) {
+      this.socket.emit("hub:canal:subscrever", { canal }, () => void 0);
+    }
+    return () => {
+      const atual = this.canais.get(canal);
+      if (!atual) return;
+      atual.delete(entrada);
+      this.socket?.off(evento, entrada.handler);
+      if (atual.size === 0) {
+        this.canais.delete(canal);
+        if (this.socket?.connected) {
+          this.socket.emit("hub:canal:sair", { canal }, () => void 0);
+        }
+      }
+    };
+  }
+  /** Re-emite o join de todos os canais subscritos (chamado em cada connect). */
+  reidratarCanais() {
+    for (const canal of this.canais.keys()) {
+      this.socket?.emit("hub:canal:subscrever", { canal }, () => void 0);
+    }
   }
   emitirComAck(evento, payload) {
     return new Promise((resolve, reject) => {

@@ -421,6 +421,8 @@ declare class MakaSocket {
     private opcoes;
     /** handlers registados antes de ligar() — aplicados quando o socket nasce */
     private handlers;
+    /** canais nomeados subscritos (canal → handlers de evento) — re-subscritos no reconnect */
+    private canais;
     /** evita dois sockets vivos quando ligar() é chamado em concorrência (ex.: StrictMode) */
     private aLigar;
     private geracao;
@@ -442,6 +444,16 @@ declare class MakaSocket {
     /** Backoff (1s→30s) para re-tentar o 1º connect enquanto o socket não existe. */
     private agendarRetryArranque;
     on(evento: string, handler: (payload: never) => void): void;
+    /**
+     * Subscreve um CANAL nomeado do hub (estilo Pusher/Echo) reutilizando o
+     * MESMO socket do chat: faz join no canal e ouve `evento` nesse socket. O
+     * hub autoriza o canal (delega ao serviço). Devolve uma função de cancelar
+     * que sai do canal quando fica sem handlers. Re-subscreve sozinho no
+     * reconnect (ver reidratarCanais).
+     */
+    subscreverCanal(canal: string, evento: string, handler: (payload: never) => void): () => void;
+    /** Re-emite o join de todos os canais subscritos (chamado em cada connect). */
+    private reidratarCanais;
     private emitirComAck;
     enviarMensagem(dados: DadosEnvioMensagem & {
         ref_cliente: string;

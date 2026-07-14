@@ -448,6 +448,7 @@ function MakaChatProvider({
         ouvintesMensagens.current.add(ouvinte);
         return () => ouvintesMensagens.current.delete(ouvinte);
       },
+      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
       registarVisivel: (conversaId) => {
         visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
         return () => {
@@ -518,6 +519,12 @@ function useTema() {
 // src/hooks.ts
 import { useCallback, useEffect as useEffect2, useState as useState2 } from "react";
 import { useRef as useRef2 } from "react";
+function useCanalHub(canal, evento, handler) {
+  const { subscribeToChannel } = useMakaChat();
+  const ref = useRef2(handler);
+  ref.current = handler;
+  useEffect2(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
+}
 function useVersaoChat() {
   const { engine } = useMakaChat();
   const [versao, setVersao] = useState2(engine.versaoAtual);
@@ -4148,6 +4155,7 @@ export {
   useMakaChat,
   useMakaChatOpcional,
   useTema,
+  useCanalHub,
   useVersaoChat,
   useConversas,
   useMensagens,
@@ -4187,4 +4195,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-YEPFUNI4.js.map
+//# sourceMappingURL=chunk-SFHMGUSG.js.map

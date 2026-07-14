@@ -40,6 +40,12 @@ export interface MakaChatContexto {
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
     /** mensagens novas recebidas (deduplicadas, sem as próprias) — em qualquer ecrã da app */
     subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
+    /**
+     * Subscreve um CANAL genérico do hub (chamadas, bloqueio, notificações do
+     * serviço...) reutilizando o MESMO socket do chat. Equivalente ao
+     * Echo.private(canal).listen(evento). Devolve uma função para cancelar.
+     */
+    subscribeToChannel(canal: string, evento: string, handler: (payload: any) => void): () => void;
     /** ChatScreen regista-se como visível — marcar-lidas e badges respeitam isto */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -175,6 +181,7 @@ export function MakaChatProvider({
 
                 return () => ouvintesMensagens.current.delete(ouvinte);
             },
+            subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
             registarVisivel: (conversaId: string) => {
                 visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
 

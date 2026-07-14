@@ -192,6 +192,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
         ouvintesMensagens.current.add(ouvinte);
         return () => ouvintesMensagens.current.delete(ouvinte);
       },
+      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
       ligado: false,
       contactos: [],
       aoAbrirPartilha: void 0,
@@ -244,6 +245,12 @@ function useMakaChatOpcional() {
 import { useCallback, useEffect as useEffect2, useRef as useRef2, useState as useState2 } from "react";
 function useLigacao() {
   return useMakaChat().ligado;
+}
+function useCanalHub(canal, evento, handler) {
+  const { subscribeToChannel } = useMakaChat();
+  const ref = useRef2(handler);
+  ref.current = handler;
+  useEffect2(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
 }
 function useSemLigacao(atrasoMs = 4e3) {
   const ligado = useLigacao();
@@ -3341,6 +3348,7 @@ export {
   pararToque,
   pedirPermissaoNotificacoes,
   tocarSom,
+  useCanalHub,
   useChamadas,
   useChamadasOpcional,
   useConversas,

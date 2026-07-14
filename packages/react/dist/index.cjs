@@ -46,6 +46,7 @@ __export(index_exports, {
   pararToque: () => pararToque,
   pedirPermissaoNotificacoes: () => pedirPermissaoNotificacoes,
   tocarSom: () => tocarSom,
+  useCanalHub: () => useCanalHub,
   useChamadas: () => useChamadas,
   useChamadasOpcional: () => useChamadasOpcional,
   useConversas: () => useConversas,
@@ -255,6 +256,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
         ouvintesMensagens.current.add(ouvinte);
         return () => ouvintesMensagens.current.delete(ouvinte);
       },
+      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
       ligado: false,
       contactos: [],
       aoAbrirPartilha: void 0,
@@ -307,6 +309,12 @@ function useMakaChatOpcional() {
 var import_react2 = require("react");
 function useLigacao() {
   return useMakaChat().ligado;
+}
+function useCanalHub(canal, evento, handler) {
+  const { subscribeToChannel } = useMakaChat();
+  const ref = (0, import_react2.useRef)(handler);
+  ref.current = handler;
+  (0, import_react2.useEffect)(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
 }
 function useSemLigacao(atrasoMs = 4e3) {
   const ligado = useLigacao();
@@ -3405,6 +3413,7 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
   pararToque,
   pedirPermissaoNotificacoes,
   tocarSom,
+  useCanalHub,
   useChamadas,
   useChamadasOpcional,
   useConversas,

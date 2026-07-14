@@ -8,7 +8,7 @@ import {
   useChamadasOpcional,
   useMakaChatOpcional,
   useTema
-} from "../chunk-YEPFUNI4.js";
+} from "../chunk-SFHMGUSG.js";
 
 // src/rotas/index.tsx
 import { Ionicons } from "@expo/vector-icons";

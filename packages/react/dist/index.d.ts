@@ -29,6 +29,12 @@ interface MakaChatContexto {
     subscreverChamadas(ouvinte: (evento: EventoChamada) => void): () => void;
     /** mensagens novas recebidas (deduplicadas, sem as próprias) — chega em QUALQUER página, sem UI de chat montada */
     subscreverMensagens(ouvinte: (mensagem: Mensagem) => void): () => void;
+    /**
+     * Subscreve um CANAL genérico do hub (chamadas, bloqueio, notificações do
+     * serviço...) reutilizando o MESMO socket do chat. Equivalente ao
+     * Echo.private(canal).listen(evento). Devolve uma função para cancelar.
+     */
+    subscribeToChannel(canal: string, evento: string, handler: (payload: any) => void): () => void;
     /** contactos fornecidos pela app (para criar grupos/conversas) */
     contactos: AlvoParticipante[];
     /** pesquisa de contactos NO serviço (API da app) — usada na nova conversa */
@@ -75,6 +81,12 @@ declare function useMakaChatOpcional(): MakaChatContexto | null;
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
 /** Estado da ligação socket (true = online). */
 declare function useLigacao(): boolean;
+/**
+ * Subscreve um canal genérico do hub (chamadas, bloqueio, notificações...) e
+ * chama `handler` a cada `evento`. O handler é estável via ref — só re-subscreve
+ * se `canal`/`evento` mudarem, não a cada render.
+ */
+declare function useCanalHub(canal: string, evento: string, handler: (payload: any) => void): void;
 /**
  * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
  * positivos do banner "sem ligação" em reconexões normais (arranque, voltar
@@ -221,4 +233,4 @@ declare function tocarSom(nome: NomeSom): void;
 declare function comecarToque(tipo?: TipoToque): void;
 declare function pararToque(): void;
 
-export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useChamadas, useChamadasOpcional, useConversas, useDock, useDockOpcional, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };
+export { AvatarWeb, type BoxProps, ChamadasProvider, ConversaPainel, type ConversaPainelProps, MakaChatBoxFull, MakaChatBoxMin, type MakaChatContexto, MakaChatConversa, MakaChatConversas, type MakaChatConversasProps, MakaChatDock, type MakaChatDockProps, MakaChatProvider, type MakaChatProviderProps, type MakaTema, type NomeSom, comecarToque, mostrarNotificacao, notificacoesSuportadas, pararToque, pedirPermissaoNotificacoes, tocarSom, useCanalHub, useChamadas, useChamadasOpcional, useConversas, useDock, useDockOpcional, useEnviarMensagem, useFuncionalidadeAtiva, useLigacao, useMakaChat, useMakaChatOpcional, useMensagemRecebida, useMensagens, usePresenca, useSemLigacao, useTotalNaoLidas, useTotalNaoLidasOpcional, useTypingConversa, useVersaoChat };

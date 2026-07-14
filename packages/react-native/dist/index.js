@@ -31,6 +31,7 @@ import {
   rotuloDia,
   tipoDeMime,
   tocarSom,
+  useCanalHub,
   useChamadas,
   useChamadasOpcional,
   useConversas,
@@ -48,7 +49,7 @@ import {
   useTotalNaoLidasOpcional,
   useTypingConversa,
   useVersaoChat
-} from "./chunk-YEPFUNI4.js";
+} from "./chunk-SFHMGUSG.js";
 
 // src/index.ts
 export * from "@hongayetu/makachat-core";
@@ -405,6 +406,7 @@ export {
   rotuloDia,
   tipoDeMime,
   tocarSom,
+  useCanalHub,
   useChamadas,
   useChamadasOpcional,
   useConversas,

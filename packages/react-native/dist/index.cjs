@@ -63,6 +63,7 @@ __export(index_exports, {
   rotuloDia: () => rotuloDia,
   tipoDeMime: () => tipoDeMime,
   tocarSom: () => tocarSom,
+  useCanalHub: () => useCanalHub,
   useChamadas: () => useChamadas,
   useChamadasOpcional: () => useChamadasOpcional,
   useConversas: () => useConversas,
@@ -526,6 +527,7 @@ function MakaChatProvider({
         ouvintesMensagens.current.add(ouvinte);
         return () => ouvintesMensagens.current.delete(ouvinte);
       },
+      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
       registarVisivel: (conversaId) => {
         visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
         return () => {
@@ -596,6 +598,12 @@ function useTema() {
 // src/hooks.ts
 var import_react2 = require("react");
 var import_react3 = require("react");
+function useCanalHub(canal, evento, handler) {
+  const { subscribeToChannel } = useMakaChat();
+  const ref = (0, import_react3.useRef)(handler);
+  ref.current = handler;
+  (0, import_react2.useEffect)(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
+}
 function useVersaoChat() {
   const { engine } = useMakaChat();
   const [versao, setVersao] = (0, import_react2.useState)(engine.versaoAtual);
@@ -4516,6 +4524,7 @@ function previewDe(mensagem) {
   rotuloDia,
   tipoDeMime,
   tocarSom,
+  useCanalHub,
   useChamadas,
   useChamadasOpcional,
   useConversas,
