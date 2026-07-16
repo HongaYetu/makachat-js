@@ -308,7 +308,7 @@ function resolverTema(tema) {
 
 // src/sons.ts
 var FONTES = {
-  recebida: __require("./mensagem_recebida-MZY2YITP.mp3"),
+  recebida: __require("./mensagem_recebida-FF2L3T34.mp3"),
   enviada: __require("./mensagem_enviada-DDE7GUQI.mp3"),
   vista: __require("./mensagem_vista-UJR4F6F5.mp3"),
   a_chamar: __require("./a_chamar-DLXA46AB.mp3"),
@@ -4195,4 +4195,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-SFHMGUSG.js.map
+//# sourceMappingURL=chunk-WZW4AR6R.js.map
