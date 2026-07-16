@@ -309,8 +309,8 @@ function resolverTema(tema) {
 // src/sons.ts
 var FONTES = {
   recebida: __require("./mensagem_recebida-FF2L3T34.mp3"),
-  enviada: __require("./mensagem_enviada-DDE7GUQI.mp3"),
-  vista: __require("./mensagem_vista-UJR4F6F5.mp3"),
+  enviada: __require("./mensagem_enviada-KUKRDO7Y.mp3"),
+  vista: __require("./mensagem_vista-ZS4HI3XZ.mp3"),
   a_chamar: __require("./a_chamar-DLXA46AB.mp3"),
   toque_receber: __require("./toque_receber-LUIEOINS.mp3")
 };
@@ -4201,4 +4201,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-HPOJ5KFA.js.map
+//# sourceMappingURL=chunk-L3NIR6PC.js.map

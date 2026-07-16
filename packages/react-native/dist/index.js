@@ -49,7 +49,7 @@ import {
   useTotalNaoLidasOpcional,
   useTypingConversa,
   useVersaoChat
-} from "./chunk-HPOJ5KFA.js";
+} from "./chunk-L3NIR6PC.js";
 
 // src/index.ts
 export * from "@hongayetu/makachat-core";
