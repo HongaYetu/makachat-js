@@ -48,6 +48,8 @@ interface ModuloNativo {
     apresentarChamada(titulo: string, chamadaId: string, chamadaTipo: string, conversaId: string, chaveServico: string, foto: string | null): void;
     iniciarChamadaAtiva(nome: string, foto: string | null, tipo: string): void;
     pararChamadaAtiva(): void;
+    /** iOS: token VoIP do PushKit (null enquanto não chega / noutras plataformas) */
+    getVoipToken(): string | null;
 }
 
 const nativo = requireNativeModule<ModuloNativo>('ExpoMakachatPush');
@@ -81,9 +83,26 @@ export async function obterChamadaPendente(): Promise<ChamadaPush | null> {
     return json ? (JSON.parse(json) as ChamadaPush) : null;
 }
 
-/** Push de chamada com a app viva em background (Android). */
+/** Push de chamada com a app viva (Android; iOS ao atender/recusar no CallKit). */
 export function aoChamadaPush(ouvinte: (chamada: ChamadaPush) => void): { remove(): void } {
     return emissor.addListener('onChamadaPush', ouvinte as never);
+}
+
+/**
+ * Token VoIP do PushKit (iOS) — registar no hub em POST /v1/dispositivos com
+ * `fornecedor:'apns_voip'`. Null noutras plataformas ou enquanto não chega.
+ */
+export function getVoipToken(): string | null {
+    try {
+        return nativo.getVoipToken();
+    } catch {
+        return null;
+    }
+}
+
+/** Emitido quando o token VoIP (iOS PushKit) chega ou renova. */
+export function aoTokenVoip(ouvinte: (token: string) => void): { remove(): void } {
+    return emissor.addListener('onVoipTokenReceived', (e: { token: string }) => ouvinte(e.token));
 }
 
 /** Cancela a notificação de chamada (depois de atender/rejeitar na app). */

@@ -19,7 +19,7 @@ function carregarConfigPlugins() {
 }
 
 
-const { withAndroidManifest, AndroidConfig } = carregarConfigPlugins();
+const { withAndroidManifest, withInfoPlist, AndroidConfig } = carregarConfigPlugins();
 
 /**
  * Config plugin do expo-makachat-push — serviços OPCIONAIS de chamada.
@@ -36,6 +36,18 @@ const { withAndroidManifest, AndroidConfig } = carregarConfigPlugins();
  * injeta as permissões + declarações + um <meta-data> que o Kotlin lê em runtime.
  */
 module.exports = function withMakachatPush(config, opcoes = {}) {
+    // iOS: modos de background sempre — VoIP (PushKit acorda a app p/ o CallKit),
+    // audio (chamada em curso) e remote-notification. Independente das flags Android.
+    config = withInfoPlist(config, (config) => {
+        const modos = new Set(config.modResults.UIBackgroundModes ?? []);
+        modos.add('voip');
+        modos.add('audio');
+        modos.add('remote-notification');
+        config.modResults.UIBackgroundModes = [...modos];
+
+        return config;
+    });
+
     const chamadas = opcoes.chamadas ?? {};
     const toqueContinuo = chamadas.toqueContinuo === true;
     const ecraNativo = chamadas.ecraNativo === true;

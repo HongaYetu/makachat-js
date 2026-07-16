@@ -9,4 +9,7 @@ Pod::Spec.new do |s|
   s.source         = { :git => '' }
   s.source_files   = '**/*.swift'
   s.dependency 'ExpoModulesCore'
+  # PushKit (VoIP) + CallKit (UI de chamada) + AVFoundation (sessão áudio).
+  # Frameworks do sistema — sem pod externo (a media é do @livekit/react-native no JS).
+  s.frameworks     = 'CallKit', 'PushKit', 'AVFoundation'
 end

@@ -4,6 +4,7 @@
         "modules": ["expo.modules.makachatpush.ExpoMakachatPushModule"]
     },
     "ios": {
-        "modules": ["ExpoMakachatPushModule"]
+        "modules": ["ExpoMakachatPushModule"],
+        "appDelegateSubscribers": ["MakachatPushAppDelegateSubscriber"]
     }
 }
