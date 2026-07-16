@@ -561,6 +561,8 @@ interface SyncEngineOpcoes {
     aoTyping?: (typing: Typing) => void;
     /** mensagem RECEBIDA e nova (deduplicada) — usado para notificações */
     aoMensagem?: (mensagem: Mensagem) => void;
+    /** a MINHA última mensagem enviada foi LIDA pelo outro (recibo) — som 'vista' */
+    aoLido?: (conversaId: string) => void;
     aoPresenca?: (presenca: Presenca) => void;
     aoChamada?: (evento: EventoChamada) => void;
 }
@@ -586,6 +588,9 @@ declare class SyncEngine {
     /** última presença conhecida por identidade (snapshot do connect + eventos) —
      *  a lista de conversas mostra bolinhas sem abrir nenhuma conversa */
     private presencas;
+    /** última mensagem minha que já disparou 'vista' por conversa — evita repetir
+     *  o som por cada leitor num grupo (uma leitura por mensagem) */
+    private ultimaVistaPorConversa;
     constructor(storage: StorageAdapter, api: MakaApi, socket: MakaSocket, opcoes: SyncEngineOpcoes);
     get versaoAtual(): number;
     /** Última presença conhecida da identidade (null = nunca vista/offline). */

@@ -21,6 +21,8 @@ export interface SyncEngineOpcoes {
     aoTyping?: (typing: Typing) => void;
     /** mensagem RECEBIDA e nova (deduplicada) — usado para notificações */
     aoMensagem?: (mensagem: Mensagem) => void;
+    /** a MINHA última mensagem enviada foi LIDA pelo outro (recibo) — som 'vista' */
+    aoLido?: (conversaId: string) => void;
     aoPresenca?: (presenca: Presenca) => void;
     aoChamada?: (evento: EventoChamada) => void;
 }
@@ -44,6 +46,9 @@ export class SyncEngine {
     /** última presença conhecida por identidade (snapshot do connect + eventos) —
      *  a lista de conversas mostra bolinhas sem abrir nenhuma conversa */
     private presencas = new Map<string, Presenca>();
+    /** última mensagem minha que já disparou 'vista' por conversa — evita repetir
+     *  o som por cada leitor num grupo (uma leitura por mensagem) */
+    private ultimaVistaPorConversa = new Map<string, string>();
 
     constructor(
         readonly storage: StorageAdapter,
@@ -630,6 +635,13 @@ export class SyncEngine {
                         .catch(() => undefined);
                 }
 
+                // watermark de leitura do participante ANTES do patch — para detetar
+                // se a minha mensagem passou agora a "lida" (som 'vista')
+                const antes = await this.storage.obterConversa(recibo.conversa_id);
+                const prevLido =
+                    antes?.participantes.find((p) => p.identidade_id === recibo.identidade_id)
+                        ?.ultima_leitura_mensagem_id ?? null;
+
                 // recibo + badge num único patch serializado (nunca clobberado)
                 await this.patchConversa(recibo.conversa_id, (c) => {
                     const atualizada = aplicarReciboAConversa(c, recibo);
@@ -647,6 +659,31 @@ export class SyncEngine {
                 });
 
                 this.notificar();
+
+                // 'vista': a MINHA mensagem foi lida por OUTRO participante agora?
+                if (this.opcoes.aoLido && recibo.lido_ate) {
+                    const conv = await this.storage.obterConversa(recibo.conversa_id);
+                    const eu = conv?.participantes.find(
+                        (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo,
+                    );
+
+                    // outro leitor + o watermark avançou desde a última leitura conhecida
+                    if (eu && recibo.identidade_id !== eu.identidade_id && (prevLido === null || recibo.lido_ate > prevLido)) {
+                        const msgs = await this.storage.listarMensagens(recibo.conversa_id, { limite: 50 });
+                        const minhaUltima = [...msgs].reverse().find((m) => m.remetente_identidade_id === eu.identidade_id);
+
+                        // a minha última mensagem entrou agora no intervalo lido (prevLido, lido_ate]
+                        if (
+                            minhaUltima &&
+                            minhaUltima.id <= recibo.lido_ate &&
+                            (prevLido === null || minhaUltima.id > prevLido) &&
+                            this.ultimaVistaPorConversa.get(recibo.conversa_id) !== minhaUltima.id
+                        ) {
+                            this.ultimaVistaPorConversa.set(recibo.conversa_id, minhaUltima.id);
+                            this.opcoes.aoLido(recibo.conversa_id);
+                        }
+                    }
+                }
             })();
         });
 

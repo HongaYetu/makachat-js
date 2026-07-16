@@ -502,7 +502,13 @@ function MakaChatProvider({
       aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
       aoMensagem: (mensagem) => {
         ouvintesMensagens.current.forEach((o) => o(mensagem));
-        if (!mensagem.silenciosa) tocarSom("recebida");
+        if (!mensagem.silenciosa && (visiveis.current.get(mensagem.conversa_id) ?? 0) > 0) {
+          tocarSom("recebida");
+        }
+      },
+      // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta
+      aoLido: (conversaId) => {
+        if ((visiveis.current.get(conversaId) ?? 0) > 0) tocarSom("vista");
       }
     });
     return {

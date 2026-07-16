@@ -142,6 +142,12 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
                     });
                 });
             },
+            // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta e página visível
+            aoLido: (conversaId: string) => {
+                if ((visiveis.current.get(conversaId) ?? 0) > 0 && (typeof document === 'undefined' || !document.hidden)) {
+                    tocarSom('vista');
+                }
+            },
         });
 
         return {

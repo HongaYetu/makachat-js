@@ -150,8 +150,15 @@ export function MakaChatProvider({
             aoMensagem: (mensagem) => {
                 ouvintesMensagens.current.forEach((o) => o(mensagem));
 
-                // silenciosa (decisão do hub: não conta no badge) → sem som
-                if (!mensagem.silenciosa) tocarSom('recebida');
+                // mobile: só toca 'recebida' se estou DENTRO da conversa dela (visível);
+                // fora da conversa → mudo (o push nativo trata o resto). silenciosa → sem som
+                if (!mensagem.silenciosa && (visiveis.current.get(mensagem.conversa_id) ?? 0) > 0) {
+                    tocarSom('recebida');
+                }
+            },
+            // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta
+            aoLido: (conversaId) => {
+                if ((visiveis.current.get(conversaId) ?? 0) > 0) tocarSom('vista');
             },
         });
 

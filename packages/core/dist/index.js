@@ -684,6 +684,9 @@ var SyncEngine = class {
   /** última presença conhecida por identidade (snapshot do connect + eventos) —
    *  a lista de conversas mostra bolinhas sem abrir nenhuma conversa */
   presencas = /* @__PURE__ */ new Map();
+  /** última mensagem minha que já disparou 'vista' por conversa — evita repetir
+   *  o som por cada leitor num grupo (uma leitura por mensagem) */
+  ultimaVistaPorConversa = /* @__PURE__ */ new Map();
   // ---- subscrição (usada pelos hooks) ----
   get versaoAtual() {
     return this.versao;
@@ -1105,6 +1108,8 @@ var SyncEngine = class {
         if (!await this.storage.obterConversa(recibo.conversa_id)) {
           await this.api.obterConversa(recibo.conversa_id).then(({ conversa }) => this.storage.upsertConversas([conversa])).catch(() => void 0);
         }
+        const antes = await this.storage.obterConversa(recibo.conversa_id);
+        const prevLido = antes?.participantes.find((p) => p.identidade_id === recibo.identidade_id)?.ultima_leitura_mensagem_id ?? null;
         await this.patchConversa(recibo.conversa_id, (c) => {
           const atualizada = aplicarReciboAConversa(c, recibo);
           const eu = atualizada.participantes.find(
@@ -1116,6 +1121,20 @@ var SyncEngine = class {
           return atualizada;
         });
         this.notificar();
+        if (this.opcoes.aoLido && recibo.lido_ate) {
+          const conv = await this.storage.obterConversa(recibo.conversa_id);
+          const eu = conv?.participantes.find(
+            (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo
+          );
+          if (eu && recibo.identidade_id !== eu.identidade_id && (prevLido === null || recibo.lido_ate > prevLido)) {
+            const msgs = await this.storage.listarMensagens(recibo.conversa_id, { limite: 50 });
+            const minhaUltima = [...msgs].reverse().find((m) => m.remetente_identidade_id === eu.identidade_id);
+            if (minhaUltima && minhaUltima.id <= recibo.lido_ate && (prevLido === null || minhaUltima.id > prevLido) && this.ultimaVistaPorConversa.get(recibo.conversa_id) !== minhaUltima.id) {
+              this.ultimaVistaPorConversa.set(recibo.conversa_id, minhaUltima.id);
+              this.opcoes.aoLido(recibo.conversa_id);
+            }
+          }
+        }
       })();
     });
     this.socket.on(
