@@ -1158,7 +1158,7 @@ var SyncEngine = class {
           const eu = atualizada.participantes.find(
             (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo
           );
-          if (recibo.lido_ate && atualizada.participante && eu && recibo.identidade_id === eu.identidade_id && atualizada.participante.mensagens_nao_lidas > 0) {
+          if (recibo.lido_ate && (prevLido === null || recibo.lido_ate > prevLido) && atualizada.participante && eu && recibo.identidade_id === eu.identidade_id && atualizada.participante.mensagens_nao_lidas > 0) {
             return { ...atualizada, participante: { ...atualizada.participante, mensagens_nao_lidas: 0 } };
           }
           return atualizada;

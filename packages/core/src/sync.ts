@@ -654,7 +654,18 @@ export class SyncEngine {
                         (p) => p.id_externo === this.opcoes.identidade.id && p.tipo === this.opcoes.identidade.tipo,
                     );
 
-                    if (recibo.lido_ate && atualizada.participante && eu && recibo.identidade_id === eu.identidade_id && atualizada.participante.mensagens_nao_lidas > 0) {
+                    // só zera se a marca de LEITURA avançou de facto (li noutro
+                    // dispositivo). Um recibo de ENTREGA carrega o lido_ate ANTIGO
+                    // (não-nulo) — sem esta comparação, cada mensagem nova recebida
+                    // zerava o badge (o próprio dispositivo reporta entrega).
+                    if (
+                        recibo.lido_ate &&
+                        (prevLido === null || recibo.lido_ate > prevLido) &&
+                        atualizada.participante &&
+                        eu &&
+                        recibo.identidade_id === eu.identidade_id &&
+                        atualizada.participante.mensagens_nao_lidas > 0
+                    ) {
                         return { ...atualizada, participante: { ...atualizada.participante, mensagens_nao_lidas: 0 } };
                     }
 
