@@ -3371,7 +3371,28 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
                   children: [
                     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(AvatarWeb, { nome: conversa?.titulo ?? "?", url: conversa?.foto_url, tamanho: 26 }),
                     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "min-w-0 flex-1 truncate text-[13px] font-semibold", children: conversa?.titulo ?? "Conversa" }),
-                    (conversa?.participante?.mensagens_nao_lidas ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white", children: conversa?.participante?.mensagens_nao_lidas }),
+                    (conversa?.participante?.mensagens_nao_lidas ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                      "span",
+                      {
+                        className: "animate-maka-pulsar",
+                        style: {
+                          boxSizing: "border-box",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minWidth: 18,
+                          height: 18,
+                          padding: "0 4px",
+                          borderRadius: 999,
+                          background: "#dc2626",
+                          color: "#fff",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          lineHeight: 1
+                        },
+                        children: (conversa?.participante?.mensagens_nao_lidas ?? 0) > 99 ? "99+" : conversa?.participante?.mensagens_nao_lidas
+                      }
+                    ),
                     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
                       "span",
                       {
@@ -3410,7 +3431,32 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
             className: "relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-2xl text-[var(--maka-primaria-contraste)] shadow-xl transition-transform hover:scale-105 active:scale-95",
             children: [
               /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react9.Icon, { icon: "tabler:message-circle" }),
-              naoLidas > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "absolute -right-1 -top-1 animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white", children: naoLidas })
+              naoLidas > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "span",
+                {
+                  className: "animate-maka-pulsar",
+                  style: {
+                    position: "absolute",
+                    top: -6,
+                    right: -6,
+                    boxSizing: "border-box",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 18,
+                    height: 18,
+                    padding: "0 4px",
+                    borderRadius: 999,
+                    border: "2px solid var(--maka-primaria)",
+                    background: "#dc2626",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    lineHeight: 1
+                  },
+                  children: naoLidas > 99 ? "99+" : naoLidas
+                }
+              )
             ]
           }
         )

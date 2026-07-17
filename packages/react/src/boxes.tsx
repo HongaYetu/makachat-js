@@ -251,8 +251,25 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
                                     <AvatarWeb nome={conversa?.titulo ?? '?'} url={conversa?.foto_url} tamanho={26} />
                                     <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{conversa?.titulo ?? 'Conversa'}</span>
                                     {(conversa?.participante?.mensagens_nao_lidas ?? 0) > 0 && (
-                                        <span className="animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
-                                            {conversa?.participante?.mensagens_nao_lidas}
+                                        <span
+                                            className="animate-maka-pulsar"
+                                            style={{
+                                                boxSizing: 'border-box',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                minWidth: 18,
+                                                height: 18,
+                                                padding: '0 4px',
+                                                borderRadius: 999,
+                                                background: '#dc2626',
+                                                color: '#fff',
+                                                fontSize: 10,
+                                                fontWeight: 700,
+                                                lineHeight: 1,
+                                            }}
+                                        >
+                                            {(conversa?.participante?.mensagens_nao_lidas ?? 0) > 99 ? '99+' : conversa?.participante?.mensagens_nao_lidas}
                                         </span>
                                     )}
                                     <span
@@ -290,8 +307,29 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
                     >
                         <Icon icon="tabler:message-circle" />
                         {naoLidas > 0 && (
-                            <span className="absolute -right-1 -top-1 animate-maka-pulsar rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white">
-                                {naoLidas}
+                            <span
+                                className="animate-maka-pulsar"
+                                style={{
+                                    position: 'absolute',
+                                    top: -6,
+                                    right: -6,
+                                    boxSizing: 'border-box',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    minWidth: 18,
+                                    height: 18,
+                                    padding: '0 4px',
+                                    borderRadius: 999,
+                                    border: '2px solid var(--maka-primaria)',
+                                    background: '#dc2626',
+                                    color: '#fff',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    lineHeight: 1,
+                                }}
+                            >
+                                {naoLidas > 99 ? '99+' : naoLidas}
                             </span>
                         )}
                     </button>
