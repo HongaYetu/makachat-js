@@ -34,6 +34,10 @@ class MakachatFcmService : FirebaseMessagingService() {
         /** o ChamadasProvider marcou o handler de onChamadaPush como subscrito */
         var ouvinteChamadasPronto = false
 
+        /** conversa aberta em primeiro plano (o JS mantém via definirConversaVisivel) —
+         *  não notificamos mensagens dela enquanto visível + foreground */
+        var conversaVisivel: String? = null
+
         /** app visível ao utilizador (uma activity resumed) — factos, não palpite */
         fun processoEmForeground(): Boolean {
             return try {
@@ -243,7 +247,7 @@ class MakachatFcmService : FirebaseMessagingService() {
             }
 
             val db = InboxDatabase.get(context)
-            val eu = Person.Builder().setName(db.obterConfig("meu_nome") ?: "Eu").build()
+            val eu = Person.Builder().setName(db.obterConfig("meu_nome") ?: "Eu").setKey("eu").build()
             val estilo = NotificationCompat.MessagingStyle(eu)
 
             val historico = db.historicoDe(conversaId)
@@ -261,11 +265,26 @@ class MakachatFcmService : FirebaseMessagingService() {
             val fotoRemetente = prefs.getString("foto_$conversaId", null)
             val fotoConversa = prefs.getString("foto_conversa_$conversaId", null)
 
-            // Persons do histórico sem ícone (estilo limpo, padrão kanda-notifications);
-            // o avatar aparece no largeIcon circular (grupo → foto do grupo, senão remetente)
+            // avatar da conversa (largeIcon + ícone do atalho): grupo → foto do grupo; 1:1 → foto do remetente
+            val nomeAvatar = if (eGrupo) (tituloGrupo ?: titulo) else (historico.lastOrNull { !it.minha }?.remetente ?: titulo)
+            val avatar = ImagemHelper.avatarCircular(if (eGrupo) fotoConversa else fotoRemetente, nomeAvatar)
+            val iconeAvatar = androidx.core.graphics.drawable.IconCompat.createWithBitmap(avatar)
+
+            // Person da contraparte com ÍCONE (é o que dá o avatar grande na secção
+            // "Conversas"). 1:1 → avatar real da conversa; grupo → placeholder por
+            // nome de cada remetente (não temos foto por-membro no payload).
+            val pessoaConversa = Person.Builder().setName(nomeAvatar).setIcon(iconeAvatar).setKey(conversaId).build()
+
             for (linha in historico) {
-                val pessoa = if (linha.minha) eu else Person.Builder().setName(linha.remetente).build()
-                estilo.addMessage(NotificationCompat.MessagingStyle.Message(linha.corpo, linha.em, if (linha.minha) null else pessoa))
+                val pessoa = when {
+                    linha.minha -> null
+                    eGrupo -> Person.Builder()
+                        .setName(linha.remetente)
+                        .setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(ImagemHelper.avatarCircular(null, linha.remetente)))
+                        .build()
+                    else -> pessoaConversa
+                }
+                estilo.addMessage(NotificationCompat.MessagingStyle.Message(linha.corpo, linha.em, pessoa))
             }
 
             if (eGrupo) {
@@ -273,8 +292,22 @@ class MakachatFcmService : FirebaseMessagingService() {
                 estilo.isGroupConversation = true
             }
 
-            val nomeAvatar = if (eGrupo) (tituloGrupo ?: titulo) else (historico.lastOrNull { !it.minha }?.remetente ?: titulo)
-            val avatar = ImagemHelper.avatarCircular(if (eGrupo) fotoConversa else fotoRemetente, nomeAvatar)
+            // Atalho de conversa (long-lived): sem ele o Android mostra a notificação
+            // na secção normal (ícone pequeno, agrupada). Com setShortcutId + este
+            // atalho, vai para a secção "Conversas" com avatar grande e separada.
+            try {
+                val atalho = androidx.core.content.pm.ShortcutInfoCompat.Builder(context, conversaId)
+                    .setShortLabel(nomeAvatar)
+                    .setIcon(iconeAvatar)
+                    .setPerson(pessoaConversa)
+                    .setLongLived(true)
+                    .setCategories(setOf("expo.modules.makachatpush.category.SHARE_TARGET"))
+                    .setIntent(Intent(Intent.ACTION_VIEW).setPackage(context.packageName))
+                    .build()
+                androidx.core.content.pm.ShortcutManagerCompat.pushDynamicShortcut(context, atalho)
+            } catch (_: Exception) {
+                // ShortcutManager indisponível/limite — a notificação mostra na mesma
+            }
 
             // responder ao vivo (RemoteInput) + marcar como lida
             val extras = { acao: String ->
@@ -314,6 +347,7 @@ class MakachatFcmService : FirebaseMessagingService() {
             val notificacao = NotificationCompat.Builder(context, canalId)
                 .setSmallIcon(context.applicationInfo.icon)
                 .setLargeIcon(avatar)
+                .setShortcutId(conversaId)
                 .setStyle(estilo)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setAutoCancel(true)
@@ -388,7 +422,14 @@ object MakachatPushProcessor {
             false
         }
 
-        MakachatFcmService.mostrarMensagens(context, conversaId, titulo, semSom = semSom)
+        // notifica SEMPRE, exceto quando o utilizador está mesmo dentro desta
+        // conversa em primeiro plano (aí a app já mostra a mensagem in-app).
+        // Minimizada/morta → processoEmForeground() é false → notifica.
+        val aVerEstaConversa = MakachatFcmService.conversaVisivel == conversaId && MakachatFcmService.processoEmForeground()
+
+        if (!aVerEstaConversa) {
+            MakachatFcmService.mostrarMensagens(context, conversaId, titulo, semSom = semSom)
+        }
 
         // recibo de ENTREGA (✓✓ cinzento) assim que o push chega ao dispositivo —
         // best-effort, autenticado pelo token+segredo do registo do dispositivo

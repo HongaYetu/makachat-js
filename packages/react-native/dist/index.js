@@ -49,7 +49,7 @@ import {
   useTotalNaoLidasOpcional,
   useTypingConversa,
   useVersaoChat
-} from "./chunk-UIJVKS4Z.js";
+} from "./chunk-GM2PV5FE.js";
 
 // src/index.ts
 export * from "@hongayetu/makachat-core";
@@ -296,6 +296,7 @@ import { AppState } from "react-native";
 function NotificacoesLocais({ avatarPadrao } = {}) {
   const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
   useEffect(() => {
+    if (obterPushMakaChat()) return;
     const notifee = obterNotifee();
     if (!notifee?.displayNotification) return;
     return subscreverMensagens((mensagem) => {

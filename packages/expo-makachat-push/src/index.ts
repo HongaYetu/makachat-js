@@ -40,6 +40,7 @@ interface ModuloNativo {
     obterConversaPendente(): Promise<string | null>;
     cancelarNotificacaoChamada(chamadaId: string): void;
     cancelarNotificacaoMensagens(conversaId: string): void;
+    definirConversaVisivel(conversaId: string | null): void;
     configurarResposta(apiUrl: string, token: string, segredo: string, meuNome: string): void;
     configChamadas(): ConfigChamadas;
     ouvinteChamadasPronto(pronto: boolean): void;
@@ -191,6 +192,20 @@ export function pararChamadaAtiva(): void {
 /** Cancela a notificação nativa de mensagens da conversa (ao abrir o chat na app). */
 export function cancelarNotificacaoMensagens(conversaId: string): void {
     nativo.cancelarNotificacaoMensagens(conversaId);
+}
+
+/**
+ * Marca (ou limpa, com null) qual a conversa aberta em primeiro plano: o serviço
+ * nativo não mostra notificação de sistema dessa conversa enquanto ela estiver
+ * visível + app em foreground (o utilizador já a está a ver). Qualquer outra
+ * conversa — ou a app minimizada/morta — notifica sempre.
+ */
+export function definirConversaVisivel(conversaId: string | null): void {
+    try {
+        nativo.definirConversaVisivel(conversaId);
+    } catch {
+        // módulo antigo sem esta função
+    }
 }
 
 /**

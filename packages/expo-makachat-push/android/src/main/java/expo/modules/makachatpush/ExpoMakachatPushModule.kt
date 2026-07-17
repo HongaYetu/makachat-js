@@ -77,6 +77,14 @@ class ExpoMakachatPushModule : Module() {
         }
 
         /**
+         * Conversa aberta em primeiro plano (null = nenhuma): o serviço nativo não
+         * mostra notificação de sistema dela enquanto estiver visível + foreground.
+         */
+        Function("definirConversaVisivel") { conversaId: String? ->
+            MakachatFcmService.conversaVisivel = conversaId
+        }
+
+        /**
          * O ChamadasProvider marca o handler de onChamadaPush como subscrito:
          * só então o FCM entrega chamadas ao JS em foreground — sem isto, a
          * notificação nativa aparece sempre (nunca um emit para o vazio).
@@ -127,6 +135,7 @@ class ExpoMakachatPushModule : Module() {
             MakachatFcmService.emissor = null
             MakachatFcmService.emissorChamada = null
             MakachatFcmService.ouvinteChamadasPronto = false
+            MakachatFcmService.conversaVisivel = null
         }
     }
 }

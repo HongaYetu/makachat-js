@@ -1,7 +1,7 @@
 import { Mensagem } from '@hongayetu/makachat-core';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
-import { obterNotifee } from './opcionais';
+import { obterNotifee, obterPushMakaChat } from './opcionais';
 import { useMakaChat } from './provider';
 
 /**
@@ -21,6 +21,11 @@ export function NotificacoesLocais({ avatarPadrao }: { avatarPadrao?: string } =
     const { engine, subscreverMensagens, estaVisivel } = useMakaChat();
 
     useEffect(() => {
+        // Com o módulo de push nativo instalado, o serviço nativo (FCM) é o DONO
+        // ÚNICO das notificações de mensagem — estilo WhatsApp e com o critério
+        // "conversa aberta". Mostrar também aqui (via socket) duplicava. No-op.
+        if (obterPushMakaChat()) return;
+
         const notifee = obterNotifee();
 
         if (!notifee?.displayNotification) return;

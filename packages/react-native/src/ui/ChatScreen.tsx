@@ -19,7 +19,7 @@ import {
     View,
 } from 'react-native';
 import { useEnviarMensagem, useFuncionalidadeAtiva, useMensagens, useTypingConversa, useVersaoChat } from '../hooks';
-import { obterKeyboardController } from '../opcionais';
+import { obterKeyboardController, obterPushMakaChat } from '../opcionais';
 import { useMakaChat, useTema } from '../provider';
 import { tocarSom } from '../sons';
 import { GravadorAudio } from './audio';
@@ -199,7 +199,17 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
 
         const sair = registarVisivel(conversaId);
 
-        return sair;
+        // Ponte p/ o push nativo: enquanto esta conversa está aberta em foco, o
+        // serviço nativo NÃO mostra notificação dela (o utilizador está a vê-la);
+        // e limpamos a notificação existente ao abrir (estilo WhatsApp).
+        const push = obterPushMakaChat();
+        push?.definirConversaVisivel?.(conversaId);
+        push?.cancelarNotificacaoMensagens?.(conversaId);
+
+        return () => {
+            sair();
+            obterPushMakaChat()?.definirConversaVisivel?.(null);
+        };
     }, [engine, conversaId, registarVisivel, emFoco]);
 
     useEffect(() => {

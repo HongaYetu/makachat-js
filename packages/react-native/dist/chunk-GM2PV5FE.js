@@ -2125,7 +2125,13 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     void engine.entrarConversa(conversaId);
     if (!emFoco) return;
     const sair = registarVisivel(conversaId);
-    return sair;
+    const push = obterPushMakaChat();
+    push?.definirConversaVisivel?.(conversaId);
+    push?.cancelarNotificacaoMensagens?.(conversaId);
+    return () => {
+      sair();
+      obterPushMakaChat()?.definirConversaVisivel?.(null);
+    };
   }, [engine, conversaId, registarVisivel, emFoco]);
   useEffect8(() => {
     void engine.storage.obterConversa(conversaId).then(setConversa);
@@ -4217,4 +4223,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-UIJVKS4Z.js.map
+//# sourceMappingURL=chunk-GM2PV5FE.js.map
