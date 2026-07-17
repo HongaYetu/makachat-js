@@ -322,8 +322,8 @@ interface NovaConversaScreenProps {
 declare function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes }: NovaConversaScreenProps): React.JSX.Element;
 
 interface EstadoChamada {
+    fase: 'a_receber' | 'a_ligar' | 'a_chamar' | 'em_curso' | 'falhada' | 'ocupado';
     chamada: Chamada;
-    fase: 'a_receber' | 'a_ligar' | 'em_curso' | 'falhada';
     iniciador?: {
         nome: string;
         foto_url: string | null;

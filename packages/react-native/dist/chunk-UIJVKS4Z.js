@@ -3605,11 +3605,19 @@ function ChamadasProvider({ children }) {
   }, [ativa]);
   useEffect11(() => {
     faseRef.current = ativa?.fase ?? null;
-    if (ativa?.fase === "a_ligar") comecarToque("ligar");
+    if (ativa?.fase === "a_ligar" || ativa?.fase === "a_chamar") comecarToque("ligar");
     else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
+  const ackTocRef = useRef9(null);
+  useEffect11(() => {
+    const id = ativa?.fase === "a_receber" ? ativa.chamada.id : null;
+    if (id && ackTocRef.current !== id) {
+      ackTocRef.current = id;
+      void api.chamadaATocar(id).catch(() => void 0);
+    }
+  }, [ativa?.fase, ativa?.chamada.id, api]);
   useEffect11(() => {
     const push = obterPushMakaChat();
     if (!push?.configChamadas) return;
@@ -3790,8 +3798,10 @@ function ChamadasProvider({ children }) {
           setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
           void carregarConversa(evento.chamada.conversa_id);
         });
+      } else if (evento.evento === "a_tocar") {
+        if (faseRef.current === "a_ligar") setAtiva((a) => a ? { ...a, fase: "a_chamar" } : a);
       } else if (evento.evento === "atendida") {
-        if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
+        if (faseRef.current === "a_ligar" || faseRef.current === "a_chamar" || faseRef.current === "em_curso") {
           setAtiva((a) => a ? { ...a, fase: "em_curso", chamada: evento.chamada } : a);
           comecarTimer();
         }
@@ -3814,14 +3824,20 @@ function ChamadasProvider({ children }) {
     async (conversaId, tipo) => {
       if (!suportado) return;
       const r = await api.iniciarChamada(conversaId, tipo);
-      setAtiva({ chamada: r.chamada, fase: "a_ligar" });
+      if (r.ocupado || r.chamada.estado === "ocupada") {
+        setAtiva({ chamada: r.chamada, fase: "ocupado" });
+        void carregarConversa(conversaId);
+        setTimeout(() => limpar(), 2500);
+        return;
+      }
+      setAtiva({ chamada: r.chamada, fase: r.destinatario_online === false ? "a_ligar" : "a_chamar" });
       void carregarConversa(conversaId);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
         if (!ok) await falhar(r.chamada.id);
       }
     },
-    [suportado, api, ligarSala, falhar, carregarConversa]
+    [suportado, api, ligarSala, falhar, carregarConversa, limpar]
   );
   const entrar = useCallback4(
     async (chamadaId, tipo) => {
@@ -4024,7 +4040,7 @@ function EcraChamada({ ativa, conversa, tiles, inicioEm, erro, mudo, camara, alt
   const remotoPausado = tiles.some((t) => !t.local && t.pausado);
   const alturaPip = local?.proporcao ? Math.min(200, Math.max(84, Math.round(112 / local.proporcao))) : 168;
   const emCurso = ativa.fase === "em_curso";
-  const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "a_ligar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
+  const subtitulo = ativa.fase === "falhada" ? "Chamada falhada" : ativa.fase === "ocupado" ? "Ocupado" : ativa.fase === "a_ligar" ? "A ligar\u2026" : ativa.fase === "a_chamar" ? "A chamar\u2026" : ativa.fase === "a_receber" ? `Chamada de ${video ? "v\xEDdeo" : "voz"}` : inicioEm ? void 0 : "A ligar\u2026";
   return /* @__PURE__ */ jsxs9(Modal3, { visible: true, animationType: "slide", onRequestClose: aoMinimizar, children: [
     /* @__PURE__ */ jsx10(StatusBar3, { animated: true, barStyle: "light-content" }),
     /* @__PURE__ */ jsxs9(View9, { style: { flex: 1, backgroundColor: "#0f172a" }, children: [
@@ -4201,4 +4217,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-MNVC4CCI.js.map
+//# sourceMappingURL=chunk-UIJVKS4Z.js.map

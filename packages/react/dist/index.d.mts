@@ -147,7 +147,7 @@ declare function AvatarWeb({ nome, url, tamanho, grupo }: {
 
 interface EstadoChamada {
     chamada: Chamada;
-    fase: 'a_receber' | 'a_ligar' | 'em_curso' | 'falhada';
+    fase: 'a_receber' | 'a_ligar' | 'a_chamar' | 'em_curso' | 'falhada' | 'ocupado';
     iniciador?: {
         nome: string;
         foto_url: string | null;

@@ -246,6 +246,11 @@ export class MakaApi {
         return this.pedir<RespostaChamada>(`/v1/chat/chamadas/${chamadaId}/atender`, { method: 'PATCH' });
     }
 
+    /** O destinatário avisa que está A TOCAR → o autor passa de "A ligar…" a "A chamar…". */
+    chamadaATocar(chamadaId: string) {
+        return this.pedir<{ estado: string }>(`/v1/chat/chamadas/${chamadaId}/a-tocar`, { method: 'PATCH' });
+    }
+
     rejeitarChamada(chamadaId: string) {
         return this.pedir<RespostaChamada>(`/v1/chat/chamadas/${chamadaId}/rejeitar`, { method: 'PATCH' });
     }

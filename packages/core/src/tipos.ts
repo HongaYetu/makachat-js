@@ -162,7 +162,7 @@ export interface Chamada {
     conversa_id: string;
     iniciador_identidade_id: string;
     tipo: 'audio' | 'video';
-    estado: 'a_tocar' | 'em_curso' | 'terminada' | 'perdida' | 'rejeitada' | 'cancelada' | 'falhada';
+    estado: 'a_tocar' | 'em_curso' | 'terminada' | 'perdida' | 'rejeitada' | 'cancelada' | 'falhada' | 'ocupada';
     iniciada_em: string;
     atendida_em: string | null;
     terminada_em: string | null;
@@ -170,7 +170,7 @@ export interface Chamada {
 }
 
 export interface EventoChamada {
-    evento: 'iniciada' | 'atendida' | 'rejeitada' | 'terminada' | 'participante_saiu';
+    evento: 'iniciada' | 'a_tocar' | 'atendida' | 'rejeitada' | 'terminada' | 'participante_saiu';
     chamada: Chamada;
     iniciador?: { identidade_id: string; nome: string; foto_url: string | null };
     identidade_id?: string;
@@ -180,6 +180,10 @@ export interface RespostaChamada {
     chamada: Chamada;
     livekit_token: string | null;
     ws_url: string | null;
+    /** 1:1: o destinatário está online? (autor: offline → "A ligar…"; online → "A chamar…") */
+    destinatario_online?: boolean;
+    /** o destinatário já estava numa chamada → não tocou (autor vê "Ocupado") */
+    ocupado?: boolean;
 }
 
 export interface FlagFuncionalidade {

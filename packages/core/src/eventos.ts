@@ -29,6 +29,8 @@ export const EVENTOS_SERVIDOR = {
     PARTICIPANTE_REMOVIDO: 'chat:participante:removido',
     PARTICIPANTE_ATUALIZADO: 'chat:participante:atualizado',
     CHAMADA_INICIADA: 'chat:chamada:iniciada',
+    /** o dispositivo do destinatário confirma que está a tocar → autor: A ligar… → A chamar… */
+    CHAMADA_A_TOCAR: 'chat:chamada:a_tocar',
     CHAMADA_ATENDIDA: 'chat:chamada:atendida',
     CHAMADA_REJEITADA: 'chat:chamada:rejeitada',
     CHAMADA_TERMINADA: 'chat:chamada:terminada',

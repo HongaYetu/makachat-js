@@ -90,6 +90,8 @@ var EVENTOS_SERVIDOR = {
   PARTICIPANTE_REMOVIDO: "chat:participante:removido",
   PARTICIPANTE_ATUALIZADO: "chat:participante:atualizado",
   CHAMADA_INICIADA: "chat:chamada:iniciada",
+  /** o dispositivo do destinatário confirma que está a tocar → autor: A ligar… → A chamar… */
+  CHAMADA_A_TOCAR: "chat:chamada:a_tocar",
   CHAMADA_ATENDIDA: "chat:chamada:atendida",
   CHAMADA_REJEITADA: "chat:chamada:rejeitada",
   CHAMADA_TERMINADA: "chat:chamada:terminada",
@@ -330,6 +332,10 @@ var MakaApi = class {
   }
   atenderChamada(chamadaId) {
     return this.pedir(`/v1/chat/chamadas/${chamadaId}/atender`, { method: "PATCH" });
+  }
+  /** O destinatário avisa que está A TOCAR → o autor passa de "A ligar…" a "A chamar…". */
+  chamadaATocar(chamadaId) {
+    return this.pedir(`/v1/chat/chamadas/${chamadaId}/a-tocar`, { method: "PATCH" });
   }
   rejeitarChamada(chamadaId) {
     return this.pedir(`/v1/chat/chamadas/${chamadaId}/rejeitar`, { method: "PATCH" });
@@ -865,7 +871,7 @@ var SyncEngine = class {
   async atualizarChamadaAtiva(evento) {
     const conversa = await this.storage.obterConversa(evento.chamada.conversa_id);
     if (!conversa) return;
-    const ativa = evento.evento === "iniciada" || evento.evento === "atendida" || evento.evento === "participante_saiu" ? {
+    const ativa = evento.evento === "iniciada" || evento.evento === "a_tocar" || evento.evento === "atendida" || evento.evento === "participante_saiu" ? {
       id: evento.chamada.id,
       tipo: evento.chamada.tipo,
       estado: evento.chamada.estado,
@@ -1200,6 +1206,7 @@ var SyncEngine = class {
     this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ATUALIZADO, () => void this.atualizarConversas());
     for (const [nome, evento] of [
       [EVENTOS_SERVIDOR.CHAMADA_INICIADA, "iniciada"],
+      [EVENTOS_SERVIDOR.CHAMADA_A_TOCAR, "a_tocar"],
       [EVENTOS_SERVIDOR.CHAMADA_ATENDIDA, "atendida"],
       [EVENTOS_SERVIDOR.CHAMADA_REJEITADA, "rejeitada"],
       [EVENTOS_SERVIDOR.CHAMADA_TERMINADA, "terminada"],

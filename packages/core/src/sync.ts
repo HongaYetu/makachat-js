@@ -270,7 +270,10 @@ export class SyncEngine {
         if (!conversa) return;
 
         const ativa =
-            evento.evento === 'iniciada' || evento.evento === 'atendida' || evento.evento === 'participante_saiu'
+            evento.evento === 'iniciada' ||
+            evento.evento === 'a_tocar' ||
+            evento.evento === 'atendida' ||
+            evento.evento === 'participante_saiu'
                 ? {
                       id: evento.chamada.id,
                       tipo: evento.chamada.tipo,
@@ -720,6 +723,7 @@ export class SyncEngine {
 
         for (const [nome, evento] of [
             [EVENTOS_SERVIDOR.CHAMADA_INICIADA, 'iniciada'],
+            [EVENTOS_SERVIDOR.CHAMADA_A_TOCAR, 'a_tocar'],
             [EVENTOS_SERVIDOR.CHAMADA_ATENDIDA, 'atendida'],
             [EVENTOS_SERVIDOR.CHAMADA_REJEITADA, 'rejeitada'],
             [EVENTOS_SERVIDOR.CHAMADA_TERMINADA, 'terminada'],

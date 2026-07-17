@@ -144,14 +144,14 @@ interface Chamada {
     conversa_id: string;
     iniciador_identidade_id: string;
     tipo: 'audio' | 'video';
-    estado: 'a_tocar' | 'em_curso' | 'terminada' | 'perdida' | 'rejeitada' | 'cancelada' | 'falhada';
+    estado: 'a_tocar' | 'em_curso' | 'terminada' | 'perdida' | 'rejeitada' | 'cancelada' | 'falhada' | 'ocupada';
     iniciada_em: string;
     atendida_em: string | null;
     terminada_em: string | null;
     duracao_segundos: number | null;
 }
 interface EventoChamada {
-    evento: 'iniciada' | 'atendida' | 'rejeitada' | 'terminada' | 'participante_saiu';
+    evento: 'iniciada' | 'a_tocar' | 'atendida' | 'rejeitada' | 'terminada' | 'participante_saiu';
     chamada: Chamada;
     iniciador?: {
         identidade_id: string;
@@ -164,6 +164,10 @@ interface RespostaChamada {
     chamada: Chamada;
     livekit_token: string | null;
     ws_url: string | null;
+    /** 1:1: o destinatário está online? (autor: offline → "A ligar…"; online → "A chamar…") */
+    destinatario_online?: boolean;
+    /** o destinatário já estava numa chamada → não tocou (autor vê "Ocupado") */
+    ocupado?: boolean;
 }
 interface FlagFuncionalidade {
     funcionalidade: string;
@@ -261,6 +265,8 @@ declare const EVENTOS_SERVIDOR: {
     readonly PARTICIPANTE_REMOVIDO: "chat:participante:removido";
     readonly PARTICIPANTE_ATUALIZADO: "chat:participante:atualizado";
     readonly CHAMADA_INICIADA: "chat:chamada:iniciada";
+    /** o dispositivo do destinatário confirma que está a tocar → autor: A ligar… → A chamar… */
+    readonly CHAMADA_A_TOCAR: "chat:chamada:a_tocar";
     readonly CHAMADA_ATENDIDA: "chat:chamada:atendida";
     readonly CHAMADA_REJEITADA: "chat:chamada:rejeitada";
     readonly CHAMADA_TERMINADA: "chat:chamada:terminada";
@@ -380,6 +386,10 @@ declare class MakaApi {
     }>;
     iniciarChamada(conversaId: string, tipo: 'audio' | 'video'): Promise<RespostaChamada>;
     atenderChamada(chamadaId: string): Promise<RespostaChamada>;
+    /** O destinatário avisa que está A TOCAR → o autor passa de "A ligar…" a "A chamar…". */
+    chamadaATocar(chamadaId: string): Promise<{
+        estado: string;
+    }>;
     rejeitarChamada(chamadaId: string): Promise<RespostaChamada>;
     terminarChamada(chamadaId: string): Promise<RespostaChamada>;
     obterContexto(conversaId: string): Promise<{

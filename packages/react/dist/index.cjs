@@ -668,11 +668,19 @@ function ChamadasProvider({ children }) {
   }, []);
   (0, import_react6.useEffect)(() => {
     faseRef.current = ativa?.fase ?? null;
-    if (ativa?.fase === "a_ligar") comecarToque("ligar");
+    if (ativa?.fase === "a_ligar" || ativa?.fase === "a_chamar") comecarToque("ligar");
     else if (ativa?.fase === "a_receber") comecarToque("receber");
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
+  const ackTocRef = (0, import_react6.useRef)(null);
+  (0, import_react6.useEffect)(() => {
+    const id = ativa?.fase === "a_receber" ? ativa.chamada.id : null;
+    if (id && ackTocRef.current !== id) {
+      ackTocRef.current = id;
+      void api.chamadaATocar(id).catch(() => void 0);
+    }
+  }, [ativa?.fase, ativa?.chamada.id, api]);
   const comecarTimer = (0, import_react6.useCallback)(() => {
     setInicioEm((atual) => atual ?? Date.now());
   }, []);
@@ -835,8 +843,10 @@ function ChamadasProvider({ children }) {
           setAtiva({ chamada: evento.chamada, fase: "a_receber", iniciador: evento.iniciador });
           void carregarConversa(evento.chamada.conversa_id);
         });
+      } else if (evento.evento === "a_tocar") {
+        if (faseRef.current === "a_ligar") setAtiva((a) => a ? { ...a, fase: "a_chamar" } : a);
       } else if (evento.evento === "atendida") {
-        if (faseRef.current === "a_ligar" || faseRef.current === "em_curso") {
+        if (faseRef.current === "a_ligar" || faseRef.current === "a_chamar" || faseRef.current === "em_curso") {
           setAtiva((a) => a ? { ...a, fase: "em_curso", chamada: evento.chamada } : a);
           comecarTimer();
         } else if (faseRef.current === "a_receber" && atendendoRef.current !== evento.chamada.id) {
@@ -860,7 +870,13 @@ function ChamadasProvider({ children }) {
         return;
       }
       const r = await api.iniciarChamada(conversaId, tipo);
-      setAtiva({ chamada: r.chamada, fase: "a_ligar" });
+      if (r.ocupado || r.chamada.estado === "ocupada") {
+        setAtiva({ chamada: r.chamada, fase: "ocupado" });
+        void carregarConversa(conversaId);
+        setTimeout(() => limpar(), 2500);
+        return;
+      }
+      setAtiva({ chamada: r.chamada, fase: r.destinatario_online === false ? "a_ligar" : "a_chamar" });
       void carregarConversa(conversaId);
       if (r.livekit_token && r.ws_url) {
         const ok = await ligarSala(r.livekit_token, r.ws_url, tipo === "video");
@@ -871,7 +887,7 @@ function ChamadasProvider({ children }) {
         }
       }
     },
-    [api, ligarSala, verificarMedia, carregarConversa]
+    [api, ligarSala, verificarMedia, carregarConversa, limpar]
   );
   const entrar = (0, import_react6.useCallback)(
     async (chamadaId, tipo) => {
@@ -959,7 +975,7 @@ function ChamadasProvider({ children }) {
   };
   const titulo = ativa?.fase === "a_receber" ? ativa.iniciador?.nome ?? conversa?.titulo ?? "Algu\xE9m" : conversa?.titulo ?? "Chamada";
   const foto = ativa?.fase === "a_receber" ? ativa.iniciador?.foto_url ?? null : conversa?.foto_url ?? null;
-  const subtitulo = ativa?.fase === "em_curso" && inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Duracao, { desde: inicioEm }) : ativa?.fase === "falhada" ? "Chamada falhada" : ativa?.fase === "a_ligar" ? "A chamar\u2026" : `Chamada de ${ativa?.chamada.tipo === "video" ? "v\xEDdeo" : "\xE1udio"}`;
+  const subtitulo = ativa?.fase === "em_curso" && inicioEm ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Duracao, { desde: inicioEm }) : ativa?.fase === "falhada" ? "Chamada falhada" : ativa?.fase === "ocupado" ? "Ocupado" : ativa?.fase === "a_ligar" ? "A ligar\u2026" : ativa?.fase === "a_chamar" ? "A chamar\u2026" : `Chamada de ${ativa?.chamada.tipo === "video" ? "v\xEDdeo" : "\xE1udio"}`;
   const B = (p) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
     "button",
     {

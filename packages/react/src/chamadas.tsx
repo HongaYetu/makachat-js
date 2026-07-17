@@ -9,7 +9,8 @@ import { AvatarWeb } from './ui';
 
 interface EstadoChamada {
     chamada: Chamada;
-    fase: 'a_receber' | 'a_ligar' | 'em_curso' | 'falhada';
+    // a_ligar = a estabelecer (destinatário offline/ainda não toca); a_chamar = já toca no outro
+    fase: 'a_receber' | 'a_ligar' | 'a_chamar' | 'em_curso' | 'falhada' | 'ocupado';
     iniciador?: { nome: string; foto_url: string | null };
 }
 
@@ -111,12 +112,24 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         faseRef.current = ativa?.fase ?? null;
 
         // toque em loop enquanto liga/recebe; para assim que entra em curso ou fecha
-        if (ativa?.fase === 'a_ligar') comecarToque('ligar');
+        if (ativa?.fase === 'a_ligar' || ativa?.fase === 'a_chamar') comecarToque('ligar');
         else if (ativa?.fase === 'a_receber') comecarToque('receber');
         else pararToque();
 
         return pararToque;
     }, [ativa?.fase]);
+
+    // destinatário: assim que a chamada aparece a tocar, avisa o servidor → o autor
+    // passa de "A ligar…" para "A chamar…". Uma vez por chamada.
+    const ackTocRef = useRef<string | null>(null);
+    useEffect(() => {
+        const id = ativa?.fase === 'a_receber' ? ativa.chamada.id : null;
+
+        if (id && ackTocRef.current !== id) {
+            ackTocRef.current = id;
+            void api.chamadaATocar(id).catch(() => undefined);
+        }
+    }, [ativa?.fase, ativa?.chamada.id, api]);
 
     const comecarTimer = useCallback(() => {
         setInicioEm((atual) => atual ?? Date.now());
@@ -345,9 +358,12 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                         setAtiva({ chamada: evento.chamada, fase: 'a_receber', iniciador: evento.iniciador });
                         void carregarConversa(evento.chamada.conversa_id);
                     });
+                } else if (evento.evento === 'a_tocar') {
+                    // o destinatário está mesmo a tocar → "A ligar…" passa a "A chamar…"
+                    if (faseRef.current === 'a_ligar') setAtiva((a) => (a ? { ...a, fase: 'a_chamar' } : a));
                 } else if (evento.evento === 'atendida') {
                     // num grupo, outro atender não me arrasta: se ainda estou a_receber, continuo a tocar (posso "entrar")
-                    if (faseRef.current === 'a_ligar' || faseRef.current === 'em_curso') {
+                    if (faseRef.current === 'a_ligar' || faseRef.current === 'a_chamar' || faseRef.current === 'em_curso') {
                         setAtiva((a) => (a ? { ...a, fase: 'em_curso', chamada: evento.chamada } : a));
                         comecarTimer();
                     } else if (faseRef.current === 'a_receber' && atendendoRef.current !== evento.chamada.id) {
@@ -380,7 +396,17 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
 
             const r = await api.iniciarChamada(conversaId, tipo);
 
-            setAtiva({ chamada: r.chamada, fase: 'a_ligar' });
+            // destinatário ocupado → não toca; mostra "Ocupado" e fecha
+            if (r.ocupado || r.chamada.estado === 'ocupada') {
+                setAtiva({ chamada: r.chamada, fase: 'ocupado' });
+                void carregarConversa(conversaId);
+                setTimeout(() => limpar(), 2500);
+
+                return;
+            }
+
+            // offline → "A ligar…"; online → "A chamar…" (o ack de toque confirma depois)
+            setAtiva({ chamada: r.chamada, fase: r.destinatario_online === false ? 'a_ligar' : 'a_chamar' });
             void carregarConversa(conversaId);
 
             if (r.livekit_token && r.ws_url) {
@@ -393,7 +419,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
                 }
             }
         },
-        [api, ligarSala, verificarMedia, carregarConversa],
+        [api, ligarSala, verificarMedia, carregarConversa, limpar],
     );
 
     const entrar = useCallback(
@@ -527,7 +553,11 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
             <Duracao desde={inicioEm} />
         ) : ativa?.fase === 'falhada' ? (
             'Chamada falhada'
+        ) : ativa?.fase === 'ocupado' ? (
+            'Ocupado'
         ) : ativa?.fase === 'a_ligar' ? (
+            'A ligar…'
+        ) : ativa?.fase === 'a_chamar' ? (
             'A chamar…'
         ) : (
             `Chamada de ${ativa?.chamada.tipo === 'video' ? 'vídeo' : 'áudio'}`
