@@ -220,6 +220,10 @@ class MakachatFcmService : FirebaseMessagingService() {
         }
 
         fun cancelarNotificacaoMensagens(context: Context, conversaId: String) {
+            // ler/abrir a conversa = limpar também o histórico nativo, senão o
+            // próximo push reconstrói a MessagingStyle com mensagens já vistas
+            // (o histórico acumula por push)
+            InboxDatabase.get(context).limparHistorico(conversaId)
             val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             gestor.cancel(conversaId.hashCode())
         }
@@ -413,8 +417,6 @@ object MakachatPushProcessor {
             dados["conversa_foto"]?.takeIf { it.isNotEmpty() }?.let { putString("foto_conversa_$conversaId", it) }
         }.apply()
 
-        InboxDatabase.get(context).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
-
         // flag do hub na própria mensagem: silenciosa (não conta no badge) → canal sem som
         val semSom = try {
             org.json.JSONObject(mensagemJson).optBoolean("silenciosa", false)
@@ -428,6 +430,9 @@ object MakachatPushProcessor {
         val aVerEstaConversa = MakachatFcmService.conversaVisivel == conversaId && MakachatFcmService.processoEmForeground()
 
         if (!aVerEstaConversa) {
+            // só regista no histórico da notificação quando NÃO está a ver a conversa —
+            // senão a MessagingStyle acumularia mensagens já vistas in-app
+            InboxDatabase.get(context).inserirHistorico(conversaId, titulo, dados["corpo"] ?: "", minha = false)
             MakachatFcmService.mostrarMensagens(context, conversaId, titulo, semSom = semSom)
         }
 
