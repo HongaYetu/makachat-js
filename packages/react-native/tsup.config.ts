@@ -28,6 +28,8 @@ export default defineConfig({
         'expo-intent-launcher',
         '@notifee/react-native',
         '@hongayetu/expo-makachat-push',
+        '@hongayetu/makachat-core',
+        '@hongayetu/honga-hub-react-native',
         '@gorhom/bottom-sheet',
         'react-native-reanimated',
         'react-native-gesture-handler',

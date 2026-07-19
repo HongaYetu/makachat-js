@@ -6,6 +6,8 @@ export default defineConfig({
     dts: true,
     sourcemap: true,
     clean: true,
-    external: ['react', 'livekit-client'],
+    // deps do SDK como external: se bundladas, duplicariam o Contexto do
+    // HongaHubProvider e os tipos/classes do core — quebrando a herança.
+    external: ['react', 'livekit-client', '@hongayetu/makachat-core', '@hongayetu/honga-hub-react'],
     outExtension: ({ format }) => ({ js: format === 'esm' ? '.js' : '.cjs' }),
 });

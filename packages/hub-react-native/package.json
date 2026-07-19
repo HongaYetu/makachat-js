@@ -1,0 +1,44 @@
+{
+    "name": "@hongayetu/honga-hub-react-native",
+    "version": "0.1.0",
+    "description": "Provider global do Honga Hub para React Native/Expo: ligação socket, token e canais de eventos (sem chat)",
+    "license": "UNLICENSED",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:HongaYetu/honga-hub-js.git",
+        "directory": "packages/hub-react-native"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "react-native": "./dist/index.cjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "test": "echo 'sem testes próprios (lógica no core)'"
+    },
+    "dependencies": {
+        "@hongayetu/honga-hub-core": "workspace:*"
+    },
+    "peerDependencies": {
+        "react": ">=18.0.0",
+        "react-native": ">=0.73.0"
+    },
+    "devDependencies": {
+        "@types/react": "^19.0.0",
+        "tsup": "^8.3.0",
+        "typescript": "^5.7.0"
+    }
+}

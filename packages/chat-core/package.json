@@ -1,0 +1,41 @@
+{
+    "name": "@hongayetu/makachat-core",
+    "version": "0.1.0",
+    "description": "Núcleo do módulo Chat (MakaChat): protocolo, REST, socket e motor de sincronização offline-first — compõe sobre @hongayetu/honga-hub-core",
+    "license": "UNLICENSED",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:HongaYetu/honga-hub-js.git",
+        "directory": "packages/chat-core"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@hongayetu/honga-hub-core": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/jsonwebtoken": "^9.0.10",
+        "jsonwebtoken": "^9.0.3",
+        "tsup": "^8.3.0",
+        "typescript": "^5.7.0",
+        "vitest": "^3.0.0"
+    }
+}

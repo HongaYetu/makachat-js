@@ -8,7 +8,8 @@ import {
   MemoryStorage,
   SyncEngine
 } from "@hongayetu/makachat-core";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { HubApi, HubSocket, useHongaHubOpcional } from "@hongayetu/honga-hub-react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 // src/tema.ts
 var PADRAO = {
@@ -122,119 +123,179 @@ function pararToque() {
 // src/provider.tsx
 import { jsx } from "react/jsx-runtime";
 var Contexto = createContext(null);
+var estadosPorSocket = /* @__PURE__ */ new WeakMap();
+function construirEstado(hubApi, hubSocket, identidade, adapter) {
+  const api = new MakaApi(hubApi);
+  const socket = new MakaSocket(hubSocket);
+  const estado = {
+    api,
+    socket,
+    adapter,
+    engine: null,
+    iniciado: false,
+    visiveis: /* @__PURE__ */ new Map(),
+    ouvintesTyping: /* @__PURE__ */ new Set(),
+    ouvintesPresenca: /* @__PURE__ */ new Set(),
+    ouvintesChamadas: /* @__PURE__ */ new Set(),
+    ouvintesMensagens: /* @__PURE__ */ new Set(),
+    notificacoesNativas: false,
+    aoAbrirNotificacao: void 0
+  };
+  estado.engine = new SyncEngine(adapter, api, socket, {
+    identidade,
+    aoTyping: (typing) => estado.ouvintesTyping.forEach((o) => o(typing)),
+    aoPresenca: (presenca) => estado.ouvintesPresenca.forEach((o) => o(presenca)),
+    aoChamada: (evento) => estado.ouvintesChamadas.forEach((o) => o(evento)),
+    aoMensagem: (mensagem) => {
+      estado.ouvintesMensagens.forEach((o) => o(mensagem));
+      if (!mensagem.silenciosa && (typeof document === "undefined" || !document.hidden)) tocarSom("recebida");
+      if (!estado.notificacoesNativas || typeof document === "undefined" || !document.hidden) return;
+      void adapter.obterConversa(mensagem.conversa_id).then((conversa) => {
+        const autor = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
+        const previews = { foto: "\u{1F4F7} Foto", video: "\u{1F3AC} V\xEDdeo", audio: "\u{1F3A4} \xC1udio", ficheiro: "\u{1F4CE} Ficheiro", chamada: "\u{1F4DE} Chamada" };
+        const corpo = mensagem.tipo === "texto" ? mensagem.conteudo ?? "" : previews[mensagem.tipo] ?? "Nova mensagem";
+        const titulo = conversa?.tipo === "grupo" && conversa.titulo ? `${autor?.nome ?? "Algu\xE9m"} \xB7 ${conversa.titulo}` : autor?.nome ?? conversa?.titulo ?? "Nova mensagem";
+        mostrarNotificacao(titulo, { corpo, icone: autor?.foto_url ?? void 0, tag: mensagem.conversa_id }, () => {
+          estado.aoAbrirNotificacao?.(mensagem.conversa_id);
+        });
+      });
+    },
+    // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta e página visível
+    aoLido: (conversaId) => {
+      if ((estado.visiveis.get(conversaId) ?? 0) > 0 && (typeof document === "undefined" || !document.hidden)) {
+        tocarSom("vista");
+      }
+    }
+  });
+  return estado;
+}
+function montarContexto(estado, serviceKey, identidade) {
+  return {
+    engine: estado.engine,
+    api: estado.api,
+    socket: estado.socket,
+    serviceKey,
+    identidade,
+    subscreverTyping: (ouvinte) => {
+      estado.ouvintesTyping.add(ouvinte);
+      return () => estado.ouvintesTyping.delete(ouvinte);
+    },
+    subscreverPresenca: (ouvinte) => {
+      estado.ouvintesPresenca.add(ouvinte);
+      return () => estado.ouvintesPresenca.delete(ouvinte);
+    },
+    subscreverChamadas: (ouvinte) => {
+      estado.ouvintesChamadas.add(ouvinte);
+      return () => estado.ouvintesChamadas.delete(ouvinte);
+    },
+    subscreverMensagens: (ouvinte) => {
+      estado.ouvintesMensagens.add(ouvinte);
+      return () => estado.ouvintesMensagens.delete(ouvinte);
+    },
+    subscribeToChannel: (canal, evento, handler) => estado.socket.subscreverCanal(canal, evento, handler),
+    registarVisivel: (conversaId) => {
+      estado.visiveis.set(conversaId, (estado.visiveis.get(conversaId) ?? 0) + 1);
+      return () => {
+        const atual = (estado.visiveis.get(conversaId) ?? 1) - 1;
+        if (atual <= 0) {
+          estado.visiveis.delete(conversaId);
+        } else {
+          estado.visiveis.set(conversaId, atual);
+        }
+      };
+    },
+    estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
+  };
+}
 function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }) {
+  const hub = useHongaHubOpcional();
   const [features, setFeatures] = useState([]);
-  const [ligado, setLigado] = useState(false);
-  const visiveis = useRef(/* @__PURE__ */ new Map());
-  const ouvintesTyping = useRef(/* @__PURE__ */ new Set());
-  const ouvintesPresenca = useRef(/* @__PURE__ */ new Set());
-  const ouvintesChamadas = useRef(/* @__PURE__ */ new Set());
-  const ouvintesMensagens = useRef(/* @__PURE__ */ new Set());
-  const notifAtivas = useRef(notificacoesNativas);
-  notifAtivas.current = notificacoesNativas;
-  const aoAbrirNotif = useRef(aoAbrirNotificacao);
-  aoAbrirNotif.current = aoAbrirNotificacao;
-  const valor = useMemo(() => {
-    const api = new MakaApi(getToken);
-    const adapter = storage ?? new MemoryStorage();
-    let engine;
-    const socket = new MakaSocket({
+  const [ligadoLocal, setLigadoLocal] = useState(false);
+  if (!hub && (!serviceKey || !identity || !getToken)) {
+    throw new Error("MakaChatProvider: sem <HongaHubProvider> por cima, serviceKey/identity/getToken s\xE3o obrigat\xF3rios");
+  }
+  if (hub && identity && (identity.id !== hub.identidade.id || identity.tipo !== hub.identidade.tipo)) {
+    console.warn("[MakaChat] identity difere da do HongaHubProvider \u2014 a identidade do hub prevalece");
+  }
+  const hubSocket = hub?.socket ?? null;
+  const par = useMemo(() => {
+    if (hub) {
+      let estado2 = estadosPorSocket.get(hub.socket);
+      if (!estado2) {
+        estado2 = construirEstado(hub.api, hub.socket, hub.identidade, storage ?? new MemoryStorage());
+        estadosPorSocket.set(hub.socket, estado2);
+      }
+      return { estado: estado2, contexto: montarContexto(estado2, hub.serviceKey, hub.identidade), socketProprio: null };
+    }
+    const hubApi = new HubApi(getToken);
+    let estadoRef = null;
+    const proprioHubSocket = new HubSocket({
+      namespace: "chat",
       obterToken: async () => {
-        api.invalidarSessao();
-        return api.sessao();
+        hubApi.invalidarSessao();
+        return hubApi.sessao();
       },
       aoLigar: () => {
-        setLigado(true);
-        void engine.aoLigar();
+        setLigadoLocal(true);
+        void estadoRef?.engine.aoLigar();
       },
-      aoDesligar: () => setLigado(false)
+      aoDesligar: () => setLigadoLocal(false)
     });
-    engine = new SyncEngine(adapter, api, socket, {
-      identidade: identity,
-      aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
-      aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
-      aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
-      aoMensagem: (mensagem) => {
-        ouvintesMensagens.current.forEach((o) => o(mensagem));
-        if (!mensagem.silenciosa && (typeof document === "undefined" || !document.hidden)) tocarSom("recebida");
-        if (!notifAtivas.current || typeof document === "undefined" || !document.hidden) return;
-        void adapter.obterConversa(mensagem.conversa_id).then((conversa) => {
-          const autor = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
-          const previews = { foto: "\u{1F4F7} Foto", video: "\u{1F3AC} V\xEDdeo", audio: "\u{1F3A4} \xC1udio", ficheiro: "\u{1F4CE} Ficheiro", chamada: "\u{1F4DE} Chamada" };
-          const corpo = mensagem.tipo === "texto" ? mensagem.conteudo ?? "" : previews[mensagem.tipo] ?? "Nova mensagem";
-          const titulo = conversa?.tipo === "grupo" && conversa.titulo ? `${autor?.nome ?? "Algu\xE9m"} \xB7 ${conversa.titulo}` : autor?.nome ?? conversa?.titulo ?? "Nova mensagem";
-          mostrarNotificacao(titulo, { corpo, icone: autor?.foto_url ?? void 0, tag: mensagem.conversa_id }, () => {
-            aoAbrirNotif.current?.(mensagem.conversa_id);
-          });
-        });
-      },
-      // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta e página visível
-      aoLido: (conversaId) => {
-        if ((visiveis.current.get(conversaId) ?? 0) > 0 && (typeof document === "undefined" || !document.hidden)) {
-          tocarSom("vista");
+    const estado = construirEstado(hubApi, proprioHubSocket, identity, storage ?? new MemoryStorage());
+    estadoRef = estado;
+    return { estado, contexto: montarContexto(estado, serviceKey, identity), socketProprio: proprioHubSocket };
+  }, [hubSocket, serviceKey, identity?.id, identity?.tipo]);
+  par.estado.notificacoesNativas = notificacoesNativas;
+  par.estado.aoAbrirNotificacao = aoAbrirNotificacao;
+  useEffect(() => {
+    if (!par.estado.iniciado) {
+      par.estado.iniciado = true;
+      void par.estado.engine.iniciar();
+    }
+    void (async () => {
+      const adapter = par.estado.adapter;
+      await adapter.init().catch(() => void 0);
+      const raw = await adapter.obterMeta("features").catch(() => null);
+      if (raw) {
+        try {
+          const cacheadas = JSON.parse(raw);
+          setFeatures((prev) => prev.length ? prev : cacheadas);
+        } catch {
         }
       }
-    });
-    return {
-      engine,
-      api,
-      socket,
-      serviceKey,
-      identidade: identity,
-      features: [],
-      subscreverTyping: (ouvinte) => {
-        ouvintesTyping.current.add(ouvinte);
-        return () => ouvintesTyping.current.delete(ouvinte);
-      },
-      subscreverPresenca: (ouvinte) => {
-        ouvintesPresenca.current.add(ouvinte);
-        return () => ouvintesPresenca.current.delete(ouvinte);
-      },
-      subscreverChamadas: (ouvinte) => {
-        ouvintesChamadas.current.add(ouvinte);
-        return () => ouvintesChamadas.current.delete(ouvinte);
-      },
-      subscreverMensagens: (ouvinte) => {
-        ouvintesMensagens.current.add(ouvinte);
-        return () => ouvintesMensagens.current.delete(ouvinte);
-      },
-      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
-      ligado: false,
-      contactos: [],
-      aoAbrirPartilha: void 0,
-      registarVisivel: (conversaId) => {
-        visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
-        return () => {
-          const atual = (visiveis.current.get(conversaId) ?? 1) - 1;
-          if (atual <= 0) {
-            visiveis.current.delete(conversaId);
-          } else {
-            visiveis.current.set(conversaId, atual);
-          }
-        };
-      },
-      estaVisivel: (conversaId) => (visiveis.current.get(conversaId) ?? 0) > 0
-    };
-  }, [serviceKey, identity.id, identity.tipo]);
+      try {
+        const r = await par.estado.api.listarFeatures();
+        setFeatures(r.features);
+        void adapter.gravarMeta("features", JSON.stringify(r.features));
+      } catch {
+      }
+    })();
+    if (par.socketProprio) {
+      void par.socketProprio.ligar();
+      return () => par.socketProprio.desligar();
+    }
+    const off = hub.subscreverLigado(() => void par.estado.engine.aoLigar().catch(() => void 0));
+    if (hub.socket.ligado) {
+      void par.estado.engine.aoLigar().catch(() => void 0);
+    }
+    return off;
+  }, [par]);
   useEffect(() => {
-    void valor.engine.iniciar();
-    void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
-    return () => valor.socket.desligar();
-  }, [valor]);
-  useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (!par.socketProprio || typeof document === "undefined") return;
+    const socket = par.socketProprio;
     const aoVisibilidade = () => {
       if (document.visibilityState !== "visible") return;
-      if (valor.socket.ligado) {
-        void valor.engine.aoLigar().catch(() => void 0);
+      if (socket.ligado) {
+        void par.estado.engine.aoLigar().catch(() => void 0);
       } else {
-        valor.socket.garantirLigado();
+        socket.garantirLigado();
       }
     };
     document.addEventListener("visibilitychange", aoVisibilidade);
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
-  }, [valor]);
-  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  }, [par]);
+  const ligado = hub ? hub.ligado : ligadoLocal;
+  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = useContext(Contexto);
@@ -248,13 +309,25 @@ function useMakaChatOpcional() {
 }
 
 // src/hooks.ts
-import { useCallback, useEffect as useEffect2, useRef as useRef2, useState as useState2 } from "react";
+import { useHongaHubOpcional as useHongaHubOpcional2 } from "@hongayetu/honga-hub-react";
+import { useCallback, useEffect as useEffect2, useRef, useState as useState2 } from "react";
 function useLigacao() {
-  return useMakaChat().ligado;
+  const hub = useHongaHubOpcional2();
+  const chat = useMakaChatOpcional();
+  const ligado = hub?.ligado ?? chat?.ligado;
+  if (ligado === void 0) {
+    throw new Error("useLigacao precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  return ligado;
 }
 function useCanalHub(canal, evento, handler) {
-  const { subscribeToChannel } = useMakaChat();
-  const ref = useRef2(handler);
+  const hub = useHongaHubOpcional2();
+  const chat = useMakaChatOpcional();
+  const subscribeToChannel = hub?.subscribeToChannel ?? chat?.subscribeToChannel;
+  if (!subscribeToChannel) {
+    throw new Error("useCanalHub precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  const ref = useRef(handler);
   ref.current = handler;
   useEffect2(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
 }
@@ -369,7 +442,7 @@ function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
 }
 function useMensagemRecebida(handler) {
   const { subscreverMensagens } = useMakaChat();
-  const ref = useRef2(handler);
+  const ref = useRef(handler);
   ref.current = handler;
   useEffect2(() => subscreverMensagens((m) => ref.current(m)), [subscreverMensagens]);
 }
@@ -401,11 +474,11 @@ function useTotalNaoLidasOpcional() {
 // src/ui.tsx
 import { Icon as Icon3 } from "@iconify/react";
 import { dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade } from "@hongayetu/makachat-core";
-import { useEffect as useEffect5, useMemo as useMemo3, useRef as useRef5, useState as useState5 } from "react";
+import { useEffect as useEffect5, useMemo as useMemo3, useRef as useRef4, useState as useState5 } from "react";
 
 // src/audio.tsx
 import { Icon } from "@iconify/react";
-import { useEffect as useEffect3, useRef as useRef3, useState as useState3 } from "react";
+import { useEffect as useEffect3, useRef as useRef2, useState as useState3 } from "react";
 import { jsx as jsx2, jsxs } from "react/jsx-runtime";
 var VELOCIDADES = [1, 1.5, 2];
 var GANHO_ALVO = 0.12;
@@ -438,8 +511,8 @@ async function calcularGanho(url) {
   return ganho;
 }
 function ReprodutorAudio({ url, duracaoSegundos }) {
-  const audio = useRef3(null);
-  const grafo = useRef3(null);
+  const audio = useRef2(null);
+  const grafo = useRef2(null);
   const [aTocar, setATocar] = useState3(false);
   const [progresso, setProgresso] = useState3(0);
   const [duracao, setDuracao] = useState3(duracaoSegundos && duracaoSegundos > 0 ? duracaoSegundos : 0);
@@ -546,7 +619,7 @@ function ReprodutorAudio({ url, duracaoSegundos }) {
 // src/chamadas.tsx
 import { Icon as Icon2 } from "@iconify/react";
 import { Room, RoomEvent, Track, VideoPresets } from "livekit-client";
-import { createContext as createContext2, useCallback as useCallback2, useContext as useContext2, useEffect as useEffect4, useMemo as useMemo2, useRef as useRef4, useState as useState4 } from "react";
+import { createContext as createContext2, useCallback as useCallback2, useContext as useContext2, useEffect as useEffect4, useMemo as useMemo2, useRef as useRef3, useState as useState4 } from "react";
 import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadasOpcional() {
@@ -568,19 +641,19 @@ function ChamadasProvider({ children }) {
   const [camara, setCamara] = useState4(false);
   const [ecra, setEcra] = useState4(false);
   const [pos, setPos] = useState4({ x: 24, y: 24 });
-  const room = useRef4(null);
-  const conversaRef = useRef4(null);
-  const desligarRef = useRef4(async () => void 0);
-  const sozinhoTimer = useRef4(null);
-  const midia = useRef4(null);
-  const elementos = useRef4(/* @__PURE__ */ new Map());
+  const room = useRef3(null);
+  const conversaRef = useRef3(null);
+  const desligarRef = useRef3(async () => void 0);
+  const sozinhoTimer = useRef3(null);
+  const midia = useRef3(null);
+  const elementos = useRef3(/* @__PURE__ */ new Map());
   const [videoRemotoVivo, setVideoRemotoVivo] = useState4(false);
   const [remotoPausado, setRemotoPausado] = useState4(false);
-  const falhada = useRef4(false);
-  const faseRef = useRef4(null);
-  const atendendoRef = useRef4(null);
+  const falhada = useRef3(false);
+  const faseRef = useRef3(null);
+  const atendendoRef = useRef3(null);
   const [erroSolto, setErroSolto] = useState4(null);
-  const arrasto = useRef4({ ativo: false, dx: 0, dy: 0 });
+  const arrasto = useRef3({ ativo: false, dx: 0, dy: 0 });
   const limpar = useCallback2(() => {
     if (sozinhoTimer.current) {
       clearTimeout(sozinhoTimer.current);
@@ -609,7 +682,7 @@ function ChamadasProvider({ children }) {
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
-  const ackTocRef = useRef4(null);
+  const ackTocRef = useRef3(null);
   useEffect4(() => {
     const id = ativa?.fase === "a_receber" ? ativa.chamada.id : null;
     if (id && ackTocRef.current !== id) {
@@ -1083,7 +1156,7 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   const [resultadosServidor, setResultadosServidor] = useState5(null);
   const [proximoCursor, setProximoCursor] = useState5(null);
   const [aCarregar, setACarregar] = useState5(true);
-  const aPaginar = useRef5(false);
+  const aPaginar = useRef4(false);
   useEffect5(() => {
     void engine.storage.listarConversas(verArquivadas).then(setConversas);
   }, [engine, verArquivadas, versao]);
@@ -1321,7 +1394,7 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
   const [confirmarSair, setConfirmarSair] = useState5(false);
   const [aEnviarFoto, setAEnviarFoto] = useState5(false);
   const [conversas, setConversas] = useState5([]);
-  const fotoInput = useRef5(null);
+  const fotoInput = useRef4(null);
   const membros = conversa.participantes.filter((p) => !p.saiu_em);
   const contraparteInfo = !grupo ? membros.find((p) => p.identidade_id !== eu.identidade_id && p.tipo !== "sistema") ?? null : null;
   useEffect5(() => {
@@ -1726,7 +1799,7 @@ function NovaConversaModal({ conversas, contactos, podeGrupos, aoFechar, aoCriad
   const [resultados, setResultados] = useState5(null);
   const [aPesquisar, setAPesquisar] = useState5(false);
   const [escolhidos, setEscolhidos] = useState5(/* @__PURE__ */ new Map());
-  const pedidoAtual = useRef5(0);
+  const pedidoAtual = useRef4(0);
   const sugestoes = pessoasConhecidas(conversas, contactos, /* @__PURE__ */ new Set([`${identidade.tipo}:${identidade.id}`]));
   useEffect5(() => {
     const q = busca.trim();
@@ -1874,22 +1947,22 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const [pesquisaQ, setPesquisaQ] = useState5("");
   const [resultados, setResultados] = useState5([]);
   const [resultadoIdx, setResultadoIdx] = useState5(0);
-  const aCarregarAntigas = useRef5(false);
-  const semMaisAntigas = useRef5(false);
+  const aCarregarAntigas = useRef4(false);
+  const semMaisAntigas = useRef4(false);
   const [aCarregarIniciais, setACarregarIniciais] = useState5(true);
   const [menuConversa, setMenuConversa] = useState5(false);
   const [infoAberta, setInfoAberta] = useState5(false);
   const [confirmarEliminarConversa, setConfirmarEliminarConversa] = useState5(false);
-  const fim = useRef5(null);
-  const lista = useRef5(null);
+  const fim = useRef4(null);
+  const lista = useRef4(null);
   const [noFundo, setNoFundo] = useState5(true);
   const [novas, setNovas] = useState5(0);
   const [focada, setFocada] = useState5(() => typeof document === "undefined" ? true : document.hasFocus());
-  const anteriorUltimaId = useRef5(null);
-  const ficheiro = useRef5(null);
-  const fotoInput = useRef5(null);
-  const ultimoTyping = useRef5(0);
-  const refsBolhas = useRef5(/* @__PURE__ */ new Map());
+  const anteriorUltimaId = useRef4(null);
+  const ficheiro = useRef4(null);
+  const fotoInput = useRef4(null);
+  const ultimoTyping = useRef4(0);
+  const refsBolhas = useRef4(/* @__PURE__ */ new Map());
   useEffect5(() => registarVisivel(conversaId), [registarVisivel, conversaId]);
   useFecharFora(menuConversa, "menu-cabecalho", () => setMenuConversa(false));
   useFecharFora(menuAnexo, "menu-anexo", () => setMenuAnexo(false));
@@ -2514,11 +2587,11 @@ function MakaChatConversa({ conversaId }) {
 function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio }) {
   const [aGravar, setAGravar] = useState5(false);
   const [segundos, setSegundos] = useState5(0);
-  const gravador = useRef5(null);
-  const pedacos = useRef5([]);
-  const cancelado = useRef5(false);
-  const timer = useRef5(null);
-  const inicioGravacao = useRef5(0);
+  const gravador = useRef4(null);
+  const pedacos = useRef4([]);
+  const cancelado = useRef4(false);
+  const timer = useRef4(null);
+  const inicioGravacao = useRef4(0);
   const pararTimer = () => {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;

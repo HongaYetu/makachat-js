@@ -92,7 +92,14 @@ var SqliteStorage = class {
     this.db = db;
   }
   db;
-  async init() {
+  /** memoiza o init: chamadas concorrentes (engine.iniciar + cache de features)
+   *  partilham a MESMA execução — senão o probe/DROP de uma corria em paralelo
+   *  com um prepareAsync da outra ("no such table: conversas"). */
+  initPromessa;
+  init() {
+    return this.initPromessa ??= this.executarInit();
+  }
+  async executarInit() {
     await this.criarEsquema();
     if (!await this.esquemaValido()) {
       await this.db.execAsync(
@@ -274,6 +281,7 @@ function maiorId(atual, novo) {
 
 // src/provider.tsx
 var import_makachat_core = require("@hongayetu/makachat-core");
+var import_honga_hub_react_native = require("@hongayetu/honga-hub-react-native");
 var import_react = require("react");
 var import_react_native = require("react-native");
 var import_bottom_sheet = require("@gorhom/bottom-sheet");
@@ -459,6 +467,75 @@ function abrirStoragePadrao(serviceKey, identity) {
   const nome = `makachat_${serviceKey}_${identity.tipo}_${identity.id}.db`.replace(/[^a-zA-Z0-9_.]/g, "_");
   return new SqliteStorage(sqlite.openDatabaseSync(nome));
 }
+var estadosPorSocket = alcanceGlobal.__makaChatEstados ??= /* @__PURE__ */ new WeakMap();
+function construirEstado(hubApi, hubSocket, identidade, adapter) {
+  const api = new import_makachat_core.MakaApi(hubApi);
+  const socket = new import_makachat_core.MakaSocket(hubSocket);
+  const estado = {
+    api,
+    socket,
+    adapter,
+    engine: null,
+    iniciado: false,
+    visiveis: /* @__PURE__ */ new Map(),
+    ouvintesTyping: /* @__PURE__ */ new Set(),
+    ouvintesPresenca: /* @__PURE__ */ new Set(),
+    ouvintesChamadas: /* @__PURE__ */ new Set(),
+    ouvintesMensagens: /* @__PURE__ */ new Set()
+  };
+  estado.engine = new import_makachat_core.SyncEngine(adapter, api, socket, {
+    identidade,
+    aoTyping: (typing) => estado.ouvintesTyping.forEach((o) => o(typing)),
+    aoPresenca: (presenca) => estado.ouvintesPresenca.forEach((o) => o(presenca)),
+    aoChamada: (evento) => estado.ouvintesChamadas.forEach((o) => o(evento)),
+    aoMensagem: (mensagem) => {
+      estado.ouvintesMensagens.forEach((o) => o(mensagem));
+      if (!mensagem.silenciosa && (estado.visiveis.get(mensagem.conversa_id) ?? 0) > 0) {
+        tocarSom("recebida");
+      }
+    },
+    // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta
+    aoLido: (conversaId) => {
+      if ((estado.visiveis.get(conversaId) ?? 0) > 0) tocarSom("vista");
+    }
+  });
+  return estado;
+}
+function montarContexto(estado, serviceKey, identidade) {
+  return {
+    engine: estado.engine,
+    api: estado.api,
+    socket: estado.socket,
+    serviceKey,
+    identidade,
+    subscreverTyping: (ouvinte) => {
+      estado.ouvintesTyping.add(ouvinte);
+      return () => estado.ouvintesTyping.delete(ouvinte);
+    },
+    subscreverPresenca: (ouvinte) => {
+      estado.ouvintesPresenca.add(ouvinte);
+      return () => estado.ouvintesPresenca.delete(ouvinte);
+    },
+    subscreverChamadas: (ouvinte) => {
+      estado.ouvintesChamadas.add(ouvinte);
+      return () => estado.ouvintesChamadas.delete(ouvinte);
+    },
+    subscreverMensagens: (ouvinte) => {
+      estado.ouvintesMensagens.add(ouvinte);
+      return () => estado.ouvintesMensagens.delete(ouvinte);
+    },
+    subscribeToChannel: (canal, evento, handler) => estado.socket.subscreverCanal(canal, evento, handler),
+    registarVisivel: (conversaId) => {
+      estado.visiveis.set(conversaId, (estado.visiveis.get(conversaId) ?? 0) + 1);
+      return () => {
+        const atual = (estado.visiveis.get(conversaId) ?? 1) - 1;
+        if (atual <= 0) estado.visiveis.delete(conversaId);
+        else estado.visiveis.set(conversaId, atual);
+      };
+    },
+    estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
+  };
+}
 function MakaChatProvider({
   serviceKey,
   identity,
@@ -473,83 +550,77 @@ function MakaChatProvider({
   renderHeaderConversa,
   children
 }) {
+  const hub = (0, import_honga_hub_react_native.useHongaHubOpcional)();
   const [features, setFeatures] = (0, import_react.useState)([]);
-  const [ligado, setLigado] = (0, import_react.useState)(false);
-  const visiveis = (0, import_react.useRef)(/* @__PURE__ */ new Map());
-  const ouvintesTyping = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const ouvintesPresenca = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const ouvintesChamadas = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const ouvintesMensagens = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const valor = (0, import_react.useMemo)(() => {
-    const api = new import_makachat_core.MakaApi(getToken);
+  const [ligadoLocal, setLigadoLocal] = (0, import_react.useState)(false);
+  if (!hub && (!serviceKey || !identity || !getToken)) {
+    throw new Error("MakaChatProvider: sem <HongaHubProvider> por cima, serviceKey/identity/getToken s\xE3o obrigat\xF3rios");
+  }
+  if (hub && identity && (identity.id !== hub.identidade.id || identity.tipo !== hub.identidade.tipo)) {
+    console.warn("[MakaChat] identity difere da do HongaHubProvider \u2014 a identidade do hub prevalece");
+  }
+  const hubSocket = hub?.socket ?? null;
+  const par = (0, import_react.useMemo)(() => {
+    if (hub) {
+      let estado2 = estadosPorSocket.get(hub.socket);
+      if (!estado2) {
+        estado2 = construirEstado(hub.api, hub.socket, hub.identidade, storage ?? abrirStoragePadrao(hub.serviceKey, hub.identidade));
+        estadosPorSocket.set(hub.socket, estado2);
+      }
+      return { estado: estado2, contexto: montarContexto(estado2, hub.serviceKey, hub.identidade), socketProprio: null };
+    }
+    const hubApi = new import_honga_hub_react_native.HubApi(getToken);
     const adapter = storage ?? abrirStoragePadrao(serviceKey, identity);
-    let engine;
-    const socket = new import_makachat_core.MakaSocket({
+    let estadoRef = null;
+    const proprioHubSocket = new import_honga_hub_react_native.HubSocket({
+      namespace: "chat",
       obterToken: async () => {
-        api.invalidarSessao();
-        return api.sessao();
+        hubApi.invalidarSessao();
+        return hubApi.sessao();
       },
       aoLigar: () => {
-        setLigado(true);
-        void engine.aoLigar();
+        setLigadoLocal(true);
+        void estadoRef?.engine.aoLigar();
       },
-      aoDesligar: () => setLigado(false)
+      aoDesligar: () => setLigadoLocal(false)
     });
-    engine = new import_makachat_core.SyncEngine(adapter, api, socket, {
-      identidade: identity,
-      aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
-      aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
-      aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
-      aoMensagem: (mensagem) => {
-        ouvintesMensagens.current.forEach((o) => o(mensagem));
-        if (!mensagem.silenciosa && (visiveis.current.get(mensagem.conversa_id) ?? 0) > 0) {
-          tocarSom("recebida");
-        }
-      },
-      // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta
-      aoLido: (conversaId) => {
-        if ((visiveis.current.get(conversaId) ?? 0) > 0) tocarSom("vista");
-      }
-    });
-    return {
-      engine,
-      api,
-      socket,
-      serviceKey,
-      identidade: identity,
-      subscreverTyping: (ouvinte) => {
-        ouvintesTyping.current.add(ouvinte);
-        return () => ouvintesTyping.current.delete(ouvinte);
-      },
-      subscreverPresenca: (ouvinte) => {
-        ouvintesPresenca.current.add(ouvinte);
-        return () => ouvintesPresenca.current.delete(ouvinte);
-      },
-      subscreverChamadas: (ouvinte) => {
-        ouvintesChamadas.current.add(ouvinte);
-        return () => ouvintesChamadas.current.delete(ouvinte);
-      },
-      subscreverMensagens: (ouvinte) => {
-        ouvintesMensagens.current.add(ouvinte);
-        return () => ouvintesMensagens.current.delete(ouvinte);
-      },
-      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
-      registarVisivel: (conversaId) => {
-        visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
-        return () => {
-          const atual = (visiveis.current.get(conversaId) ?? 1) - 1;
-          if (atual <= 0) visiveis.current.delete(conversaId);
-          else visiveis.current.set(conversaId, atual);
-        };
-      },
-      estaVisivel: (conversaId) => (visiveis.current.get(conversaId) ?? 0) > 0
-    };
-  }, [serviceKey, identity.id, identity.tipo]);
+    const estado = construirEstado(hubApi, proprioHubSocket, identity, adapter);
+    estadoRef = estado;
+    return { estado, contexto: montarContexto(estado, serviceKey, identity), socketProprio: proprioHubSocket };
+  }, [hubSocket, serviceKey, identity?.id, identity?.tipo]);
   (0, import_react.useEffect)(() => {
-    void valor.engine.iniciar();
-    void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
-    return () => valor.socket.desligar();
-  }, [valor]);
+    if (!par.estado.iniciado) {
+      par.estado.iniciado = true;
+      void par.estado.engine.iniciar();
+    }
+    void (async () => {
+      const adapter = par.estado.adapter;
+      await adapter.init().catch(() => void 0);
+      const raw = await adapter.obterMeta("features").catch(() => null);
+      if (raw) {
+        try {
+          const cacheadas = JSON.parse(raw);
+          setFeatures((prev) => prev.length ? prev : cacheadas);
+        } catch {
+        }
+      }
+      try {
+        const r = await par.estado.api.listarFeatures();
+        setFeatures(r.features);
+        void adapter.gravarMeta("features", JSON.stringify(r.features));
+      } catch {
+      }
+    })();
+    if (par.socketProprio) {
+      void par.socketProprio.ligar();
+      return () => par.socketProprio.desligar();
+    }
+    const off = hub.subscreverLigado(() => void par.estado.engine.aoLigar().catch(() => void 0));
+    if (hub.socket.ligado) {
+      void par.estado.engine.aoLigar().catch(() => void 0);
+    }
+    return off;
+  }, [par]);
   (0, import_react.useEffect)(() => {
     const push = obterPushMakaChat();
     if (!push?.drenarInbox) return;
@@ -561,28 +632,31 @@ function MakaChatProvider({
           return null;
         }
       }).filter((m) => !!m && typeof m.id === "string" && typeof m.conversa_id === "string");
-      if (mensagens.length) void valor.engine.ingerirMensagensPush(mensagens);
+      if (mensagens.length) void par.estado.engine.ingerirMensagensPush(mensagens);
     };
     void push.drenarInbox().then(ingerir).catch(() => void 0);
     const sub = push.aoReceberPush ? push.aoReceberPush((item) => ingerir([item])) : null;
     return () => sub?.remove?.();
-  }, [valor]);
+  }, [par]);
   (0, import_react.useEffect)(() => {
+    if (!par.socketProprio) return;
+    const socket = par.socketProprio;
     const sub = import_react_native.AppState.addEventListener("change", (estado) => {
       if (estado !== "active") return;
-      if (valor.socket.ligado) {
-        void valor.engine.aoLigar().catch(() => void 0);
+      if (socket.ligado) {
+        void par.estado.engine.aoLigar().catch(() => void 0);
       } else {
-        valor.socket.garantirLigado();
+        socket.garantirLigado();
       }
     });
     return () => sub.remove();
-  }, [valor]);
+  }, [par]);
   const temaResolvido = (0, import_react.useMemo)(() => resolverTema(tema), [tema]);
+  const ligado = hub ? hub.ligado : ligadoLocal;
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     Contexto.Provider,
     {
-      value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa },
+      value: { ...par.contexto, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa },
       children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_bottom_sheet.BottomSheetModalProvider, { children })
     }
   );
@@ -602,10 +676,16 @@ function useTema() {
 }
 
 // src/hooks.ts
+var import_honga_hub_react_native2 = require("@hongayetu/honga-hub-react-native");
 var import_react2 = require("react");
 var import_react3 = require("react");
 function useCanalHub(canal, evento, handler) {
-  const { subscribeToChannel } = useMakaChat();
+  const hub = (0, import_honga_hub_react_native2.useHongaHubOpcional)();
+  const chat = useMakaChatOpcional();
+  const subscribeToChannel = hub?.subscribeToChannel ?? chat?.subscribeToChannel;
+  if (!subscribeToChannel) {
+    throw new Error("useCanalHub precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
   const ref = (0, import_react3.useRef)(handler);
   ref.current = handler;
   (0, import_react2.useEffect)(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
@@ -711,7 +791,13 @@ function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
   return features.find((f) => f.funcionalidade === funcionalidade && f.tipo_conversa === "*")?.ativo ?? false;
 }
 function useLigacao() {
-  return useMakaChat().ligado;
+  const hub = (0, import_honga_hub_react_native2.useHongaHubOpcional)();
+  const chat = useMakaChatOpcional();
+  const ligado = hub?.ligado ?? chat?.ligado;
+  if (ligado === void 0) {
+    throw new Error("useLigacao precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  return ligado;
 }
 function useSemLigacao(atrasoMs = 4e3) {
   const ligado = useLigacao();
@@ -2091,7 +2177,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeReagir = useFuncionalidadeAtiva("reacoes");
   const podeEncaminhar = useFuncionalidadeAtiva("encaminhar");
   const podeFoto = useFuncionalidadeAtiva("media.foto");
-  const podeFicheiro = useFuncionalidadeAtiva("media.ficheiro");
+  const podeFicheiroServico = useFuncionalidadeAtiva("media.ficheiro");
   const podeAudioMsg = useFuncionalidadeAtiva("media.audio");
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
@@ -2099,6 +2185,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
   const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const [conversa, setConversa] = (0, import_react9.useState)(null);
+  const podeFicheiro = podeFicheiroServico && (conversa?.funcionalidades?.["media.ficheiro"] ?? true);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
   const inputRef = (0, import_react9.useRef)(null);

@@ -1,3 +1,4 @@
+import { HongaHubProvider } from '@hongayetu/honga-hub-react';
 import {
     ChamadasProvider,
     MakaChatBoxFull,
@@ -68,8 +69,10 @@ export function App() {
         );
     }
 
+    // HongaHubProvider global (dono da ligação) + MakaChatProvider HERDADO
+    // (sem serviceKey/identity/getToken) — exercita o modo de herança do SDK.
     return (
-        <MakaChatProvider
+        <HongaHubProvider
             key={`${perfil.servico}:${perfil.tipo}:${perfil.id}`}
             serviceKey={perfil.servico}
             identity={{ id: perfil.id, tipo: perfil.tipo, nome: perfil.nome }}
@@ -78,17 +81,20 @@ export function App() {
                 socket_url: SERVIDOR,
                 api_url: SERVIDOR,
             })}
-            tema={perfil.servico === 'svc_demo_b' ? { primaria: '#FF5A00' } : undefined}
-            contactos={PERFIS.filter((p) => p.servico === perfil.servico && p.id !== perfil.id).map((p) => ({
-                id_externo: p.id,
-                tipo: p.tipo,
-                nome: p.nome,
-            }))}
         >
-            <ChamadasProvider>
-                <Layout perfil={perfil} aoSair={() => setPerfil(null)} />
-            </ChamadasProvider>
-        </MakaChatProvider>
+            <MakaChatProvider
+                tema={perfil.servico === 'svc_demo_b' ? { primaria: '#FF5A00' } : undefined}
+                contactos={PERFIS.filter((p) => p.servico === perfil.servico && p.id !== perfil.id).map((p) => ({
+                    id_externo: p.id,
+                    tipo: p.tipo,
+                    nome: p.nome,
+                }))}
+            >
+                <ChamadasProvider>
+                    <Layout perfil={perfil} aoSair={() => setPerfil(null)} />
+                </ChamadasProvider>
+            </MakaChatProvider>
+        </HongaHubProvider>
     );
 }
 

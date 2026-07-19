@@ -1,20 +1,38 @@
 import { Anexo, Conversa, DadosEnvioMensagem, Funcionalidade, Mensagem, Presenca, Typing } from '@hongayetu/makachat-core';
+import { useHongaHubOpcional } from '@hongayetu/honga-hub-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMakaChat, useMakaChatOpcional } from './provider';
 
-/** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
-/** Estado da ligação socket (true = online). */
+/** Estado da ligação socket (true = online) — hub-first, com fallback ao chat. */
 export function useLigacao(): boolean {
-    return useMakaChat().ligado;
+    const hub = useHongaHubOpcional();
+    const chat = useMakaChatOpcional();
+
+    const ligado = hub?.ligado ?? chat?.ligado;
+
+    if (ligado === undefined) {
+        throw new Error('useLigacao precisa de <HongaHubProvider> ou <MakaChatProvider> por cima');
+    }
+
+    return ligado;
 }
 
 /**
  * Subscreve um canal genérico do hub (chamadas, bloqueio, notificações...) e
  * chama `handler` a cada `evento`. O handler é estável via ref — só re-subscreve
- * se `canal`/`evento` mudarem, não a cada render.
+ * se `canal`/`evento` mudarem, não a cada render. Resolve o HongaHubProvider
+ * primeiro; sem ele, cai no socket do MakaChatProvider (standalone).
  */
 export function useCanalHub(canal: string, evento: string, handler: (payload: any) => void): void {
-    const { subscribeToChannel } = useMakaChat();
+    const hub = useHongaHubOpcional();
+    const chat = useMakaChatOpcional();
+
+    const subscribeToChannel = hub?.subscribeToChannel ?? chat?.subscribeToChannel;
+
+    if (!subscribeToChannel) {
+        throw new Error('useCanalHub precisa de <HongaHubProvider> ou <MakaChatProvider> por cima');
+    }
+
     const ref = useRef(handler);
     ref.current = handler;
 

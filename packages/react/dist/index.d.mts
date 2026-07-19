@@ -1,5 +1,6 @@
 import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, ParticipanteConversa, ObterToken, StorageAdapter, Conversa, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
+import * as react_jsx_runtime from 'react/jsx-runtime';
 import React from 'react';
 
 /** Tema por cores — cada serviço ganha a sua identidade. */
@@ -52,9 +53,10 @@ interface MakaChatContexto {
     estaVisivel(conversaId: string): boolean;
 }
 interface MakaChatProviderProps {
-    serviceKey: string;
-    identity: IdentidadeConfig;
-    getToken: ObterToken;
+    /** obrigatórios SEM <HongaHubProvider> por cima; com ele, herdam-se do hub */
+    serviceKey?: string;
+    identity?: IdentidadeConfig;
+    getToken?: ObterToken;
     /** na web a fonte é o servidor; por omissão usa memória (sem persistência local) */
     storage?: StorageAdapter;
     tema?: MakaTema;
@@ -73,18 +75,18 @@ interface MakaChatProviderProps {
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;
 
-/** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
-/** Estado da ligação socket (true = online). */
+/** Estado da ligação socket (true = online) — hub-first, com fallback ao chat. */
 declare function useLigacao(): boolean;
 /**
  * Subscreve um canal genérico do hub (chamadas, bloqueio, notificações...) e
  * chama `handler` a cada `evento`. O handler é estável via ref — só re-subscreve
- * se `canal`/`evento` mudarem, não a cada render.
+ * se `canal`/`evento` mudarem, não a cada render. Resolve o HongaHubProvider
+ * primeiro; sem ele, cai no socket do MakaChatProvider (standalone).
  */
 declare function useCanalHub(canal: string, evento: string, handler: (payload: any) => void): void;
 /**
@@ -123,7 +125,7 @@ interface MakaChatConversasProps {
     /** estado vazio COMPLETAMENTE custom da app — substitui o do SDK */
     renderVazio?(): React.ReactNode;
 }
-declare function MakaChatConversas({ arquivadas, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }: MakaChatConversasProps): React.JSX.Element;
+declare function MakaChatConversas({ arquivadas, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }: MakaChatConversasProps): react_jsx_runtime.JSX.Element;
 interface ConversaPainelProps {
     conversaId: string;
     compacto?: boolean;
@@ -133,17 +135,17 @@ interface ConversaPainelProps {
     /** abrir outra conversa (ex.: "mensagem" a partir do modal de reações) */
     aoAbrirOutraConversa?(conversaId: string): void;
 }
-declare function ConversaPainel({ conversaId, compacto, aoFechar, aoMinimizar, aoAbrirOutraConversa }: ConversaPainelProps): React.JSX.Element;
+declare function ConversaPainel({ conversaId, compacto, aoFechar, aoMinimizar, aoAbrirOutraConversa }: ConversaPainelProps): react_jsx_runtime.JSX.Element;
 /** Compat: nome antigo. */
 declare function MakaChatConversa({ conversaId }: {
     conversaId: string;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 declare function AvatarWeb({ nome, url, tamanho, grupo }: {
     nome: string;
     url?: string | null;
     tamanho?: number;
     grupo?: boolean;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 
 interface EstadoChamada {
     chamada: Chamada;
@@ -167,7 +169,7 @@ declare function useChamadas(): ChamadasApi;
  */
 declare function ChamadasProvider({ children }: {
     children: React.ReactNode;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 
 interface BoxProps {
     /** abre esta conversa (ex.: vindo de um botão "Falar com a loja") */
@@ -176,9 +178,9 @@ interface BoxProps {
     queryParam?: string | false;
 }
 /** Página inteira: ocupa o viewport todo e ignora o layout do site. */
-declare function MakaChatBoxFull({ conversaAbertaId, queryParam }?: BoxProps): React.JSX.Element;
+declare function MakaChatBoxFull({ conversaAbertaId, queryParam }?: BoxProps): react_jsx_runtime.JSX.Element;
 /** Preenche 100% do contentor onde for montado (ex.: área útil de um admin). */
-declare function MakaChatBoxMin({ conversaAbertaId, queryParam }?: BoxProps): React.JSX.Element;
+declare function MakaChatBoxMin({ conversaAbertaId, queryParam }?: BoxProps): react_jsx_runtime.JSX.Element;
 interface DockApi {
     abrir(conversaId: string, opcoes?: {
         minimizada?: boolean;
@@ -202,7 +204,7 @@ interface MakaChatDockProps {
  * Boxes múltiplas fixas no canto inferior direito: launcher com não lidas e
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
-declare function MakaChatDock({ autoAbrir, visivel, maxBoxes, queryParam, children }: MakaChatDockProps): React.JSX.Element;
+declare function MakaChatDock({ autoAbrir, visivel, maxBoxes, queryParam, children }: MakaChatDockProps): react_jsx_runtime.JSX.Element;
 
 /**
  * Notificações nativas do browser — permitem avisar o utilizador de mensagens

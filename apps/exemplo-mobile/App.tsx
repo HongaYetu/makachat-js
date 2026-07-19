@@ -1,7 +1,7 @@
-import { Conversa } from '@hongayetu/makachat-core';
 import {
     ChamadasProvider,
     ChatScreen,
+    Conversa,
     ConversasScreen,
     InfoConversaScreen,
     MakaChatProvider,

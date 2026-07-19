@@ -11,7 +11,14 @@ var SqliteStorage = class {
     this.db = db;
   }
   db;
-  async init() {
+  /** memoiza o init: chamadas concorrentes (engine.iniciar + cache de features)
+   *  partilham a MESMA execução — senão o probe/DROP de uma corria em paralelo
+   *  com um prepareAsync da outra ("no such table: conversas"). */
+  initPromessa;
+  init() {
+    return this.initPromessa ??= this.executarInit();
+  }
+  async executarInit() {
     await this.criarEsquema();
     if (!await this.esquemaValido()) {
       await this.db.execAsync(
@@ -369,7 +376,8 @@ import {
   MakaSocket,
   SyncEngine
 } from "@hongayetu/makachat-core";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { HubApi, HubSocket, useHongaHubOpcional } from "@hongayetu/honga-hub-react-native";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { jsx } from "react/jsx-runtime";
@@ -379,6 +387,75 @@ function abrirStoragePadrao(serviceKey, identity) {
   const sqlite = __require("expo-sqlite");
   const nome = `makachat_${serviceKey}_${identity.tipo}_${identity.id}.db`.replace(/[^a-zA-Z0-9_.]/g, "_");
   return new SqliteStorage(sqlite.openDatabaseSync(nome));
+}
+var estadosPorSocket = alcanceGlobal.__makaChatEstados ??= /* @__PURE__ */ new WeakMap();
+function construirEstado(hubApi, hubSocket, identidade, adapter) {
+  const api = new MakaApi(hubApi);
+  const socket = new MakaSocket(hubSocket);
+  const estado = {
+    api,
+    socket,
+    adapter,
+    engine: null,
+    iniciado: false,
+    visiveis: /* @__PURE__ */ new Map(),
+    ouvintesTyping: /* @__PURE__ */ new Set(),
+    ouvintesPresenca: /* @__PURE__ */ new Set(),
+    ouvintesChamadas: /* @__PURE__ */ new Set(),
+    ouvintesMensagens: /* @__PURE__ */ new Set()
+  };
+  estado.engine = new SyncEngine(adapter, api, socket, {
+    identidade,
+    aoTyping: (typing) => estado.ouvintesTyping.forEach((o) => o(typing)),
+    aoPresenca: (presenca) => estado.ouvintesPresenca.forEach((o) => o(presenca)),
+    aoChamada: (evento) => estado.ouvintesChamadas.forEach((o) => o(evento)),
+    aoMensagem: (mensagem) => {
+      estado.ouvintesMensagens.forEach((o) => o(mensagem));
+      if (!mensagem.silenciosa && (estado.visiveis.get(mensagem.conversa_id) ?? 0) > 0) {
+        tocarSom("recebida");
+      }
+    },
+    // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta
+    aoLido: (conversaId) => {
+      if ((estado.visiveis.get(conversaId) ?? 0) > 0) tocarSom("vista");
+    }
+  });
+  return estado;
+}
+function montarContexto(estado, serviceKey, identidade) {
+  return {
+    engine: estado.engine,
+    api: estado.api,
+    socket: estado.socket,
+    serviceKey,
+    identidade,
+    subscreverTyping: (ouvinte) => {
+      estado.ouvintesTyping.add(ouvinte);
+      return () => estado.ouvintesTyping.delete(ouvinte);
+    },
+    subscreverPresenca: (ouvinte) => {
+      estado.ouvintesPresenca.add(ouvinte);
+      return () => estado.ouvintesPresenca.delete(ouvinte);
+    },
+    subscreverChamadas: (ouvinte) => {
+      estado.ouvintesChamadas.add(ouvinte);
+      return () => estado.ouvintesChamadas.delete(ouvinte);
+    },
+    subscreverMensagens: (ouvinte) => {
+      estado.ouvintesMensagens.add(ouvinte);
+      return () => estado.ouvintesMensagens.delete(ouvinte);
+    },
+    subscribeToChannel: (canal, evento, handler) => estado.socket.subscreverCanal(canal, evento, handler),
+    registarVisivel: (conversaId) => {
+      estado.visiveis.set(conversaId, (estado.visiveis.get(conversaId) ?? 0) + 1);
+      return () => {
+        const atual = (estado.visiveis.get(conversaId) ?? 1) - 1;
+        if (atual <= 0) estado.visiveis.delete(conversaId);
+        else estado.visiveis.set(conversaId, atual);
+      };
+    },
+    estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
+  };
 }
 function MakaChatProvider({
   serviceKey,
@@ -394,83 +471,77 @@ function MakaChatProvider({
   renderHeaderConversa,
   children
 }) {
+  const hub = useHongaHubOpcional();
   const [features, setFeatures] = useState([]);
-  const [ligado, setLigado] = useState(false);
-  const visiveis = useRef(/* @__PURE__ */ new Map());
-  const ouvintesTyping = useRef(/* @__PURE__ */ new Set());
-  const ouvintesPresenca = useRef(/* @__PURE__ */ new Set());
-  const ouvintesChamadas = useRef(/* @__PURE__ */ new Set());
-  const ouvintesMensagens = useRef(/* @__PURE__ */ new Set());
-  const valor = useMemo(() => {
-    const api = new MakaApi(getToken);
+  const [ligadoLocal, setLigadoLocal] = useState(false);
+  if (!hub && (!serviceKey || !identity || !getToken)) {
+    throw new Error("MakaChatProvider: sem <HongaHubProvider> por cima, serviceKey/identity/getToken s\xE3o obrigat\xF3rios");
+  }
+  if (hub && identity && (identity.id !== hub.identidade.id || identity.tipo !== hub.identidade.tipo)) {
+    console.warn("[MakaChat] identity difere da do HongaHubProvider \u2014 a identidade do hub prevalece");
+  }
+  const hubSocket = hub?.socket ?? null;
+  const par = useMemo(() => {
+    if (hub) {
+      let estado2 = estadosPorSocket.get(hub.socket);
+      if (!estado2) {
+        estado2 = construirEstado(hub.api, hub.socket, hub.identidade, storage ?? abrirStoragePadrao(hub.serviceKey, hub.identidade));
+        estadosPorSocket.set(hub.socket, estado2);
+      }
+      return { estado: estado2, contexto: montarContexto(estado2, hub.serviceKey, hub.identidade), socketProprio: null };
+    }
+    const hubApi = new HubApi(getToken);
     const adapter = storage ?? abrirStoragePadrao(serviceKey, identity);
-    let engine;
-    const socket = new MakaSocket({
+    let estadoRef = null;
+    const proprioHubSocket = new HubSocket({
+      namespace: "chat",
       obterToken: async () => {
-        api.invalidarSessao();
-        return api.sessao();
+        hubApi.invalidarSessao();
+        return hubApi.sessao();
       },
       aoLigar: () => {
-        setLigado(true);
-        void engine.aoLigar();
+        setLigadoLocal(true);
+        void estadoRef?.engine.aoLigar();
       },
-      aoDesligar: () => setLigado(false)
+      aoDesligar: () => setLigadoLocal(false)
     });
-    engine = new SyncEngine(adapter, api, socket, {
-      identidade: identity,
-      aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
-      aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
-      aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
-      aoMensagem: (mensagem) => {
-        ouvintesMensagens.current.forEach((o) => o(mensagem));
-        if (!mensagem.silenciosa && (visiveis.current.get(mensagem.conversa_id) ?? 0) > 0) {
-          tocarSom("recebida");
-        }
-      },
-      // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta
-      aoLido: (conversaId) => {
-        if ((visiveis.current.get(conversaId) ?? 0) > 0) tocarSom("vista");
-      }
-    });
-    return {
-      engine,
-      api,
-      socket,
-      serviceKey,
-      identidade: identity,
-      subscreverTyping: (ouvinte) => {
-        ouvintesTyping.current.add(ouvinte);
-        return () => ouvintesTyping.current.delete(ouvinte);
-      },
-      subscreverPresenca: (ouvinte) => {
-        ouvintesPresenca.current.add(ouvinte);
-        return () => ouvintesPresenca.current.delete(ouvinte);
-      },
-      subscreverChamadas: (ouvinte) => {
-        ouvintesChamadas.current.add(ouvinte);
-        return () => ouvintesChamadas.current.delete(ouvinte);
-      },
-      subscreverMensagens: (ouvinte) => {
-        ouvintesMensagens.current.add(ouvinte);
-        return () => ouvintesMensagens.current.delete(ouvinte);
-      },
-      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
-      registarVisivel: (conversaId) => {
-        visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
-        return () => {
-          const atual = (visiveis.current.get(conversaId) ?? 1) - 1;
-          if (atual <= 0) visiveis.current.delete(conversaId);
-          else visiveis.current.set(conversaId, atual);
-        };
-      },
-      estaVisivel: (conversaId) => (visiveis.current.get(conversaId) ?? 0) > 0
-    };
-  }, [serviceKey, identity.id, identity.tipo]);
+    const estado = construirEstado(hubApi, proprioHubSocket, identity, adapter);
+    estadoRef = estado;
+    return { estado, contexto: montarContexto(estado, serviceKey, identity), socketProprio: proprioHubSocket };
+  }, [hubSocket, serviceKey, identity?.id, identity?.tipo]);
   useEffect(() => {
-    void valor.engine.iniciar();
-    void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
-    return () => valor.socket.desligar();
-  }, [valor]);
+    if (!par.estado.iniciado) {
+      par.estado.iniciado = true;
+      void par.estado.engine.iniciar();
+    }
+    void (async () => {
+      const adapter = par.estado.adapter;
+      await adapter.init().catch(() => void 0);
+      const raw = await adapter.obterMeta("features").catch(() => null);
+      if (raw) {
+        try {
+          const cacheadas = JSON.parse(raw);
+          setFeatures((prev) => prev.length ? prev : cacheadas);
+        } catch {
+        }
+      }
+      try {
+        const r = await par.estado.api.listarFeatures();
+        setFeatures(r.features);
+        void adapter.gravarMeta("features", JSON.stringify(r.features));
+      } catch {
+      }
+    })();
+    if (par.socketProprio) {
+      void par.socketProprio.ligar();
+      return () => par.socketProprio.desligar();
+    }
+    const off = hub.subscreverLigado(() => void par.estado.engine.aoLigar().catch(() => void 0));
+    if (hub.socket.ligado) {
+      void par.estado.engine.aoLigar().catch(() => void 0);
+    }
+    return off;
+  }, [par]);
   useEffect(() => {
     const push = obterPushMakaChat();
     if (!push?.drenarInbox) return;
@@ -482,28 +553,31 @@ function MakaChatProvider({
           return null;
         }
       }).filter((m) => !!m && typeof m.id === "string" && typeof m.conversa_id === "string");
-      if (mensagens.length) void valor.engine.ingerirMensagensPush(mensagens);
+      if (mensagens.length) void par.estado.engine.ingerirMensagensPush(mensagens);
     };
     void push.drenarInbox().then(ingerir).catch(() => void 0);
     const sub = push.aoReceberPush ? push.aoReceberPush((item) => ingerir([item])) : null;
     return () => sub?.remove?.();
-  }, [valor]);
+  }, [par]);
   useEffect(() => {
+    if (!par.socketProprio) return;
+    const socket = par.socketProprio;
     const sub = AppState.addEventListener("change", (estado) => {
       if (estado !== "active") return;
-      if (valor.socket.ligado) {
-        void valor.engine.aoLigar().catch(() => void 0);
+      if (socket.ligado) {
+        void par.estado.engine.aoLigar().catch(() => void 0);
       } else {
-        valor.socket.garantirLigado();
+        socket.garantirLigado();
       }
     });
     return () => sub.remove();
-  }, [valor]);
+  }, [par]);
   const temaResolvido = useMemo(() => resolverTema(tema), [tema]);
+  const ligado = hub ? hub.ligado : ligadoLocal;
   return /* @__PURE__ */ jsx(
     Contexto.Provider,
     {
-      value: { ...valor, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa },
+      value: { ...par.contexto, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa },
       children: /* @__PURE__ */ jsx(BottomSheetModalProvider, { children })
     }
   );
@@ -523,11 +597,17 @@ function useTema() {
 }
 
 // src/hooks.ts
+import { useHongaHubOpcional as useHongaHubOpcional2 } from "@hongayetu/honga-hub-react-native";
 import { useCallback, useEffect as useEffect2, useState as useState2 } from "react";
-import { useRef as useRef2 } from "react";
+import { useRef } from "react";
 function useCanalHub(canal, evento, handler) {
-  const { subscribeToChannel } = useMakaChat();
-  const ref = useRef2(handler);
+  const hub = useHongaHubOpcional2();
+  const chat = useMakaChatOpcional();
+  const subscribeToChannel = hub?.subscribeToChannel ?? chat?.subscribeToChannel;
+  if (!subscribeToChannel) {
+    throw new Error("useCanalHub precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  const ref = useRef(handler);
   ref.current = handler;
   useEffect2(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);
 }
@@ -632,7 +712,13 @@ function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
   return features.find((f) => f.funcionalidade === funcionalidade && f.tipo_conversa === "*")?.ativo ?? false;
 }
 function useLigacao() {
-  return useMakaChat().ligado;
+  const hub = useHongaHubOpcional2();
+  const chat = useMakaChatOpcional();
+  const ligado = hub?.ligado ?? chat?.ligado;
+  if (ligado === void 0) {
+    throw new Error("useLigacao precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  return ligado;
 }
 function useSemLigacao(atrasoMs = 4e3) {
   const ligado = useLigacao();
@@ -649,7 +735,7 @@ function useSemLigacao(atrasoMs = 4e3) {
 }
 function useMensagemRecebida(handler) {
   const { subscreverMensagens } = useMakaChat();
-  const ref = useRef2(handler);
+  const ref = useRef(handler);
   ref.current = handler;
   useEffect2(() => subscreverMensagens((m) => ref.current(m)), [subscreverMensagens]);
 }
@@ -680,7 +766,7 @@ function useTotalNaoLidasOpcional() {
 
 // src/ui/comum.tsx
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback as useCallback2, useEffect as useEffect3, useRef as useRef3 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect3, useRef as useRef2 } from "react";
 import {
   Animated,
   BackHandler,
@@ -763,7 +849,7 @@ function Sheet({
 }) {
   const tema = useTema();
   const insets = useSafeAreaInsets();
-  const ref = useRef3(null);
+  const ref = useRef2(null);
   useEffect3(() => {
     if (visivel) ref.current?.present();
     else ref.current?.dismiss();
@@ -817,7 +903,7 @@ function BadgeNaoLidas({ contagem }) {
   return /* @__PURE__ */ jsx2(View, { style: [estilos.badge, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ jsx2(Text, { style: { color: tema.primariaContraste, fontSize: 11, fontWeight: "700" }, children: contagem > 99 ? "99+" : contagem }) });
 }
 function Pulso({ children }) {
-  const escala = useRef3(new Animated.Value(1)).current;
+  const escala = useRef2(new Animated.Value(1)).current;
   useEffect3(() => {
     const ciclo = Animated.loop(
       Animated.sequence([
@@ -846,7 +932,7 @@ var estilos = StyleSheet.create({
 // src/ui/ConversasScreen.tsx
 import { Ionicons as Ionicons2 } from "@expo/vector-icons";
 import { rotuloTipoIdentidade } from "@hongayetu/makachat-core";
-import { useEffect as useEffect4, useMemo as useMemo2, useRef as useRef4, useState as useState3 } from "react";
+import { useEffect as useEffect4, useMemo as useMemo2, useRef as useRef3, useState as useState3 } from "react";
 import {
   Alert,
   Pressable as Pressable2,
@@ -871,8 +957,8 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
   const [menuDe, setMenuDe] = useState3(null);
   const [silenciarDe, setSilenciarDe] = useState3(null);
   const [novaAberta, setNovaAberta] = useState3(false);
-  const aPaginar = useRef4(false);
-  const fimDaLista = useRef4(false);
+  const aPaginar = useRef3(false);
+  const fimDaLista = useRef3(false);
   useEffect4(() => {
     if (!conversaInicial) return;
     void engine.entrarConversa(conversaInicial).then(async () => {
@@ -1282,7 +1368,7 @@ var estilos2 = StyleSheet2.create({
 
 // src/ui/audio.tsx
 import { Ionicons as Ionicons3 } from "@expo/vector-icons";
-import { useEffect as useEffect5, useMemo as useMemo3, useRef as useRef5, useState as useState4 } from "react";
+import { useEffect as useEffect5, useMemo as useMemo3, useRef as useRef4, useState as useState4 } from "react";
 import { Pressable as Pressable3, StyleSheet as StyleSheet3, Text as Text3, View as View3 } from "react-native";
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var VELOCIDADES = [1, 1.5, 2];
@@ -1312,7 +1398,7 @@ function ReprodutorAudio({ url, mimha, duracaoSegundos }) {
 }
 function PlayerInterno({ audio, url, mimha, duracaoSegundos }) {
   const tema = useTema();
-  const player = useRef5(null);
+  const player = useRef4(null);
   const [aTocar, setATocar] = useState4(false);
   const [posicao, setPosicao] = useState4(0);
   const [duracao, setDuracao] = useState4(duracaoSegundos && duracaoSegundos > 0 ? duracaoSegundos : 0);
@@ -1393,8 +1479,8 @@ function GravadorAudio({ aoTerminar, aoCancelar, padFundo }) {
 function GravadorInterno({ audio, aoTerminar, aoCancelar, padFundo }) {
   const tema = useTema();
   const recorder = audio.useAudioRecorder(audio.RecordingPresets.HIGH_QUALITY);
-  const inicio = useRef5(Date.now());
-  const pronto = useRef5(false);
+  const inicio = useRef4(Date.now());
+  const pronto = useRef4(false);
   const [segundos, setSegundos] = useState4(0);
   const [erro, setErro] = useState4(false);
   useEffect5(() => {
@@ -1732,7 +1818,7 @@ var estilos4 = StyleSheet4.create({
 // src/ui/Bolha.tsx
 import { Ionicons as Ionicons5 } from "@expo/vector-icons";
 import { dividirLinks } from "@hongayetu/makachat-core";
-import { useEffect as useEffect7, useMemo as useMemo4, useRef as useRef6, useState as useState6 } from "react";
+import { useEffect as useEffect7, useMemo as useMemo4, useRef as useRef5, useState as useState6 } from "react";
 import {
   ActivityIndicator,
   Animated as Animated2,
@@ -1915,8 +2001,8 @@ function Bolha({
   aoLigar
 }) {
   const tema = useTema();
-  const arrasto = useRef6(new Animated2.Value(0)).current;
-  const disparou = useRef6(false);
+  const arrasto = useRef5(new Animated2.Value(0)).current;
+  const disparou = useRef5(false);
   const [reagiu] = useState6(false);
   void reagiu;
   const responder = useMemo4(
@@ -2030,7 +2116,7 @@ var estilos5 = StyleSheet5.create({
 // src/ui/ChatScreen.tsx
 import { Ionicons as Ionicons6 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets2 } from "react-native-safe-area-context";
-import { useCallback as useCallback3, useEffect as useEffect8, useMemo as useMemo5, useRef as useRef7, useState as useState7 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect8, useMemo as useMemo5, useRef as useRef6, useState as useState7 } from "react";
 import {
   ActivityIndicator as ActivityIndicator2,
   Alert as Alert2,
@@ -2063,7 +2149,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeReagir = useFuncionalidadeAtiva("reacoes");
   const podeEncaminhar = useFuncionalidadeAtiva("encaminhar");
   const podeFoto = useFuncionalidadeAtiva("media.foto");
-  const podeFicheiro = useFuncionalidadeAtiva("media.ficheiro");
+  const podeFicheiroServico = useFuncionalidadeAtiva("media.ficheiro");
   const podeAudioMsg = useFuncionalidadeAtiva("media.audio");
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
@@ -2071,9 +2157,10 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
   const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const [conversa, setConversa] = useState7(null);
+  const podeFicheiro = podeFicheiroServico && (conversa?.funcionalidades?.["media.ficheiro"] ?? true);
   const [texto, setTexto] = useState7("");
   const [responderA, setResponderA] = useState7(null);
-  const inputRef = useRef7(null);
+  const inputRef = useRef6(null);
   const [editar, setEditar] = useState7(null);
   const [acoesDe, setAcoesDe] = useState7(null);
   const [reacoesDe, setReacoesDe] = useState7(null);
@@ -2094,12 +2181,12 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const [resultados, setResultados] = useState7([]);
   const [resultadoIdx, setResultadoIdx] = useState7(0);
   const [appAtiva, setAppAtiva] = useState7(AppState2.currentState === "active");
-  const lista = useRef7(null);
-  const ultimaVista = useRef7(null);
-  const aCarregarAntigas = useRef7(false);
-  const aDescer = useRef7(false);
-  const viewabilityConfig = useRef7({ itemVisiblePercentThreshold: 10 }).current;
-  const aoMudarVisiveis = useRef7(({ viewableItems }) => {
+  const lista = useRef6(null);
+  const ultimaVista = useRef6(null);
+  const aCarregarAntigas = useRef6(false);
+  const aDescer = useRef6(false);
+  const viewabilityConfig = useRef6({ itemVisiblePercentThreshold: 10 }).current;
+  const aoMudarVisiveis = useRef6(({ viewableItems }) => {
     const fundo = viewableItems.some((v) => v.index === 0);
     if (fundo) {
       aDescer.current = false;
@@ -2115,7 +2202,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     setNovas(0);
     setNoFundo(true);
   };
-  const semMaisAntigas = useRef7(false);
+  const semMaisAntigas = useRef6(false);
   const eu = conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null;
   const outros = (conversa?.participantes ?? []).filter((p) => p.identidade_id !== eu?.identidade_id && !p.saiu_em);
   const contraparte = conversa ? contraparteDe(conversa, identidade) : null;
@@ -2156,8 +2243,8 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     void engine.marcarLidas(conversaId).catch(() => void 0);
     setNovas(0);
   }, [mensagens, appAtiva, emFoco, noFundo, engine, conversaId]);
-  const totalAnterior = useRef7(mensagens.length);
-  const ultimaContada = useRef7(null);
+  const totalAnterior = useRef6(mensagens.length);
+  const ultimaContada = useRef6(null);
   useEffect8(() => {
     const ultima = mensagens.at(-1);
     const anterior = ultimaContada.current;
@@ -2170,7 +2257,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
       setNovas((n) => n + Math.max(1, mensagens.length - totalAntes));
     }
   }, [mensagens, noFundo, eu?.identidade_id]);
-  const ultimoTyping = useRef7(0);
+  const ultimoTyping = useRef6(0);
   const aoEscrever = (valor) => {
     setTexto(valor);
     const agora = Date.now();
@@ -3268,7 +3355,7 @@ var estilos7 = StyleSheet7.create({
 
 // src/ui/NovaConversaScreen.tsx
 import { Ionicons as Ionicons8 } from "@expo/vector-icons";
-import { useEffect as useEffect10, useMemo as useMemo7, useRef as useRef8, useState as useState9 } from "react";
+import { useEffect as useEffect10, useMemo as useMemo7, useRef as useRef7, useState as useState9 } from "react";
 import { ActivityIndicator as ActivityIndicator4, Alert as Alert4, Pressable as Pressable8, StyleSheet as StyleSheet8, Text as Text8, TextInput as TextInput5, View as View8 } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsets4 } from "react-native-safe-area-context";
 import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
@@ -3286,7 +3373,7 @@ function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSuges
   const [escolhidos, setEscolhidos] = useState9(/* @__PURE__ */ new Map());
   const [nomeGrupo, setNomeGrupo] = useState9("");
   const [aCriar, setACriar] = useState9(false);
-  const pedidoAtual = useRef8(0);
+  const pedidoAtual = useRef7(0);
   const sugestoes = useMemo7(() => {
     const mapa = /* @__PURE__ */ new Map();
     for (const c of conversas) {
@@ -3534,7 +3621,7 @@ var estilos8 = StyleSheet8.create({
 // src/chamadas.tsx
 import { Ionicons as Ionicons9 } from "@expo/vector-icons";
 import { useSafeAreaInsets as useSafeAreaInsets5 } from "react-native-safe-area-context";
-import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect11, useMemo as useMemo8, useRef as useRef9, useState as useState10 } from "react";
+import { createContext as createContext2, useCallback as useCallback4, useContext as useContext2, useEffect as useEffect11, useMemo as useMemo8, useRef as useRef8, useState as useState10 } from "react";
 import { AppState as AppState3, Modal as Modal3, Platform as Platform3, Pressable as Pressable9, StatusBar as StatusBar3, StyleSheet as StyleSheet9, Text as Text9, useWindowDimensions as useWindowDimensions3, View as View9 } from "react-native";
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 var alcanceGlobalChamadas = globalThis;
@@ -3596,16 +3683,16 @@ function ChamadasProvider({ children }) {
   const [altifalante, setAltifalante] = useState10(true);
   const [ecra, setEcra] = useState10(false);
   const [minimizada, setMinimizada] = useState10(false);
-  const room = useRef9(null);
-  const falhada = useRef9(false);
-  const faseRef = useRef9(null);
-  const facing = useRef9("user");
-  const conversaRef = useRef9(null);
-  const desligarRef = useRef9(async () => void 0);
-  const sozinhoTimer = useRef9(null);
-  const chamadaIdRef = useRef9(null);
-  const atendendoRef = useRef9(null);
-  const retomandoRef = useRef9(false);
+  const room = useRef8(null);
+  const falhada = useRef8(false);
+  const faseRef = useRef8(null);
+  const facing = useRef8("user");
+  const conversaRef = useRef8(null);
+  const desligarRef = useRef8(async () => void 0);
+  const sozinhoTimer = useRef8(null);
+  const chamadaIdRef = useRef8(null);
+  const atendendoRef = useRef8(null);
+  const retomandoRef = useRef8(false);
   useEffect11(() => {
     chamadaIdRef.current = ativa?.chamada.id ?? null;
   }, [ativa]);
@@ -3616,7 +3703,7 @@ function ChamadasProvider({ children }) {
     else pararToque();
     return pararToque;
   }, [ativa?.fase]);
-  const ackTocRef = useRef9(null);
+  const ackTocRef = useRef8(null);
   useEffect11(() => {
     const id = ativa?.fase === "a_receber" ? ativa.chamada.id : null;
     if (id && ackTocRef.current !== id) {
@@ -4223,4 +4310,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-GM2PV5FE.js.map
+//# sourceMappingURL=chunk-F4CS6P5C.js.map

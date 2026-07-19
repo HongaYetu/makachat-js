@@ -14,7 +14,7 @@ import {
     Recibo,
     Typing,
 } from './tipos';
-import { uuid, uuidv7 } from './uuid';
+import { uuid, uuidv7 } from '@hongayetu/honga-hub-core';
 
 export interface SyncEngineOpcoes {
     identidade: IdentidadeConfig;
@@ -726,6 +726,11 @@ export class SyncEngine {
 
         this.socket.on(EVENTOS_SERVIDOR.CONVERSA_ATUALIZADA, (payload: { conversa: Conversa }) => {
             void this.storage.upsertConversas([payload.conversa]).then(() => this.notificar());
+        });
+
+        // conversa eliminada pelo serviço (ex.: fim da corrida) → remover localmente
+        this.socket.on(EVENTOS_SERVIDOR.CONVERSA_ELIMINADA, (payload: { conversa_id: string }) => {
+            void this.storage.removerConversa(payload.conversa_id).then(() => this.notificar());
         });
 
         this.socket.on(EVENTOS_SERVIDOR.PARTICIPANTE_ADICIONADO, () => void this.atualizarConversas());

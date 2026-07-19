@@ -1,5 +1,5 @@
 {
-    "name": "@hongayetu/makachat-core",
+    "name": "@hongayetu/honga-hub-core",
     "version": "0.1.0",
     "description": "Núcleo do MakaChat: protocolo, socket, REST e motor de sincronização offline-first",
     "license": "UNLICENSED",
@@ -26,7 +26,7 @@
     ],
     "scripts": {
         "build": "tsup",
-        "test": "vitest run"
+        "test": "echo 'sem testes (movidos p/ chat-core)'"
     },
     "dependencies": {
         "socket.io-client": "^4.8.0",

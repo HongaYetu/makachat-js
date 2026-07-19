@@ -38,7 +38,8 @@
         "test": "echo 'sem testes (requer dispositivo)'"
     },
     "dependencies": {
-        "@hongayetu/makachat-core": "workspace:*"
+        "@hongayetu/makachat-core": "workspace:*",
+        "@hongayetu/honga-hub-react-native": "workspace:*"
     },
     "peerDependencies": {
         "@gorhom/bottom-sheet": ">=5.0.0",
@@ -67,7 +68,7 @@
         "expo-share-intent": ">=3.0.0"
     },
     "devDependencies": {
-        "@types/react": "^18.3.0",
+        "@types/react": "^19.0.0",
         "tsup": "^8.3.0",
         "typescript": "^5.7.0"
     },

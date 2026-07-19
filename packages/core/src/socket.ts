@@ -1,22 +1,25 @@
 import { io, Socket } from 'socket.io-client';
-import { EVENTOS_CLIENTE } from './eventos';
-import { Ack, CursorConversa, DadosEnvioMensagem, Mensagem, ObterToken } from './tipos';
+import { Ack, ObterToken } from './tipos';
 
-export interface MakaSocketOpcoes {
+export interface HubSocketOpcoes {
     obterToken: ObterToken;
-    /** chamado depois de (re)ligar — o SyncEngine faz flush + delta sync aqui */
+    /** chamado depois de (re)ligar — camadas por cima fazem flush + delta sync aqui */
     aoLigar?: () => void;
     aoDesligar?: () => void;
+    /** namespace socket.io a que liga (default 'hub'); o chat usa 'chat' */
+    namespace?: string;
 }
 
 /**
- * Ligação socket.io ao namespace /chat: autentica com o JWT do serviço,
- * renova o token quando o handshake falha por expiração e expõe emissões
- * com ack tipado.
+ * Ligação socket.io GENÉRICA ao Honga Hub: autentica com o JWT do serviço,
+ * renova o token quando o handshake falha por expiração, subscreve canais
+ * nomeados (estilo Pusher/Echo) e expõe emissões com ack tipado. Não sabe nada
+ * de chat — a camada de chat (makachat-core) compõe por cima via emitirComAck.
  */
-export class MakaSocket {
+export class HubSocket {
     private socket: Socket | null = null;
-    private opcoes: MakaSocketOpcoes;
+    private opcoes: HubSocketOpcoes;
+    private namespace: string;
     /** handlers registados antes de ligar() — aplicados quando o socket nasce */
     private handlers: [string, (payload: unknown) => void][] = [];
     /** canais nomeados subscritos (canal → handlers de evento) — re-subscritos no reconnect */
@@ -28,8 +31,9 @@ export class MakaSocket {
     private tentativasArranque = 0;
     private retryAgendado: ReturnType<typeof setTimeout> | null = null;
 
-    constructor(opcoes: MakaSocketOpcoes) {
+    constructor(opcoes: HubSocketOpcoes) {
         this.opcoes = opcoes;
+        this.namespace = opcoes.namespace ?? 'hub';
     }
 
     get ligado(): boolean {
@@ -76,7 +80,7 @@ export class MakaSocket {
             return;
         }
 
-        this.socket = io(`${credenciais.socket_url}/chat`, {
+        this.socket = io(`${credenciais.socket_url}/${this.namespace}`, {
             auth: { token: credenciais.token },
             transports: ['websocket'],
             reconnection: true,
@@ -169,8 +173,8 @@ export class MakaSocket {
 
     /**
      * Subscreve um CANAL nomeado do hub (estilo Pusher/Echo) reutilizando o
-     * MESMO socket do chat: faz join no canal e ouve `evento` nesse socket. O
-     * hub autoriza o canal (delega ao serviço). Devolve uma função de cancelar
+     * MESMO socket: faz join no canal e ouve `evento` nesse socket. O hub
+     * autoriza o canal (delega ao serviço). Devolve uma função de cancelar
      * que sai do canal quando fica sem handlers. Re-subscreve sozinho no
      * reconnect (ver reidratarCanais).
      */
@@ -218,7 +222,13 @@ export class MakaSocket {
         }
     }
 
-    private emitirComAck<T>(evento: string, payload: unknown): Promise<Ack<T>> {
+    /** Emissão fire-and-forget (sem ack). Usada por camadas por cima (ex.: typing). */
+    emitir(evento: string, payload: unknown): void {
+        this.socket?.emit(evento, payload, () => undefined);
+    }
+
+    /** Emissão com ack tipado e timeout — base para as ações de módulos (ex.: chat). */
+    emitirComAck<T>(evento: string, payload: unknown): Promise<Ack<T>> {
         return new Promise((resolve, reject) => {
             if (!this.socket?.connected) {
                 reject(new Error('Socket desligado'));
@@ -233,54 +243,6 @@ export class MakaSocket {
                     resolve(ack);
                 }
             });
-        });
-    }
-
-    enviarMensagem(dados: DadosEnvioMensagem & { ref_cliente: string }) {
-        return this.emitirComAck<{ mensagem: Mensagem; duplicada: boolean }>(EVENTOS_CLIENTE.ENVIAR, dados);
-    }
-
-    editarMensagem(mensagemId: string, conteudo: string) {
-        return this.emitirComAck<{ mensagem: Mensagem }>(EVENTOS_CLIENTE.EDITAR, {
-            mensagem_id: mensagemId,
-            conteudo,
-        });
-    }
-
-    eliminarMensagem(mensagemId: string, paraTodos: boolean) {
-        return this.emitirComAck<{ mensagem: Mensagem; para_todos: boolean }>(EVENTOS_CLIENTE.ELIMINAR, {
-            mensagem_id: mensagemId,
-            para_todos: paraTodos,
-        });
-    }
-
-    marcarEntregues(conversaId: string, ateMensagemId: string) {
-        return this.emitirComAck(EVENTOS_CLIENTE.ENTREGUES, { conversa_id: conversaId, ate_mensagem_id: ateMensagemId });
-    }
-
-    marcarLidas(conversaId: string, ateMensagemId: string) {
-        return this.emitirComAck(EVENTOS_CLIENTE.LIDAS, { conversa_id: conversaId, ate_mensagem_id: ateMensagemId });
-    }
-
-    alternarReacao(mensagemId: string, emoji: string) {
-        return this.emitirComAck<{ mensagem_id: string; conversa_id: string; emoji: string | null }>(
-            EVENTOS_CLIENTE.REAGIR,
-            { mensagem_id: mensagemId, emoji },
-        );
-    }
-
-    typing(conversaId: string, ativo: boolean): void {
-        this.socket?.emit(EVENTOS_CLIENTE.TYPING, { conversa_id: conversaId, ativo }, () => undefined);
-    }
-
-    entrarConversa(conversaId: string) {
-        return this.emitirComAck(EVENTOS_CLIENTE.ENTRAR_CONVERSA, { conversa_id: conversaId });
-    }
-
-    sincronizarDesde(cursores: CursorConversa[], alteradasDesde?: string) {
-        return this.emitirComAck<{ lotes: { conversa_id: string; mensagens: Mensagem[] }[]; agora?: string }>(EVENTOS_CLIENTE.SYNC, {
-            cursores,
-            ...(alteradasDesde ? { alteradas_desde: alteradasDesde } : {}),
         });
     }
 }

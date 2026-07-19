@@ -120,7 +120,7 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const podeReagir = useFuncionalidadeAtiva('reacoes');
     const podeEncaminhar = useFuncionalidadeAtiva('encaminhar');
     const podeFoto = useFuncionalidadeAtiva('media.foto');
-    const podeFicheiro = useFuncionalidadeAtiva('media.ficheiro');
+    const podeFicheiroServico = useFuncionalidadeAtiva('media.ficheiro');
     const podeAudioMsg = useFuncionalidadeAtiva('media.audio');
     const podeAudioChamada = useFuncionalidadeAtiva('chamadas.audio');
     const podeVideoChamada = useFuncionalidadeAtiva('chamadas.video');
@@ -129,6 +129,8 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const podeEliminarMsg = useFuncionalidadeAtiva('mensagens.eliminar');
 
     const [conversa, setConversa] = useState<Conversa | null>(null);
+    // override por conversa (ex.: chat da corrida bloqueia ficheiros): merge com a flag do serviço
+    const podeFicheiro = podeFicheiroServico && (conversa?.funcionalidades?.['media.ficheiro'] ?? true);
     const [texto, setTexto] = useState('');
     const [responderA, setResponderA] = useState<Mensagem | null>(null);
     const inputRef = useRef<{ focus(): void; blur(): void } | null>(null);

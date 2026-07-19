@@ -1,3 +1,4 @@
+import { HubApi, HubSocket } from '@hongayetu/honga-hub-core';
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -31,13 +32,15 @@ function criarCliente(sub: string, nome: string): Cliente {
         expiresIn: '10m',
         jwtid: randomUUID(),
     });
-    const api = new MakaApi(async () => ({ token, socket_url: SERVIDOR, api_url: SERVIDOR }));
+    const hubApi = new HubApi(async () => ({ token, socket_url: SERVIDOR, api_url: SERVIDOR }));
+    const api = new MakaApi(hubApi);
     const typing: Typing[] = [];
     const presenca: Presenca[] = [];
     const chamadas: EventoChamada[] = [];
 
     let engine: SyncEngine;
-    const socket = new MakaSocket({ obterToken: () => api.sessao(), aoLigar: () => void engine.aoLigar() });
+    const hubSocket = new HubSocket({ obterToken: () => hubApi.sessao(), aoLigar: () => void engine.aoLigar(), namespace: 'chat' });
+    const socket = new MakaSocket(hubSocket);
 
     engine = new SyncEngine(new MemoryStorage(), api, socket, {
         identidade: { id: sub, tipo: 'cliente', nome },

@@ -119,10 +119,12 @@ var obterKeyboardController = () => {
 };
 
 // src/hooks.ts
+var import_honga_hub_react_native2 = require("@hongayetu/honga-hub-react-native");
 var import_react2 = require("react");
 
 // src/provider.tsx
 var import_makachat_core = require("@hongayetu/makachat-core");
+var import_honga_hub_react_native = require("@hongayetu/honga-hub-react-native");
 var import_react = require("react");
 var import_react_native = require("react-native");
 var import_bottom_sheet = require("@gorhom/bottom-sheet");
@@ -155,6 +157,7 @@ function tocarSom(nome) {
 var import_jsx_runtime = require("react/jsx-runtime");
 var alcanceGlobal = globalThis;
 var Contexto = alcanceGlobal.__makaChatCtx ??= (0, import_react.createContext)(null);
+var estadosPorSocket = alcanceGlobal.__makaChatEstados ??= /* @__PURE__ */ new WeakMap();
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
   if (!contexto) {
@@ -256,7 +259,13 @@ function useFuncionalidadeAtiva(funcionalidade, tipoConversa = "*") {
   return features.find((f) => f.funcionalidade === funcionalidade && f.tipo_conversa === "*")?.ativo ?? false;
 }
 function useLigacao() {
-  return useMakaChat().ligado;
+  const hub = (0, import_honga_hub_react_native2.useHongaHubOpcional)();
+  const chat = useMakaChatOpcional();
+  const ligado = hub?.ligado ?? chat?.ligado;
+  if (ligado === void 0) {
+    throw new Error("useLigacao precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  return ligado;
 }
 function useSemLigacao(atrasoMs = 4e3) {
   const ligado = useLigacao();
@@ -1206,7 +1215,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeReagir = useFuncionalidadeAtiva("reacoes");
   const podeEncaminhar = useFuncionalidadeAtiva("encaminhar");
   const podeFoto = useFuncionalidadeAtiva("media.foto");
-  const podeFicheiro = useFuncionalidadeAtiva("media.ficheiro");
+  const podeFicheiroServico = useFuncionalidadeAtiva("media.ficheiro");
   const podeAudioMsg = useFuncionalidadeAtiva("media.audio");
   const podeAudioChamada = useFuncionalidadeAtiva("chamadas.audio");
   const podeVideoChamada = useFuncionalidadeAtiva("chamadas.video");
@@ -1214,6 +1223,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
   const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const [conversa, setConversa] = (0, import_react9.useState)(null);
+  const podeFicheiro = podeFicheiroServico && (conversa?.funcionalidades?.["media.ficheiro"] ?? true);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
   const inputRef = (0, import_react9.useRef)(null);

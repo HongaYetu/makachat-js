@@ -1,7 +1,4 @@
 export * from './tipos';
-export * from './eventos';
-export { uuid } from './uuid';
-export { MakaApi, ErroApi } from './api';
-export { MakaSocket, type MakaSocketOpcoes } from './socket';
-export { type StorageAdapter, MemoryStorage } from './storage';
-export { SyncEngine, type SyncEngineOpcoes } from './sync';
+export { uuid, uuidv7 } from './uuid';
+export { HubApi, ErroApi } from './api';
+export { HubSocket, type HubSocketOpcoes } from './socket';

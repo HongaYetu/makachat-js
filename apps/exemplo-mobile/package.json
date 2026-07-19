@@ -11,7 +11,7 @@
     "dependencies": {
         "@expo/vector-icons": "^14.0.4",
         "@hongayetu/expo-makachat-push": "workspace:*",
-        "@hongayetu/makachat-core": "workspace:*",
+        "@hongayetu/honga-hub-core": "workspace:*",
         "@hongayetu/makachat-react-native": "workspace:*",
         "@livekit/react-native": "^2.11.1",
         "@livekit/react-native-expo-plugin": "^1.0.2",

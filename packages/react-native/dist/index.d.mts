@@ -1,5 +1,6 @@
 import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, ParticipanteConversa, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
+import * as react_jsx_runtime from 'react/jsx-runtime';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { FlatListProps } from 'react-native';
@@ -23,7 +24,12 @@ interface SQLiteDatabaseLike {
 declare class SqliteStorage implements StorageAdapter {
     private readonly db;
     constructor(db: SQLiteDatabaseLike);
+    /** memoiza o init: chamadas concorrentes (engine.iniciar + cache de features)
+     *  partilham a MESMA execução — senão o probe/DROP de uma corria em paralelo
+     *  com um prepareAsync da outra ("no such table: conversas"). */
+    private initPromessa?;
     init(): Promise<void>;
+    private executarInit;
     private esquemaValido;
     private criarEsquema;
     upsertConversas(conversas: Conversa[]): Promise<void>;
@@ -118,7 +124,7 @@ interface ChatScreenProps {
      */
     renderHeader?(ctx: HeaderChatContexto): React.ReactNode;
 }
-declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco, barraEstado, renderHeader }: ChatScreenProps): React.JSX.Element;
+declare function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, chamadas, onAbrirAnexo, emFoco, barraEstado, renderHeader }: ChatScreenProps): react_jsx_runtime.JSX.Element;
 
 interface MakaChatContexto {
     engine: SyncEngine;
@@ -158,9 +164,10 @@ interface MakaChatContexto {
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
 }
 interface MakaChatProviderProps {
-    serviceKey: string;
-    identity: IdentidadeConfig;
-    getToken: ObterToken;
+    /** obrigatórios SEM <HongaHubProvider> por cima; com ele, herdam-se do hub */
+    serviceKey?: string;
+    identity?: IdentidadeConfig;
+    getToken?: ObterToken;
     /** storage alternativo (por omissão: expo-sqlite, um ficheiro por identidade) */
     storage?: StorageAdapter;
     tema?: MakaTema;
@@ -172,7 +179,7 @@ interface MakaChatProviderProps {
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa, children, }: MakaChatProviderProps): React.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa, children, }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam antes do login). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;
@@ -182,7 +189,8 @@ declare function useTema(): TemaResolvido;
 /**
  * Subscreve um canal genérico do hub (chamadas, bloqueio, notificações...) e
  * chama `handler` a cada `evento`. O handler é estável via ref — só re-subscreve
- * se `canal`/`evento` mudarem, não a cada render.
+ * se `canal`/`evento` mudarem, não a cada render. Resolve o HongaHubProvider
+ * primeiro; sem ele, cai no socket do MakaChatProvider (standalone).
  */
 declare function useCanalHub(canal: string, evento: string, handler: (payload: any) => void): void;
 /** Re-renderiza quando o SyncEngine notifica uma nova versão do storage. */
@@ -194,7 +202,7 @@ declare function useTypingConversa(conversaId: string | null): Typing | null;
 declare function usePresenca(identidadeId: string | null): Presenca | null;
 /** A UI esconde botões de funcionalidades desativadas para o serviço. */
 declare function useFuncionalidadeAtiva(funcionalidade: Funcionalidade, tipoConversa?: string): boolean;
-/** Estado da ligação socket (true = online). */
+/** Estado da ligação socket (true = online) — hub-first, com fallback ao chat. */
 declare function useLigacao(): boolean;
 /**
  * true só quando estamos desligados há mais de `atrasoMs` — evita falsos
@@ -223,19 +231,19 @@ declare function useTotalNaoLidasOpcional(): number;
  */
 declare function ListaPerformante<T>(props: FlatListProps<T> & {
     estimatedItemSize?: number;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 declare function Avatar({ nome, url, tamanho }: {
     nome: string;
     url?: string | null;
     tamanho?: number;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 /** Nome + badge de verificação (metadados.verificado) — nem todos os serviços o usam. */
 declare function NomeComBadge({ nome, metadados, estilo, numeroLinhas, }: {
     nome: string;
     metadados?: Record<string, unknown> | null;
     estilo?: object;
     numeroLinhas?: number;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 declare function horaCurta(iso: string): string;
 declare function rotuloDia(iso: string): string;
 interface ItemSheet {
@@ -252,7 +260,7 @@ declare function Sheet({ visivel, aoFechar, titulo, itens, children, }: {
     titulo?: string;
     itens?: ItemSheet[];
     children?: React.ReactNode;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 
 /** Tudo o que o topo (pesquisa + arquivadas) precisa — passado ao renderTopo. */
 interface TopoConversasContexto {
@@ -287,7 +295,7 @@ interface ConversasScreenProps {
     onNovaConversa?(): void;
 }
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
-declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }: ConversasScreenProps): React.JSX.Element;
+declare function ConversasScreen({ arquivadas, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }: ConversasScreenProps): react_jsx_runtime.JSX.Element;
 declare function previewConversa(c: Conversa): string;
 
 interface InfoConversaScreenProps {
@@ -300,7 +308,7 @@ interface InfoConversaScreenProps {
     barraEstado?: 'escura' | 'clara' | null;
 }
 /** Info da conversa/grupo estilo WhatsApp: membros, papéis, foto, renomear, sair. */
-declare function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado }: InfoConversaScreenProps): React.JSX.Element;
+declare function InfoConversaScreen({ conversaId, onVoltar, onSaiu, onAbrirOutraConversa, barraEstado }: InfoConversaScreenProps): react_jsx_runtime.JSX.Element;
 
 interface NovaConversaScreenProps {
     onVoltar(): void;
@@ -319,7 +327,7 @@ interface NovaConversaScreenProps {
  * pessoas das conversas existentes), pesquisa server-side delegada à app e
  * modo grupo com seleção múltipla. A app só fornece dados e navegação.
  */
-declare function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes }: NovaConversaScreenProps): React.JSX.Element;
+declare function NovaConversaScreen({ onVoltar, onCriada, pesquisarContactos, textoSugestoes }: NovaConversaScreenProps): react_jsx_runtime.JSX.Element;
 
 interface EstadoChamada {
     fase: 'a_receber' | 'a_ligar' | 'a_chamar' | 'em_curso' | 'falhada' | 'ocupado';
@@ -348,7 +356,7 @@ declare function useChamadasOpcional(): ChamadasApi | null;
  */
 declare function ChamadasProvider({ children }: {
     children: React.ReactNode;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 
 /**
  * Player de mensagens de voz estilo WhatsApp: waveform, tempo, velocidade
@@ -358,7 +366,7 @@ declare function ReprodutorAudio({ url, mimha, duracaoSegundos }: {
     url: string;
     mimha: boolean;
     duracaoSegundos?: number | null;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 /**
  * Gravador estilo WhatsApp (expo-audio): timer a andar, cancelar ou enviar.
  * Devolve o URI local + duração ao terminar.
@@ -368,7 +376,7 @@ declare function GravadorAudio({ aoTerminar, aoCancelar, padFundo }: {
     aoCancelar(): void;
     /** folga inferior (insets da nav bar Android) — o gravador substitui o input e precisa da mesma */
     padFundo?: number;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 
 interface FicheiroLocal {
     uri: string;
@@ -399,7 +407,7 @@ declare function LobbyFotos({ ficheiros, aoMudar, aoAdicionarMais, aoEnviar, aoF
         top: number;
         bottom: number;
     };
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 /** Galeria com TODAS as fotos da conversa, paging horizontal + contador. */
 declare function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoEncaminhar, insets }: {
     mensagens: Mensagem[];
@@ -411,7 +419,7 @@ declare function Galeria({ mensagens, inicialAnexoId, aoFechar, aoResponder, aoE
         top: number;
         bottom: number;
     };
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 /** Player de vídeo fullscreen (expo-video, opcional); sem o módulo abre no browser/OS. */
 declare function VisualizadorVideo({ url, aoFechar, insets }: {
     url: string;
@@ -420,7 +428,7 @@ declare function VisualizadorVideo({ url, aoFechar, insets }: {
         top: number;
         bottom: number;
     };
-}): React.JSX.Element | null;
+}): react_jsx_runtime.JSX.Element | null;
 
 /**
  * Deteta conteúdo partilhado do SO (via `expo-share-intent`, peer opcional) e
@@ -448,12 +456,12 @@ interface PartilharScreenProps {
  * faz upload das media/ficheiros e envia com legenda. Reutilizável por qualquer
  * serviço — a app só entrega os `itens` (ex.: do share intent do SO).
  */
-declare function PartilharParaConversaScreen({ itens, texto, onFechar, onEnviado, pesquisarContactos }: PartilharScreenProps): React.JSX.Element;
+declare function PartilharParaConversaScreen({ itens, texto, onFechar, onEnviado, pesquisarContactos }: PartilharScreenProps): react_jsx_runtime.JSX.Element;
 
 declare function CartaoRegistoChamada({ mensagem, aoLigar }: {
     mensagem: Mensagem;
     aoLigar?(tipo: 'audio' | 'video'): void;
-}): React.JSX.Element;
+}): react_jsx_runtime.JSX.Element;
 interface BolhaProps {
     mensagem: Mensagem;
     minha: boolean;
@@ -473,7 +481,7 @@ interface BolhaProps {
     aoLigar?(tipo: 'audio' | 'video'): void;
 }
 /** Bolha Messenger/WhatsApp: agrupamento, swipe para responder, long-press, reações. */
-declare function Bolha({ mensagem: m, minha, grupo, autor, outros, primeiraDoBloco, ultimaDoBloco, respondida, destacada, aoResponder, aoLongPress, aoVerReacoes, aoClicarCitacao, aoAbrirFoto, aoAbrirUrl, aoLigar, }: BolhaProps): React.JSX.Element;
+declare function Bolha({ mensagem: m, minha, grupo, autor, outros, primeiraDoBloco, ultimaDoBloco, respondida, destacada, aoResponder, aoLongPress, aoVerReacoes, aoClicarCitacao, aoAbrirFoto, aoAbrirUrl, aoLigar, }: BolhaProps): react_jsx_runtime.JSX.Element;
 
 /**
  * Regista o dispositivo no MakaChat e liga a resposta ao vivo da notificação

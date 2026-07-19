@@ -71,6 +71,7 @@ __reExport(index_exports, require("@hongayetu/makachat-core"), module.exports);
 
 // src/provider.tsx
 var import_makachat_core = require("@hongayetu/makachat-core");
+var import_honga_hub_react = require("@hongayetu/honga-hub-react");
 var import_react = require("react");
 
 // src/tema.ts
@@ -186,119 +187,179 @@ function pararToque() {
 // src/provider.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
 var Contexto = (0, import_react.createContext)(null);
+var estadosPorSocket = /* @__PURE__ */ new WeakMap();
+function construirEstado(hubApi, hubSocket, identidade, adapter) {
+  const api = new import_makachat_core.MakaApi(hubApi);
+  const socket = new import_makachat_core.MakaSocket(hubSocket);
+  const estado = {
+    api,
+    socket,
+    adapter,
+    engine: null,
+    iniciado: false,
+    visiveis: /* @__PURE__ */ new Map(),
+    ouvintesTyping: /* @__PURE__ */ new Set(),
+    ouvintesPresenca: /* @__PURE__ */ new Set(),
+    ouvintesChamadas: /* @__PURE__ */ new Set(),
+    ouvintesMensagens: /* @__PURE__ */ new Set(),
+    notificacoesNativas: false,
+    aoAbrirNotificacao: void 0
+  };
+  estado.engine = new import_makachat_core.SyncEngine(adapter, api, socket, {
+    identidade,
+    aoTyping: (typing) => estado.ouvintesTyping.forEach((o) => o(typing)),
+    aoPresenca: (presenca) => estado.ouvintesPresenca.forEach((o) => o(presenca)),
+    aoChamada: (evento) => estado.ouvintesChamadas.forEach((o) => o(evento)),
+    aoMensagem: (mensagem) => {
+      estado.ouvintesMensagens.forEach((o) => o(mensagem));
+      if (!mensagem.silenciosa && (typeof document === "undefined" || !document.hidden)) tocarSom("recebida");
+      if (!estado.notificacoesNativas || typeof document === "undefined" || !document.hidden) return;
+      void adapter.obterConversa(mensagem.conversa_id).then((conversa) => {
+        const autor = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
+        const previews = { foto: "\u{1F4F7} Foto", video: "\u{1F3AC} V\xEDdeo", audio: "\u{1F3A4} \xC1udio", ficheiro: "\u{1F4CE} Ficheiro", chamada: "\u{1F4DE} Chamada" };
+        const corpo = mensagem.tipo === "texto" ? mensagem.conteudo ?? "" : previews[mensagem.tipo] ?? "Nova mensagem";
+        const titulo = conversa?.tipo === "grupo" && conversa.titulo ? `${autor?.nome ?? "Algu\xE9m"} \xB7 ${conversa.titulo}` : autor?.nome ?? conversa?.titulo ?? "Nova mensagem";
+        mostrarNotificacao(titulo, { corpo, icone: autor?.foto_url ?? void 0, tag: mensagem.conversa_id }, () => {
+          estado.aoAbrirNotificacao?.(mensagem.conversa_id);
+        });
+      });
+    },
+    // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta e página visível
+    aoLido: (conversaId) => {
+      if ((estado.visiveis.get(conversaId) ?? 0) > 0 && (typeof document === "undefined" || !document.hidden)) {
+        tocarSom("vista");
+      }
+    }
+  });
+  return estado;
+}
+function montarContexto(estado, serviceKey, identidade) {
+  return {
+    engine: estado.engine,
+    api: estado.api,
+    socket: estado.socket,
+    serviceKey,
+    identidade,
+    subscreverTyping: (ouvinte) => {
+      estado.ouvintesTyping.add(ouvinte);
+      return () => estado.ouvintesTyping.delete(ouvinte);
+    },
+    subscreverPresenca: (ouvinte) => {
+      estado.ouvintesPresenca.add(ouvinte);
+      return () => estado.ouvintesPresenca.delete(ouvinte);
+    },
+    subscreverChamadas: (ouvinte) => {
+      estado.ouvintesChamadas.add(ouvinte);
+      return () => estado.ouvintesChamadas.delete(ouvinte);
+    },
+    subscreverMensagens: (ouvinte) => {
+      estado.ouvintesMensagens.add(ouvinte);
+      return () => estado.ouvintesMensagens.delete(ouvinte);
+    },
+    subscribeToChannel: (canal, evento, handler) => estado.socket.subscreverCanal(canal, evento, handler),
+    registarVisivel: (conversaId) => {
+      estado.visiveis.set(conversaId, (estado.visiveis.get(conversaId) ?? 0) + 1);
+      return () => {
+        const atual = (estado.visiveis.get(conversaId) ?? 1) - 1;
+        if (atual <= 0) {
+          estado.visiveis.delete(conversaId);
+        } else {
+          estado.visiveis.set(conversaId, atual);
+        }
+      };
+    },
+    estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
+  };
+}
 function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }) {
+  const hub = (0, import_honga_hub_react.useHongaHubOpcional)();
   const [features, setFeatures] = (0, import_react.useState)([]);
-  const [ligado, setLigado] = (0, import_react.useState)(false);
-  const visiveis = (0, import_react.useRef)(/* @__PURE__ */ new Map());
-  const ouvintesTyping = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const ouvintesPresenca = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const ouvintesChamadas = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const ouvintesMensagens = (0, import_react.useRef)(/* @__PURE__ */ new Set());
-  const notifAtivas = (0, import_react.useRef)(notificacoesNativas);
-  notifAtivas.current = notificacoesNativas;
-  const aoAbrirNotif = (0, import_react.useRef)(aoAbrirNotificacao);
-  aoAbrirNotif.current = aoAbrirNotificacao;
-  const valor = (0, import_react.useMemo)(() => {
-    const api = new import_makachat_core.MakaApi(getToken);
-    const adapter = storage ?? new import_makachat_core.MemoryStorage();
-    let engine;
-    const socket = new import_makachat_core.MakaSocket({
+  const [ligadoLocal, setLigadoLocal] = (0, import_react.useState)(false);
+  if (!hub && (!serviceKey || !identity || !getToken)) {
+    throw new Error("MakaChatProvider: sem <HongaHubProvider> por cima, serviceKey/identity/getToken s\xE3o obrigat\xF3rios");
+  }
+  if (hub && identity && (identity.id !== hub.identidade.id || identity.tipo !== hub.identidade.tipo)) {
+    console.warn("[MakaChat] identity difere da do HongaHubProvider \u2014 a identidade do hub prevalece");
+  }
+  const hubSocket = hub?.socket ?? null;
+  const par = (0, import_react.useMemo)(() => {
+    if (hub) {
+      let estado2 = estadosPorSocket.get(hub.socket);
+      if (!estado2) {
+        estado2 = construirEstado(hub.api, hub.socket, hub.identidade, storage ?? new import_makachat_core.MemoryStorage());
+        estadosPorSocket.set(hub.socket, estado2);
+      }
+      return { estado: estado2, contexto: montarContexto(estado2, hub.serviceKey, hub.identidade), socketProprio: null };
+    }
+    const hubApi = new import_honga_hub_react.HubApi(getToken);
+    let estadoRef = null;
+    const proprioHubSocket = new import_honga_hub_react.HubSocket({
+      namespace: "chat",
       obterToken: async () => {
-        api.invalidarSessao();
-        return api.sessao();
+        hubApi.invalidarSessao();
+        return hubApi.sessao();
       },
       aoLigar: () => {
-        setLigado(true);
-        void engine.aoLigar();
+        setLigadoLocal(true);
+        void estadoRef?.engine.aoLigar();
       },
-      aoDesligar: () => setLigado(false)
+      aoDesligar: () => setLigadoLocal(false)
     });
-    engine = new import_makachat_core.SyncEngine(adapter, api, socket, {
-      identidade: identity,
-      aoTyping: (typing) => ouvintesTyping.current.forEach((o) => o(typing)),
-      aoPresenca: (presenca) => ouvintesPresenca.current.forEach((o) => o(presenca)),
-      aoChamada: (evento) => ouvintesChamadas.current.forEach((o) => o(evento)),
-      aoMensagem: (mensagem) => {
-        ouvintesMensagens.current.forEach((o) => o(mensagem));
-        if (!mensagem.silenciosa && (typeof document === "undefined" || !document.hidden)) tocarSom("recebida");
-        if (!notifAtivas.current || typeof document === "undefined" || !document.hidden) return;
-        void adapter.obterConversa(mensagem.conversa_id).then((conversa) => {
-          const autor = conversa?.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
-          const previews = { foto: "\u{1F4F7} Foto", video: "\u{1F3AC} V\xEDdeo", audio: "\u{1F3A4} \xC1udio", ficheiro: "\u{1F4CE} Ficheiro", chamada: "\u{1F4DE} Chamada" };
-          const corpo = mensagem.tipo === "texto" ? mensagem.conteudo ?? "" : previews[mensagem.tipo] ?? "Nova mensagem";
-          const titulo = conversa?.tipo === "grupo" && conversa.titulo ? `${autor?.nome ?? "Algu\xE9m"} \xB7 ${conversa.titulo}` : autor?.nome ?? conversa?.titulo ?? "Nova mensagem";
-          mostrarNotificacao(titulo, { corpo, icone: autor?.foto_url ?? void 0, tag: mensagem.conversa_id }, () => {
-            aoAbrirNotif.current?.(mensagem.conversa_id);
-          });
-        });
-      },
-      // 'vista': a minha mensagem foi lida pelo outro — só com a conversa aberta e página visível
-      aoLido: (conversaId) => {
-        if ((visiveis.current.get(conversaId) ?? 0) > 0 && (typeof document === "undefined" || !document.hidden)) {
-          tocarSom("vista");
+    const estado = construirEstado(hubApi, proprioHubSocket, identity, storage ?? new import_makachat_core.MemoryStorage());
+    estadoRef = estado;
+    return { estado, contexto: montarContexto(estado, serviceKey, identity), socketProprio: proprioHubSocket };
+  }, [hubSocket, serviceKey, identity?.id, identity?.tipo]);
+  par.estado.notificacoesNativas = notificacoesNativas;
+  par.estado.aoAbrirNotificacao = aoAbrirNotificacao;
+  (0, import_react.useEffect)(() => {
+    if (!par.estado.iniciado) {
+      par.estado.iniciado = true;
+      void par.estado.engine.iniciar();
+    }
+    void (async () => {
+      const adapter = par.estado.adapter;
+      await adapter.init().catch(() => void 0);
+      const raw = await adapter.obterMeta("features").catch(() => null);
+      if (raw) {
+        try {
+          const cacheadas = JSON.parse(raw);
+          setFeatures((prev) => prev.length ? prev : cacheadas);
+        } catch {
         }
       }
-    });
-    return {
-      engine,
-      api,
-      socket,
-      serviceKey,
-      identidade: identity,
-      features: [],
-      subscreverTyping: (ouvinte) => {
-        ouvintesTyping.current.add(ouvinte);
-        return () => ouvintesTyping.current.delete(ouvinte);
-      },
-      subscreverPresenca: (ouvinte) => {
-        ouvintesPresenca.current.add(ouvinte);
-        return () => ouvintesPresenca.current.delete(ouvinte);
-      },
-      subscreverChamadas: (ouvinte) => {
-        ouvintesChamadas.current.add(ouvinte);
-        return () => ouvintesChamadas.current.delete(ouvinte);
-      },
-      subscreverMensagens: (ouvinte) => {
-        ouvintesMensagens.current.add(ouvinte);
-        return () => ouvintesMensagens.current.delete(ouvinte);
-      },
-      subscribeToChannel: (canal, evento, handler) => socket.subscreverCanal(canal, evento, handler),
-      ligado: false,
-      contactos: [],
-      aoAbrirPartilha: void 0,
-      registarVisivel: (conversaId) => {
-        visiveis.current.set(conversaId, (visiveis.current.get(conversaId) ?? 0) + 1);
-        return () => {
-          const atual = (visiveis.current.get(conversaId) ?? 1) - 1;
-          if (atual <= 0) {
-            visiveis.current.delete(conversaId);
-          } else {
-            visiveis.current.set(conversaId, atual);
-          }
-        };
-      },
-      estaVisivel: (conversaId) => (visiveis.current.get(conversaId) ?? 0) > 0
-    };
-  }, [serviceKey, identity.id, identity.tipo]);
+      try {
+        const r = await par.estado.api.listarFeatures();
+        setFeatures(r.features);
+        void adapter.gravarMeta("features", JSON.stringify(r.features));
+      } catch {
+      }
+    })();
+    if (par.socketProprio) {
+      void par.socketProprio.ligar();
+      return () => par.socketProprio.desligar();
+    }
+    const off = hub.subscreverLigado(() => void par.estado.engine.aoLigar().catch(() => void 0));
+    if (hub.socket.ligado) {
+      void par.estado.engine.aoLigar().catch(() => void 0);
+    }
+    return off;
+  }, [par]);
   (0, import_react.useEffect)(() => {
-    void valor.engine.iniciar();
-    void valor.api.listarFeatures().then((r) => setFeatures(r.features)).catch(() => void 0);
-    return () => valor.socket.desligar();
-  }, [valor]);
-  (0, import_react.useEffect)(() => {
-    if (typeof document === "undefined") return;
+    if (!par.socketProprio || typeof document === "undefined") return;
+    const socket = par.socketProprio;
     const aoVisibilidade = () => {
       if (document.visibilityState !== "visible") return;
-      if (valor.socket.ligado) {
-        void valor.engine.aoLigar().catch(() => void 0);
+      if (socket.ligado) {
+        void par.estado.engine.aoLigar().catch(() => void 0);
       } else {
-        valor.socket.garantirLigado();
+        socket.garantirLigado();
       }
     };
     document.addEventListener("visibilitychange", aoVisibilidade);
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
-  }, [valor]);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...valor, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  }, [par]);
+  const ligado = hub ? hub.ligado : ligadoLocal;
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
@@ -312,12 +373,24 @@ function useMakaChatOpcional() {
 }
 
 // src/hooks.ts
+var import_honga_hub_react2 = require("@hongayetu/honga-hub-react");
 var import_react2 = require("react");
 function useLigacao() {
-  return useMakaChat().ligado;
+  const hub = (0, import_honga_hub_react2.useHongaHubOpcional)();
+  const chat = useMakaChatOpcional();
+  const ligado = hub?.ligado ?? chat?.ligado;
+  if (ligado === void 0) {
+    throw new Error("useLigacao precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
+  return ligado;
 }
 function useCanalHub(canal, evento, handler) {
-  const { subscribeToChannel } = useMakaChat();
+  const hub = (0, import_honga_hub_react2.useHongaHubOpcional)();
+  const chat = useMakaChatOpcional();
+  const subscribeToChannel = hub?.subscribeToChannel ?? chat?.subscribeToChannel;
+  if (!subscribeToChannel) {
+    throw new Error("useCanalHub precisa de <HongaHubProvider> ou <MakaChatProvider> por cima");
+  }
   const ref = (0, import_react2.useRef)(handler);
   ref.current = handler;
   (0, import_react2.useEffect)(() => subscribeToChannel(canal, evento, (p) => ref.current(p)), [subscribeToChannel, canal, evento]);

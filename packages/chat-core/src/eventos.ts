@@ -25,6 +25,8 @@ export const EVENTOS_SERVIDOR = {
     TYPING: 'chat:typing',
     PRESENCA: 'chat:presenca',
     CONVERSA_ATUALIZADA: 'chat:conversa:atualizada',
+    /** conversa eliminada pelo serviço (ex.: fim da corrida) — remover localmente */
+    CONVERSA_ELIMINADA: 'chat:conversa:eliminada',
     PARTICIPANTE_ADICIONADO: 'chat:participante:adicionado',
     PARTICIPANTE_REMOVIDO: 'chat:participante:removido',
     PARTICIPANTE_ATUALIZADO: 'chat:participante:atualizado',

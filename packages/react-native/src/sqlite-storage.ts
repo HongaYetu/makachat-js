@@ -44,7 +44,16 @@ interface LinhaOutbox {
 export class SqliteStorage implements StorageAdapter {
     constructor(private readonly db: SQLiteDatabaseLike) {}
 
-    async init(): Promise<void> {
+    /** memoiza o init: chamadas concorrentes (engine.iniciar + cache de features)
+     *  partilham a MESMA execução — senão o probe/DROP de uma corria em paralelo
+     *  com um prepareAsync da outra ("no such table: conversas"). */
+    private initPromessa?: Promise<void>;
+
+    init(): Promise<void> {
+        return (this.initPromessa ??= this.executarInit());
+    }
+
+    private async executarInit(): Promise<void> {
         await this.criarEsquema();
 
         // O SQLite local é só cache (a fonte de verdade é o hub). Um ficheiro .db
