@@ -108,7 +108,7 @@ export const obterFlashList = (): { FlashList: unknown } | null => {
 
 export const obterNotifee = (): any => {
     try {
-        const m = require('@notifee/react-native');
+        const m = require('react-native-notify-kit');
 
         return (m as { default?: unknown })?.default ?? m;
     } catch {

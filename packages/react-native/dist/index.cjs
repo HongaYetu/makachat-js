@@ -363,7 +363,7 @@ var obterLiveKitClient = () => {
 };
 var obterNotifee = () => {
   try {
-    const m = require("@notifee/react-native");
+    const m = require("react-native-notify-kit");
     return m?.default ?? m;
   } catch {
     return null;

@@ -363,10 +363,106 @@ class MakachatFcmService : FirebaseMessagingService() {
 
             gestor.notify(conversaId.hashCode(), notificacao)
         }
+
+        /**
+         * Notificação genérica para pushes NÃO-makachat (corrida, encomenda…)
+         * quando a app está morta — o "curso normal" que o FCM faria se este
+         * service não fosse o dono único. Usa o bloco `notification` do push
+         * com fallback ao `data` (o backend também envia title/body no data).
+         */
+        fun mostrarPushGeral(context: Context, remoteMessage: RemoteMessage) {
+            val dados = remoteMessage.data
+            // aceita as chaves EN (backend Laravel) e PT (hub NestJS: titulo/corpo)
+            val titulo = remoteMessage.notification?.title ?: dados["title"] ?: dados["titulo"] ?: return
+            val corpo = remoteMessage.notification?.body ?: dados["body"] ?: dados["corpo"] ?: ""
+
+            val gestor = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                gestor.createNotificationChannel(
+                    NotificationChannel("geral", "Notificações", NotificationManager.IMPORTANCE_HIGH)
+                )
+            }
+
+            // tap → abre a app; extras com o data (url incluído) em best-effort
+            val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                dados.forEach { (k, v) -> putExtra(k, v) }
+            } ?: return
+            val idPush = (dados["type"] ?: "geral") + (dados["corrida_id"] ?: dados["encomenda_id"] ?: dados["url"] ?: corpo)
+            val abrirPI = PendingIntent.getActivity(
+                context,
+                idPush.hashCode(),
+                launch,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val notificacao = NotificationCompat.Builder(context, "geral")
+                .setSmallIcon(context.applicationInfo.icon)
+                .setContentTitle(titulo)
+                .setContentText(corpo)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(corpo))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setAutoCancel(true)
+                .setContentIntent(abrirPI)
+                .build()
+
+            gestor.notify(idPush.hashCode(), notificacao)
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        MakachatPushProcessor.processar(applicationContext, remoteMessage.data)
+        val tratado = MakachatPushProcessor.processar(applicationContext, remoteMessage.data)
+        if (tratado) return
+
+        // Não-makachat em foreground: o app trata via socket — sem banner.
+        if (processoEmForeground()) return
+
+        // Pushes que NÃO são do MakaChat (ex.: "nova corrida" do Humbi) não podem
+        // morrer aqui: o Android entrega o FCM a UM só service e este vence no
+        // manifest. Com o JS em execução delegamos ao setBackgroundMessageHandler;
+        // com a app morta (estáticos limpos — processo novo) ou se a delegação
+        // falhar (limites de background-start do startService), notificamos
+        // nativamente — o "curso normal".
+        val jsVivo = emissor != null || emissorChamada != null
+        if (!(jsVivo && reencaminharParaRnFirebase(applicationContext, remoteMessage))) {
+            mostrarPushGeral(applicationContext, remoteMessage)
+        }
+    }
+
+    /**
+     * Entrega a mensagem ao ReactNativeFirebaseMessagingHeadlessService (o mesmo
+     * caminho que o receiver do react-native-firebase usa em background). Via
+     * reflection para não criar dependência de compilação do rnfirebase — exige
+     * push de prioridade `high` (senão o Android recusa arrancar o headless).
+     * Devolve true só se o service arrancou — o chamador cai no display nativo.
+     */
+    private fun reencaminharParaRnFirebase(context: Context, remoteMessage: RemoteMessage): Boolean {
+        return try {
+            val cls = Class.forName("io.invertase.firebase.messaging.ReactNativeFirebaseMessagingHeadlessService")
+            val intent = Intent(context, cls).apply { putExtra("message", remoteMessage) }
+
+            if (context.startService(intent) != null) {
+                // acquireWakeLockNow via reflection — evita dependência de compilação
+                // do react-android neste módulo (só expo-modules-core está declarado).
+                try {
+                    Class.forName("com.facebook.react.HeadlessJsTaskService")
+                        .getMethod("acquireWakeLockNow", Context::class.java)
+                        .invoke(null, context)
+                } catch (_: Exception) {
+                    // sem wake lock o headless ainda arranca (FCM high-priority dá janela)
+                }
+
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MakachatFcm", "reencaminhar p/ RNFirebase falhou: ${e.message}")
+
+            false
+        }
     }
 }
 

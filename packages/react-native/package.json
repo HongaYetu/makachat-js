@@ -62,7 +62,7 @@
         "expo-audio": ">=0.3.0",
         "expo-video": ">=2.0.0",
         "livekit-client": ">=2.0.0",
-        "@notifee/react-native": ">=7.0.0",
+        "react-native-notify-kit": ">=10.0.0",
         "@hongayetu/expo-makachat-push": ">=0.1.0",
         "expo-router": ">=3.0.0",
         "expo-share-intent": ">=3.0.0"
@@ -115,7 +115,7 @@
         "livekit-client": {
             "optional": true
         },
-        "@notifee/react-native": {
+        "react-native-notify-kit": {
             "optional": true
         },
         "@hongayetu/expo-makachat-push": {

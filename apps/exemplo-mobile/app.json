@@ -33,7 +33,8 @@
             "expo-audio",
             "expo-video",
             "expo-image-picker",
-            "@livekit/react-native-expo-plugin"
+            "@livekit/react-native-expo-plugin",
+            ["react-native-notify-kit", { "android": { "foregroundService": { "types": ["microphone", "mediaProjection"] } } }]
         ]
     }
 }

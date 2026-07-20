@@ -275,7 +275,7 @@ var obterLiveKitClient = () => {
 };
 var obterNotifee = () => {
   try {
-    const m = __require("@notifee/react-native");
+    const m = __require("react-native-notify-kit");
     return m?.default ?? m;
   } catch {
     return null;
@@ -4310,4 +4310,4 @@ export {
   useChamadasOpcional,
   ChamadasProvider
 };
-//# sourceMappingURL=chunk-F4CS6P5C.js.map
+//# sourceMappingURL=chunk-SVELSF4M.js.map
