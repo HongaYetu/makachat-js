@@ -17,6 +17,21 @@ Módulo nativo (padrão kanda-messaging): recebe pushes do MakaChat **com a app 
 2. Criar o target **Notification Service Extension** e copiar `nse-source/NotificationService.swift` (+ `ios/InboxDatabase.swift`) para ele, ajustando o `appGroup`.
 3. Na app JS: `configurar('group.com.hongayetu.humbi')` no arranque.
 
+### Avatar na notificação (Communication Notifications)
+
+A NSE decora a notificação com `INSendMessageIntent` — avatar redondo do
+remetente (1:1) ou do grupo, estilo iMessage. O hub já envia `foto`,
+`conversa_titulo` e `conversa_foto` no payload; a foto é baixada com timeout
+curto e cacheada no App Group. Requisitos:
+
+- Capability **Communication Notifications** no target da APP *e* da NSE
+  (entitlement `com.apple.developer.usernotifications.communication`). No
+  target da app o config plugin trata disto (e do `NSUserActivityTypes` com
+  `INSendMessageIntent`); no target da NSE é manual — adicionar a capability
+  no Xcode ou ao `.entitlements` da extensão.
+- O perfil de provisão da app/NSE tem de incluir o entitlement (regenerar nos
+  builds EAS/Xcode depois de ligar a capability no Apple Developer).
+
 ## Uso com o MakaChat
 
 ```ts
