@@ -71,7 +71,7 @@ export function contagemInbox(): Promise<number> {
 
 /** Emitido quando o nativo grava um push com a app viva em background. */
 export function aoReceberPush(ouvinte: (item: MensagemPushInbox) => void): { remove(): void } {
-    return emissor.addListener('onMensagemPush', ouvinte);
+    return emissor.addListener('onMensagemPush' as never, ouvinte as never);
 }
 
 /**
@@ -86,7 +86,7 @@ export async function obterChamadaPendente(): Promise<ChamadaPush | null> {
 
 /** Push de chamada com a app viva (Android; iOS ao atender/recusar no CallKit). */
 export function aoChamadaPush(ouvinte: (chamada: ChamadaPush) => void): { remove(): void } {
-    return emissor.addListener('onChamadaPush', ouvinte as never);
+    return emissor.addListener('onChamadaPush' as never, ouvinte as never);
 }
 
 /**
@@ -103,7 +103,7 @@ export function getVoipToken(): string | null {
 
 /** Emitido quando o token VoIP (iOS PushKit) chega ou renova. */
 export function aoTokenVoip(ouvinte: (token: string) => void): { remove(): void } {
-    return emissor.addListener('onVoipTokenReceived', (e: { token: string }) => ouvinte(e.token));
+    return emissor.addListener('onVoipTokenReceived' as never, ((e: { token: string }) => ouvinte(e.token)) as never);
 }
 
 /** Cancela a notificação de chamada (depois de atender/rejeitar na app). */
