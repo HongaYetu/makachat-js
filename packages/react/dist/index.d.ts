@@ -1,4 +1,4 @@
-import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, ParticipanteConversa, ObterToken, StorageAdapter, Conversa, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
+import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, Referencia, ContextoAberturaReferencia, ParticipanteConversa, ObterToken, StorageAdapter, Conversa, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import * as react_jsx_runtime from 'react/jsx-runtime';
 import React from 'react';
@@ -46,8 +46,22 @@ interface MakaChatContexto {
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /**
+     * Clique num cartão de attach genérico ({@link Referencia}). O host decide o
+     * que fazer (ex.: navegar para o estado/publicação — conteúdo Kanda) e
+     * devolve `true` se tratou. Se não tratar, o SDK só abre o `url` (se existir).
+     * Sem UI própria no package — o cliente é o dono da apresentação. Recebe
+     * também o contexto da conversa (ver {@link ContextoAberturaReferencia}).
+     */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
+    /** aciona a abertura de um attach (cartão da bolha chama isto) */
+    abrirReferencia: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => void;
     /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    /** estado atual do meu "mostrar estado online" (para o toggle in-chat) */
+    visibilidadePresenca?: boolean;
+    /** alternar o meu estado online — o host faz o toggle (persiste + empurra ao hub) */
+    aoAlternarPresenca?: () => void | Promise<void>;
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -72,10 +86,16 @@ interface MakaChatProviderProps {
     aoAbrirNotificacao?: (conversaId: string) => void;
     /** clique num cartão de partilha/link */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** clique num attach genérico — devolve true se o host o tratou (ver {@link MakaChatContexto.aoAbrirReferencia}) */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    /** estado atual do "mostrar estado online" do utilizador (feature 'presenca') */
+    visibilidadePresenca?: boolean;
+    /** callback para alternar o estado online do utilizador (feature 'presenca') */
+    aoAlternarPresenca?: () => void | Promise<void>;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

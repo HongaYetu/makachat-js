@@ -128,7 +128,9 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     const podeEliminar = useFuncionalidadeAtiva('conversas.eliminar');
     const podeEliminarMsg = useFuncionalidadeAtiva('mensagens.eliminar');
 
-    const [conversa, setConversa] = useState<Conversa | null>(null);
+    // header instantâneo: arranca do cache do engine (semeado pela lista) e
+    // hidrata do storage a seguir — sem flash de "?"/"…".
+    const [conversa, setConversa] = useState<Conversa | null>(() => engine.conversaEmCache(conversaId));
     // override por conversa (ex.: chat da corrida bloqueia ficheiros): merge com a flag do serviço
     const podeFicheiro = podeFicheiroServico && (conversa?.funcionalidades?.['media.ficheiro'] ?? true);
     const [texto, setTexto] = useState('');
@@ -215,7 +217,12 @@ export function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConv
     }, [engine, conversaId, registarVisivel, emFoco]);
 
     useEffect(() => {
-        void engine.storage.obterConversa(conversaId).then(setConversa);
+        void engine.storage.obterConversa(conversaId).then((c) => {
+            if (c) {
+                engine.semearConversas([c]);
+                setConversa(c);
+            }
+        });
     }, [engine, conversaId, versao]);
 
     // abrir o teclado com foco no input ao responder/editar — MAS só depois de o
@@ -892,17 +899,22 @@ function Presenca({ contraparte, typingAtivo, grupo, participantes, identidadeEu
 }) {
     const { engine, subscreverPresenca, socket } = useMakaChat();
     const tema = useTema();
-    const [online, setOnline] = useState(false);
+    // estado inicial do snapshot do engine (presença já conhecida da lista/connect),
+    // senão o "online" só apareceria após um evento novo (ex.: navegar e voltar).
+    const [online, setOnline] = useState(() => (contraparte ? engine.presencaDe(contraparte.identidade_id)?.online ?? false : false));
     // recomputar a contagem online do grupo a cada evento de presença
     const [tick, setTick] = useState(0);
 
     useEffect(() => {
+        // ressincroniza com o snapshot ao (re)entrar / mudar de contraparte
+        setOnline(contraparte ? engine.presencaDe(contraparte.identidade_id)?.online ?? false : false);
+
         return subscreverPresenca((p) => {
             if (contraparte && p.identidade_id === contraparte.identidade_id) setOnline(p.online);
 
             setTick((t) => t + 1);
         });
-    }, [contraparte, subscreverPresenca, socket]);
+    }, [contraparte, subscreverPresenca, socket, engine]);
 
     const totalMembros = participantes.filter((p) => !p.saiu_em && p.tipo !== 'sistema').length;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

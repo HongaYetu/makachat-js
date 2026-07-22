@@ -52,6 +52,9 @@ export function useConversas(arquivadas = false): Conversa[] {
                 (a, b) => (Date.parse(b.ultima_atividade_em ?? '') || 0) - (Date.parse(a.ultima_atividade_em ?? '') || 0),
             );
 
+            // aquece o cache do engine → abrir a conversa é instantâneo (sem flash)
+            engine.semearConversas(ordenada);
+
             if (ativo) setConversas(ordenada);
         });
 

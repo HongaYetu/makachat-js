@@ -61,13 +61,15 @@ const SEMPRE = '9999-12-31T00:00:00.000Z';
 
 /** Lista de conversas estilo WhatsApp: pesquisa, badges, long-press, FAB nova conversa. */
 export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }: ConversasScreenProps) {
-    const { engine, api, identidade, contactos } = useMakaChat();
+    const { engine, api, identidade, contactos, visibilidadePresenca, aoAlternarPresenca } = useMakaChat();
     const tema = useTema();
     const semLigacao = useSemLigacao();
     const conversas = useConversas(arquivadas);
     const versao = useVersaoChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminar = useFuncionalidadeAtiva('conversas.eliminar');
+    // estado online (presença): só nos serviços com a flag (ex.: Kanda)
+    const podePresenca = useFuncionalidadeAtiva('presenca');
     // serviços com conversas só de sistema (ex.: via encomenda) não criam
     const podeCriar = useFuncionalidadeAtiva('conversas.criar');
 
@@ -283,6 +285,19 @@ export function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaI
                 </Pressable>
             )}
             </>
+            )}
+
+            {/* estado online (feature 'presenca', ex.: Kanda): ligar/desligar sem ir às Definições */}
+            {podePresenca && aoAlternarPresenca && (
+                <Pressable
+                    onPress={() => void aoAlternarPresenca()}
+                    style={({ pressed }: { pressed: boolean }) => [estilos.arquivadas, pressed && { opacity: 0.6 }]}
+                >
+                    <Ionicons name={visibilidadePresenca ? 'eye-outline' : 'eye-off-outline'} size={19} color={tema.textoSuave} />
+                    <Text style={{ fontSize: 14.5, fontWeight: '600', color: tema.texto }}>
+                        {visibilidadePresenca ? 'Estado online: visível' : 'Estado online: escondido'}
+                    </Text>
+                </Pressable>
             )}
 
             <ListaPerformante

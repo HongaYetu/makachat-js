@@ -1,5 +1,6 @@
 import {
     AlvoParticipante,
+    ContextoAberturaReferencia,
     Mensagem,
     MetadadosPartilha,
     FlagFuncionalidade,
@@ -11,12 +12,13 @@ import {
     EventoChamada,
     ParticipanteConversa,
     Presenca,
+    Referencia,
     StorageAdapter,
     SyncEngine,
     Typing,
 } from '@hongayetu/makachat-core';
 import { HubApi, HubSocket, useHongaHubOpcional } from '@hongayetu/honga-hub-react';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { cssVarsDoTema, MakaTema } from './tema';
 import { mostrarNotificacao } from './notificacoes';
 import { tocarSom } from './sons';
@@ -49,8 +51,22 @@ export interface MakaChatContexto {
     ligado: boolean;
     /** clique num cartão de partilha/link — a app decide a navegação (deep link, router...) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /**
+     * Clique num cartão de attach genérico ({@link Referencia}). O host decide o
+     * que fazer (ex.: navegar para o estado/publicação — conteúdo Kanda) e
+     * devolve `true` se tratou. Se não tratar, o SDK só abre o `url` (se existir).
+     * Sem UI própria no package — o cliente é o dono da apresentação. Recebe
+     * também o contexto da conversa (ver {@link ContextoAberturaReferencia}).
+     */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
+    /** aciona a abertura de um attach (cartão da bolha chama isto) */
+    abrirReferencia: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => void;
     /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    /** estado atual do meu "mostrar estado online" (para o toggle in-chat) */
+    visibilidadePresenca?: boolean;
+    /** alternar o meu estado online — o host faz o toggle (persiste + empurra ao hub) */
+    aoAlternarPresenca?: () => void | Promise<void>;
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
@@ -78,7 +94,13 @@ export interface MakaChatProviderProps {
     aoAbrirNotificacao?: (conversaId: string) => void;
     /** clique num cartão de partilha/link */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** clique num attach genérico — devolve true se o host o tratou (ver {@link MakaChatContexto.aoAbrirReferencia}) */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
+    /** estado atual do "mostrar estado online" do utilizador (feature 'presenca') */
+    visibilidadePresenca?: boolean;
+    /** callback para alternar o estado online do utilizador (feature 'presenca') */
+    aoAlternarPresenca?: () => void | Promise<void>;
     children: React.ReactNode;
 }
 
@@ -171,7 +193,7 @@ function montarContexto(
     estado: EstadoChat,
     serviceKey: string,
     identidade: IdentidadeConfig,
-): Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'pesquisarContactos' | 'obterOnline' | 'aoAbrirPartilha' | 'aoVerPerfil'> {
+): Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'pesquisarContactos' | 'obterOnline' | 'aoAbrirPartilha' | 'aoAbrirReferencia' | 'abrirReferencia' | 'aoVerPerfil'> {
     return {
         engine: estado.engine,
         api: estado.api,
@@ -216,7 +238,7 @@ function montarContexto(
     };
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }: MakaChatProviderProps) {
     // HERANÇA: com um <HongaHubProvider> por cima, o chat reutiliza a ligação
     // global (socket/api/identidade/token do hub) — um único socket por app.
     // Sem hub, comportamento standalone clássico (cria a própria ligação no
@@ -355,8 +377,19 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
 
     const ligado = hub ? hub.ligado : ligadoLocal;
 
+    // attach genérico: SÓ callback — o host decide o que fazer (ex.: abrir o
+    // StoryViewer do estado, que é conteúdo Kanda, não do SDK). Fallback único
+    // e não-modal: abrir o `url` se existir (links legados). Sem UI no package.
+    const abrirReferencia = useCallback(
+        (ref: Referencia, contexto?: ContextoAberturaReferencia) => {
+            const tratado = aoAbrirReferencia?.(ref, contexto);
+            if (tratado !== true && ref.url) window.open(ref.url, '_blank', 'noopener');
+        },
+        [aoAbrirReferencia],
+    );
+
     return (
-        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }}>
+        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

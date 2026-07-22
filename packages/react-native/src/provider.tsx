@@ -1,5 +1,6 @@
 import {
     AlvoParticipante,
+    ContextoAberturaReferencia,
     FlagFuncionalidade,
     IdentidadeConfig,
     MakaApi,
@@ -10,13 +11,14 @@ import {
     EventoChamada,
     ParticipanteConversa,
     Presenca,
+    Referencia,
     StorageAdapter,
     SyncEngine,
     Typing,
 } from '@hongayetu/makachat-core';
 import { HubApi, HubSocket, useHongaHubOpcional } from '@hongayetu/honga-hub-react-native';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { AppState } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState, Linking } from 'react-native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { obterPushMakaChat } from './opcionais';
 import { SqliteStorage } from './sqlite-storage';
@@ -52,6 +54,16 @@ export interface MakaChatContexto {
     estaVisivel(conversaId: string): boolean;
     /** clique num cartão de partilha/link — a app navega (deep link/router) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /**
+     * Clique num cartão de attach genérico ({@link Referencia}). O host decide o
+     * que fazer (ex.: abrir o StoryViewer do estado — conteúdo Kanda) e devolve
+     * `true` se tratou. Se não tratar, o SDK só abre o `url` (se existir). Sem UI
+     * própria no package — o cliente é o dono da apresentação. Recebe também o
+     * contexto da conversa (ver {@link ContextoAberturaReferencia}).
+     */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
+    /** aciona a abertura de um attach (cartão da bolha chama isto) */
+    abrirReferencia: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => void;
     /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
     /** pesquisa server-side de contactos (nova conversa/partilha) — API da app */
@@ -60,6 +72,10 @@ export interface MakaChatContexto {
     textoSugestoes?: string;
     /** header custom da conversa (RotaConversa usa-o — ex.: Humbi laranja); a barra de estado passa a ser gerida pelo próprio header */
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
+    /** estado atual do meu "mostrar estado online" (para o toggle in-chat) */
+    visibilidadePresenca?: boolean;
+    /** alternar o meu estado online — o host faz o toggle (persiste + empurra ao hub) */
+    aoAlternarPresenca?: () => void | Promise<void>;
 }
 
 // singleton global: o subcaminho `/rotas` é um bundle CJS separado (esbuild não
@@ -82,10 +98,16 @@ export interface MakaChatProviderProps {
     tema?: MakaTema;
     contactos?: AlvoParticipante[];
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** clique num attach genérico — devolve true se o host o tratou (ver {@link MakaChatContexto.aoAbrirReferencia}) */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
     pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
     textoSugestoes?: string;
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
+    /** estado atual do "mostrar estado online" do utilizador (feature 'presenca') */
+    visibilidadePresenca?: boolean;
+    /** callback para alternar o estado online do utilizador (feature 'presenca') */
+    aoAlternarPresenca?: () => void | Promise<void>;
     children: React.ReactNode;
 }
 
@@ -170,7 +192,7 @@ function montarContexto(
     estado: EstadoChat,
     serviceKey: string,
     identidade: IdentidadeConfig,
-): Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'tema' | 'aoAbrirPartilha' | 'aoVerPerfil' | 'pesquisarContactos' | 'textoSugestoes' | 'renderHeaderConversa'> {
+): Omit<MakaChatContexto, 'features' | 'ligado' | 'contactos' | 'tema' | 'aoAbrirPartilha' | 'aoAbrirReferencia' | 'abrirReferencia' | 'aoVerPerfil' | 'pesquisarContactos' | 'textoSugestoes' | 'renderHeaderConversa'> {
     return {
         engine: estado.engine,
         api: estado.api,
@@ -220,10 +242,13 @@ export function MakaChatProvider({
     tema,
     contactos,
     aoAbrirPartilha,
+    aoAbrirReferencia,
     aoVerPerfil,
     pesquisarContactos,
     textoSugestoes,
     renderHeaderConversa,
+    visibilidadePresenca,
+    aoAlternarPresenca,
     children,
 }: MakaChatProviderProps) {
     // HERANÇA: com um <HongaHubProvider> por cima, o chat reutiliza a ligação
@@ -390,9 +415,20 @@ export function MakaChatProvider({
     const temaResolvido = useMemo(() => resolverTema(tema), [tema]);
     const ligado = hub ? hub.ligado : ligadoLocal;
 
+    // attach genérico: SÓ callback — o host decide o que fazer (ex.: abrir o
+    // StoryViewer do estado, que é conteúdo Kanda, não do SDK). Fallback único
+    // e não-modal: abrir o `url` se existir (links legados). Sem UI no package.
+    const abrirReferencia = useCallback(
+        (ref: Referencia, contexto?: ContextoAberturaReferencia) => {
+            const tratado = aoAbrirReferencia?.(ref, contexto);
+            if (tratado !== true && ref.url) void Linking.openURL(ref.url).catch(() => undefined);
+        },
+        [aoAbrirReferencia],
+    );
+
     return (
         <Contexto.Provider
-            value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa }}
+            value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], tema: temaResolvido, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa, visibilidadePresenca, aoAlternarPresenca }}
         >
             <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
         </Contexto.Provider>

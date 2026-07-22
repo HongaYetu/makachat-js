@@ -271,7 +271,7 @@ function montarContexto(estado, serviceKey, identidade) {
     estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
   };
 }
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }) {
   const hub = (0, import_honga_hub_react.useHongaHubOpcional)();
   const [features, setFeatures] = (0, import_react.useState)([]);
   const [ligadoLocal, setLigadoLocal] = (0, import_react.useState)(false);
@@ -359,7 +359,14 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
   }, [par]);
   const ligado = hub ? hub.ligado : ligadoLocal;
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  const abrirReferencia = (0, import_react.useCallback)(
+    (ref, contexto) => {
+      const tratado = aoAbrirReferencia?.(ref, contexto);
+      if (tratado !== true && ref.url) window.open(ref.url, "_blank", "noopener");
+    },
+    [aoAbrirReferencia]
+  );
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
@@ -421,6 +428,7 @@ function useConversas(arquivadas = false) {
   (0, import_react2.useEffect)(() => {
     let ativo = true;
     void engine.storage.listarConversas(arquivadas).then((lista) => {
+      engine.semearConversas(lista);
       if (ativo) setConversas(lista);
     });
     return () => {
@@ -1164,25 +1172,32 @@ function NomeComBadge({ nome, metadados, className = "" }) {
     metadados?.verificado === true && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:rosette-discount-check-filled", className: "shrink-0 text-[1.05em] text-[var(--maka-primaria)]" })
   ] });
 }
-function CartaoPartilha({ mensagem, minha, aoAbrir }) {
-  const meta = mensagem.metadados ?? {};
-  const abrir = () => {
-    if (aoAbrir) return aoAbrir(meta);
-    if (typeof meta.url === "string") window.open(meta.url, "_blank", "noopener");
-  };
+function CartaoReferencia({ referencia, minha, aoAbrir, mensagem, outros }) {
+  const ehLink = referencia.tipo === "link";
+  const corFundo = referencia.dados?.cor_fundo;
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
     "button",
     {
-      onClick: abrir,
-      className: `flex w-[260px] cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? "bg-white/15" : "bg-black/5"}`,
+      onClick: () => aoAbrir(referencia, { conversaId: mensagem.conversa_id, remetenteId: mensagem.remetente_identidade_id, outros }),
+      className: `flex w-[240px] max-w-full min-w-0 cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? "bg-white/15" : "bg-black/5"}`,
       children: [
-        typeof meta.imagem_url === "string" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: meta.imagem_url, alt: "", className: "h-[72px] w-[72px] shrink-0 object-cover" }),
+        referencia.imagem_url ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: referencia.imagem_url, alt: "", className: "h-[72px] w-[72px] shrink-0 object-cover" }) : !ehLink ? (
+          // sem miniatura (ex.: estado só de texto) → placeholder com a cor do estado, nunca um bloco vazio
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "span",
+            {
+              className: "flex h-[72px] w-[72px] shrink-0 items-center justify-center text-white/80",
+              style: { background: corFundo || "rgba(0,0,0,0.18)" },
+              children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:photo", className: "text-xl" })
+            }
+          )
+        ) : null,
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "flex min-w-0 flex-col justify-center gap-0.5 px-3 py-2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "truncate text-sm font-bold", children: String(meta.titulo ?? meta.url ?? "Partilha") }),
-          typeof meta.subtitulo === "string" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "truncate text-xs opacity-75", children: meta.subtitulo }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "truncate text-sm font-bold", children: String(referencia.titulo ?? referencia.url ?? "Anexo") }),
+          referencia.subtitulo && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "truncate text-xs opacity-75", children: referencia.subtitulo }),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "flex items-center gap-1 text-[10px] opacity-60", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: mensagem.tipo === "link" ? "tabler:link" : "tabler:external-link" }),
-            String(meta.contexto_tipo ?? "liga\xE7\xE3o")
+            referencia.emoji ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: referencia.emoji }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: ehLink ? "tabler:link" : "tabler:photo" }),
+            String(referencia.tipo || "liga\xE7\xE3o")
           ] })
         ] })
       ]
@@ -1204,10 +1219,11 @@ function useFecharFora(ativo, chave, fechar) {
   }, [ativo, chave, fechar]);
 }
 function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }) {
-  const { engine, api, contactos, identidade, obterOnline } = useMakaChat();
+  const { engine, api, contactos, identidade, obterOnline, visibilidadePresenca, aoAlternarPresenca } = useMakaChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
+  const podePresenca = useFuncionalidadeAtiva("presenca");
   const versao = useVersaoChat();
   const [verArquivadas, setVerArquivadas] = (0, import_react8.useState)(arquivadas);
   const [conversas, setConversas] = (0, import_react8.useState)([]);
@@ -1222,7 +1238,10 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   const [aCarregar, setACarregar] = (0, import_react8.useState)(true);
   const aPaginar = (0, import_react8.useRef)(false);
   (0, import_react8.useEffect)(() => {
-    void engine.storage.listarConversas(verArquivadas).then(setConversas);
+    void engine.storage.listarConversas(verArquivadas).then((lista) => {
+      engine.semearConversas(lista);
+      setConversas(lista);
+    });
   }, [engine, verArquivadas, versao]);
   (0, import_react8.useEffect)(() => {
     let ativo = true;
@@ -1279,6 +1298,14 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex h-full flex-col bg-[var(--maka-superficie)]", children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-1 px-4 pt-2.5 pb-0.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "flex-1 text-[15px] font-bold text-[var(--maka-texto)]", children: verArquivadas ? "Arquivadas" : "Conversas" }),
+      podePresenca && aoAlternarPresenca && !verArquivadas && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        BotaoIcone,
+        {
+          titulo: visibilidadePresenca ? "Est\xE1s vis\xEDvel \u2014 tocar para esconder o teu estado online" : "Estado online escondido \u2014 tocar para mostrar",
+          onClick: () => void aoAlternarPresenca(),
+          children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: visibilidadePresenca ? "tabler:eye" : "tabler:eye-off" })
+        }
+      ),
       obterOnline && !verArquivadas && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Pessoas online", onClick: () => setVerOnline(true), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "relative grid place-items-center", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:users" }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" })
@@ -1993,7 +2020,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
   const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const podeMedia = podeFicheiro || podeFoto;
-  const [conversa, setConversa] = (0, import_react8.useState)(null);
+  const [conversa, setConversa] = (0, import_react8.useState)(() => engine.conversaEmCache(conversaId));
   const [contexto, setContexto] = (0, import_react8.useState)(null);
   const [texto, setTexto] = (0, import_react8.useState)("");
   const [responderA, setResponderA] = (0, import_react8.useState)(null);
@@ -2031,7 +2058,12 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   useFecharFora(menuConversa, "menu-cabecalho", () => setMenuConversa(false));
   useFecharFora(menuAnexo, "menu-anexo", () => setMenuAnexo(false));
   (0, import_react8.useEffect)(() => {
-    void engine.storage.obterConversa(conversaId).then(setConversa);
+    void engine.storage.obterConversa(conversaId).then((c) => {
+      if (c) {
+        engine.semearConversas([c]);
+        setConversa(c);
+      }
+    });
   }, [engine, conversaId, versao]);
   (0, import_react8.useEffect)(() => {
     setContexto(null);
@@ -2766,7 +2798,8 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     setPicker(false);
     setMenu(false);
   });
-  const { aoAbrirPartilha } = useMakaChat();
+  const { abrirReferencia } = useMakaChat();
+  const referencia = (0, import_makachat_core2.referenciaDaMensagem)(m);
   const respondida = m.resposta_a_id ? todas.find((x) => x.id === m.resposta_a_id) : null;
   const grupos = agruparReacoes(m.reacoes);
   if (m.tipo === "sistema") {
@@ -2868,7 +2901,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 }
               ),
               m.anexos.map((a) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AnexoView, { anexo: a, aoAbrirFoto }, a.id)),
-              !m.eliminada && (m.tipo === "partilha" || m.tipo === "link") && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CartaoPartilha, { mensagem: m, minha, aoAbrir: aoAbrirPartilha }),
+              !m.eliminada && referencia && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CartaoReferencia, { referencia, minha, aoAbrir: abrirReferencia, mensagem: m, outros }),
               m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("em", { className: "flex items-center gap-1 opacity-60", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:ban" }),
                 " Mensagem eliminada"

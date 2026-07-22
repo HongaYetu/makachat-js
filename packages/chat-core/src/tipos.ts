@@ -29,6 +29,45 @@ export type TipoMensagem =
     | 'sistema'
     | 'chamada';
 
+/**
+ * Attach genérico: referência a uma entidade de um serviço, que "fica" com a
+ * mensagem e é renderizada como cartão tocável. Ao tocar, o host decide como
+ * abrir (registo por `tipo`); se não tratar, o SDK abre um modal genérico.
+ *
+ * É deliberadamente genérico — hoje serve estados/histórias, amanhã pode
+ * referenciar publicações, produtos, bilhetes, etc. sem tocar no schema.
+ */
+export interface Referencia {
+    /** discriminador: 'estado' | 'publicacao' | 'produto' | 'bilhete' | ... */
+    tipo: string;
+    /** id da entidade no serviço de origem */
+    id: string;
+    titulo?: string;
+    subtitulo?: string;
+    imagem_url?: string;
+    /** presente quando o attach nasce de uma reação (ex.: ❤️) */
+    emoji?: string;
+    /** deeplink/fallback quando o host não trata o tipo */
+    url?: string;
+    /** payload específico do tipo, usado pelo modal/host */
+    dados?: Record<string, unknown>;
+    /** versão do envelope, para evolução futura */
+    versao?: number;
+}
+
+/**
+ * Contexto da conversa entregue ao host quando se abre uma {@link Referencia},
+ * para o host resolver o alvo sem depender apenas de `dados` (ex.: descobrir o
+ * autor de um estado = o participante que NÃO enviou a resposta).
+ */
+export interface ContextoAberturaReferencia {
+    conversaId: string;
+    /** identidade que enviou a mensagem que carrega o attach */
+    remetenteId: string;
+    /** participantes exceto o próprio (mesma semântica de `outros` nas bolhas) */
+    outros: ParticipanteConversa[];
+}
+
 /** Payload de mensagens partilha/link (cartão genérico na UI). */
 export interface MetadadosPartilha {
     contexto_tipo?: string;
@@ -37,6 +76,8 @@ export interface MetadadosPartilha {
     subtitulo?: string;
     imagem_url?: string;
     url?: string;
+    /** attach genérico de primeira classe (ver {@link Referencia}) */
+    referencia?: Referencia;
     [extra: string]: unknown;
 }
 
@@ -279,4 +320,30 @@ export function dividirLinks(texto: string): { texto: string; url?: string }[] {
     if (cursor < texto.length) partes.push({ texto: texto.slice(cursor) });
 
     return partes.length ? partes : [{ texto }];
+}
+
+/**
+ * Resolve o attach genérico (cartão) de uma mensagem, de forma retrocompatível:
+ * - novo formato: `metadados.referencia`;
+ * - legado: mensagens `partilha`/`link` (ou com `contexto_tipo` plano) →
+ *   adaptadas para {@link Referencia}.
+ * Devolve `null` quando a mensagem não tem cartão para mostrar.
+ */
+export function referenciaDaMensagem(mensagem: Mensagem): Referencia | null {
+    const meta = mensagem.metadados;
+    if (meta?.referencia && meta.referencia.tipo) return meta.referencia;
+
+    const legado = mensagem.tipo === 'partilha' || mensagem.tipo === 'link' || !!meta?.contexto_tipo;
+    if (legado && meta) {
+        return {
+            tipo: meta.contexto_tipo ?? 'link',
+            id: meta.contexto_id ?? '',
+            titulo: meta.titulo,
+            subtitulo: meta.subtitulo,
+            imagem_url: meta.imagem_url,
+            url: meta.url,
+        };
+    }
+
+    return null;
 }

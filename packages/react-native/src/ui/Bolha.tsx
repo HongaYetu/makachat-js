@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Anexo, dividirLinks, Mensagem, MetadadosPartilha, ParticipanteConversa } from '@hongayetu/makachat-core';
+import { Anexo, dividirLinks, Mensagem, ParticipanteConversa, Referencia, referenciaDaMensagem } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -78,32 +78,47 @@ export function CartaoRegistoChamada({ mensagem, aoLigar }: { mensagem: Mensagem
     );
 }
 
-function CartaoPartilha({ mensagem, minha }: { mensagem: Mensagem; minha: boolean }) {
+/**
+ * Cartão genérico de attach ({@link Referencia}) dentro da bolha. Serve estados,
+ * publicações, produtos, etc. e também as partilhas/links legados (adaptados por
+ * `referenciaDaMensagem`). Ao tocar delega em `abrirReferencia` (host → modal).
+ */
+function CartaoReferencia({ referencia, minha, mensagem, outros }: { referencia: Referencia; minha: boolean; mensagem: Mensagem; outros: ParticipanteConversa[] }) {
     const tema = useTema();
-    const { aoAbrirPartilha } = useMakaChat();
-    const meta = (mensagem.metadados ?? {}) as MetadadosPartilha;
-
-    const abrir = () => {
-        if (aoAbrirPartilha) return aoAbrirPartilha(meta);
-        if (meta.url) void Linking.openURL(meta.url).catch(() => undefined);
-    };
+    const { abrirReferencia } = useMakaChat();
+    const ehLink = referencia.tipo === 'link';
+    const corFundo = (referencia.dados as { cor_fundo?: string } | undefined)?.cor_fundo;
 
     return (
-        <Pressable onPress={abrir} style={[estilos.partilha, { backgroundColor: minha ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.05)' }]}>
-            {meta.imagem_url ? <Image source={{ uri: meta.imagem_url }} style={{ width: 62, height: 62 }} /> : null}
+        <Pressable
+            onPress={() => abrirReferencia(referencia, { conversaId: mensagem.conversa_id, remetenteId: mensagem.remetente_identidade_id, outros })}
+            style={[estilos.partilha, { backgroundColor: minha ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.05)' }]}
+        >
+            {referencia.imagem_url ? (
+                <Image source={{ uri: referencia.imagem_url }} style={{ width: 62, height: 62 }} />
+            ) : !ehLink ? (
+                // sem miniatura (ex.: estado só de texto) → placeholder, nunca um bloco vazio
+                <View style={{ width: 62, height: 62, alignItems: 'center', justifyContent: 'center', backgroundColor: corFundo || 'rgba(0,0,0,0.18)' }}>
+                    <Ionicons name="image-outline" size={22} color="rgba(255,255,255,0.85)" />
+                </View>
+            ) : null}
             <View style={{ flex: 1, padding: 9, justifyContent: 'center' }}>
                 <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: minha ? tema.bolhaMinhaTexto : tema.texto }}>
-                    {String(meta.titulo ?? meta.url ?? 'Partilha')}
+                    {String(referencia.titulo ?? referencia.url ?? 'Anexo')}
                 </Text>
-                {meta.subtitulo ? (
+                {referencia.subtitulo ? (
                     <Text numberOfLines={1} style={{ fontSize: 12, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.8 }}>
-                        {meta.subtitulo}
+                        {referencia.subtitulo}
                     </Text>
                 ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                    <Ionicons name="link-outline" size={11} color={minha ? tema.bolhaMinhaTexto : tema.textoSuave} />
+                    {referencia.emoji ? (
+                        <Text style={{ fontSize: 11 }}>{referencia.emoji}</Text>
+                    ) : (
+                        <Ionicons name={ehLink ? 'link-outline' : 'albums-outline'} size={11} color={minha ? tema.bolhaMinhaTexto : tema.textoSuave} />
+                    )}
                     <Text style={{ fontSize: 10, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.7 }}>
-                        {String(meta.contexto_tipo ?? 'ligação')}
+                        {String(referencia.tipo || 'ligação')}
                     </Text>
                 </View>
             </View>
@@ -386,7 +401,10 @@ export function Bolha({
                 {m.anexos.map((a) => (
                     <AnexoView key={a.id} anexo={a} minha={minha} aoAbrirFoto={aoAbrirFoto} aoAbrirUrl={aoAbrirUrl} />
                 ))}
-                {!m.eliminada && (m.tipo === 'partilha' || m.tipo === 'link') && <CartaoPartilha mensagem={m} minha={minha} />}
+                {!m.eliminada && (() => {
+                    const ref = referenciaDaMensagem(m);
+                    return ref ? <CartaoReferencia referencia={ref} minha={minha} mensagem={m} outros={outros} /> : null;
+                })()}
                 {m.eliminada ? (
                     <Text style={{ fontStyle: 'italic', color: corTexto, opacity: 0.6, fontSize: 15 }}>
                         <Ionicons name="ban-outline" size={14} /> Mensagem eliminada
@@ -427,7 +445,7 @@ const estilos = StyleSheet.create({
     foto: { width: 218, height: 218, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.15)', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
     playVideo: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
     ficheiro: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, padding: 10, width: 230 },
-    partilha: { flexDirection: 'row', borderRadius: 12, overflow: 'hidden', width: 240 },
+    partilha: { flexDirection: 'row', borderRadius: 12, overflow: 'hidden', width: 240, maxWidth: '100%' },
     cartaoChamada: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9, shadowColor: '#0f172a', shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     chamadaIcone: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
     chamadaLigar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },

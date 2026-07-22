@@ -27,6 +27,22 @@ function dividirLinks(texto) {
   if (cursor < texto.length) partes.push({ texto: texto.slice(cursor) });
   return partes.length ? partes : [{ texto }];
 }
+function referenciaDaMensagem(mensagem) {
+  const meta = mensagem.metadados;
+  if (meta?.referencia && meta.referencia.tipo) return meta.referencia;
+  const legado = mensagem.tipo === "partilha" || mensagem.tipo === "link" || !!meta?.contexto_tipo;
+  if (legado && meta) {
+    return {
+      tipo: meta.contexto_tipo ?? "link",
+      id: meta.contexto_id ?? "",
+      titulo: meta.titulo,
+      subtitulo: meta.subtitulo,
+      imagem_url: meta.imagem_url,
+      url: meta.url
+    };
+  }
+  return null;
+}
 
 // src/eventos.ts
 var EVENTOS_CLIENTE = {
@@ -77,7 +93,11 @@ var FUNCIONALIDADES = [
   "mensagens.eliminar",
   // criação de conversas pelo utilizador (nova conversa/mensagem direta);
   // serviços com conversas só de sistema (ex.: via encomenda) não a ativam
-  "conversas.criar"
+  "conversas.criar",
+  // estado online (presença): bolinhas/"online" + toggle in-chat.
+  // Feature por serviço (ex.: ativa só no Kanda); serviços sem a flag
+  // não mostram presença nem o controlo de a esconder.
+  "presenca"
 ];
 
 // src/index.ts
@@ -478,6 +498,10 @@ var SyncEngine = class {
   /** última mensagem minha que já disparou 'vista' por conversa — evita repetir
    *  o som por cada leitor num grupo (uma leitura por mensagem) */
   ultimaVistaPorConversa = /* @__PURE__ */ new Map();
+  /** cache em memória de conversas (semeado pela lista) — abre a conversa com
+   *  header instantâneo (avatar/nome), sem flash de "?"/"…" enquanto o storage
+   *  async carrega. */
+  conversasCache = /* @__PURE__ */ new Map();
   // ---- subscrição (usada pelos hooks) ----
   get versaoAtual() {
     return this.versao;
@@ -485,6 +509,16 @@ var SyncEngine = class {
   /** Última presença conhecida da identidade (null = nunca vista/offline). */
   presencaDe(identidadeId) {
     return this.presencas.get(identidadeId) ?? null;
+  }
+  /** Conversa em cache (síncrono) — para abrir sem flash de "?"/"…". */
+  conversaEmCache(conversaId) {
+    return this.conversasCache.get(conversaId) ?? null;
+  }
+  /** Semeia/atualiza o cache em memória (chamado pela lista e ao abrir). */
+  semearConversas(conversas) {
+    for (const c of conversas) {
+      this.conversasCache.set(c.id, c);
+    }
   }
   subscrever(ouvinte) {
     this.ouvintes.add(ouvinte);
@@ -653,7 +687,20 @@ var SyncEngine = class {
     if (!mensagens.length) {
       return;
     }
-    await this.storage.upsertMensagens(mensagens.map((m) => ({ ...m, estado_envio: "enviada" })));
+    for (const mensagem of mensagens) {
+      const existentes = await this.storage.listarMensagens(mensagem.conversa_id, { limite: 500 });
+      const duplicada = existentes.some((m) => m.id === mensagem.id);
+      await this.storage.upsertMensagens([{ ...mensagem, estado_envio: "enviada" }]);
+      if (duplicada) continue;
+      const conversa = await this.storage.obterConversa(mensagem.conversa_id);
+      if (!conversa) {
+        await this.atualizarConversas();
+        continue;
+      }
+      const remetente = conversa.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
+      const minha = remetente?.id_externo === this.opcoes.identidade.id && remetente?.tipo === this.opcoes.identidade.tipo;
+      await this.atualizarPreviewLocal(mensagem, !minha && !mensagem.silenciosa);
+    }
     this.notificar();
   }
   /** Carrega histórico da conversa via REST para o storage (chamado ao abrir). */
@@ -682,6 +729,8 @@ var SyncEngine = class {
       ref_cliente: refCliente,
       editada_em: null,
       eliminada: false,
+      // preserva o attach/cartão já no otimista (senão só aparecia após ACK)
+      metadados: dados.metadados ?? null,
       reacoes: [],
       anexos: anexosPreview,
       criada_em: agora,
@@ -987,6 +1036,7 @@ export {
   SyncEngine,
   dividirLinks,
   idMaiorOuIgual,
+  referenciaDaMensagem,
   rotuloTipoIdentidade,
   uuid2 as uuid
 };

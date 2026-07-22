@@ -55,6 +55,10 @@ export const FUNCIONALIDADES = [
     // criação de conversas pelo utilizador (nova conversa/mensagem direta);
     // serviços com conversas só de sistema (ex.: via encomenda) não a ativam
     'conversas.criar',
+    // estado online (presença): bolinhas/"online" + toggle in-chat.
+    // Feature por serviço (ex.: ativa só no Kanda); serviços sem a flag
+    // não mostram presença nem o controlo de a esconder.
+    'presenca',
 ] as const;
 
 export type Funcionalidade = (typeof FUNCIONALIDADES)[number];

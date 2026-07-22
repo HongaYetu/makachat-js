@@ -19,6 +19,43 @@ interface Anexo {
     url: string | null;
 }
 type TipoMensagem = 'texto' | 'foto' | 'video' | 'audio' | 'ficheiro' | 'partilha' | 'link' | 'sistema' | 'chamada';
+/**
+ * Attach genérico: referência a uma entidade de um serviço, que "fica" com a
+ * mensagem e é renderizada como cartão tocável. Ao tocar, o host decide como
+ * abrir (registo por `tipo`); se não tratar, o SDK abre um modal genérico.
+ *
+ * É deliberadamente genérico — hoje serve estados/histórias, amanhã pode
+ * referenciar publicações, produtos, bilhetes, etc. sem tocar no schema.
+ */
+interface Referencia {
+    /** discriminador: 'estado' | 'publicacao' | 'produto' | 'bilhete' | ... */
+    tipo: string;
+    /** id da entidade no serviço de origem */
+    id: string;
+    titulo?: string;
+    subtitulo?: string;
+    imagem_url?: string;
+    /** presente quando o attach nasce de uma reação (ex.: ❤️) */
+    emoji?: string;
+    /** deeplink/fallback quando o host não trata o tipo */
+    url?: string;
+    /** payload específico do tipo, usado pelo modal/host */
+    dados?: Record<string, unknown>;
+    /** versão do envelope, para evolução futura */
+    versao?: number;
+}
+/**
+ * Contexto da conversa entregue ao host quando se abre uma {@link Referencia},
+ * para o host resolver o alvo sem depender apenas de `dados` (ex.: descobrir o
+ * autor de um estado = o participante que NÃO enviou a resposta).
+ */
+interface ContextoAberturaReferencia {
+    conversaId: string;
+    /** identidade que enviou a mensagem que carrega o attach */
+    remetenteId: string;
+    /** participantes exceto o próprio (mesma semântica de `outros` nas bolhas) */
+    outros: ParticipanteConversa[];
+}
 /** Payload de mensagens partilha/link (cartão genérico na UI). */
 interface MetadadosPartilha {
     contexto_tipo?: string;
@@ -27,6 +64,8 @@ interface MetadadosPartilha {
     subtitulo?: string;
     imagem_url?: string;
     url?: string;
+    /** attach genérico de primeira classe (ver {@link Referencia}) */
+    referencia?: Referencia;
     [extra: string]: unknown;
 }
 /** Estado local de envio (não vem do servidor). */
@@ -224,6 +263,14 @@ declare function dividirLinks(texto: string): {
     texto: string;
     url?: string;
 }[];
+/**
+ * Resolve o attach genérico (cartão) de uma mensagem, de forma retrocompatível:
+ * - novo formato: `metadados.referencia`;
+ * - legado: mensagens `partilha`/`link` (ou com `contexto_tipo` plano) →
+ *   adaptadas para {@link Referencia}.
+ * Devolve `null` quando a mensagem não tem cartão para mostrar.
+ */
+declare function referenciaDaMensagem(mensagem: Mensagem): Referencia | null;
 
 /**
  * Nomes de eventos socket do módulo CHAT do Honga Hub — fonte única,
@@ -263,7 +310,7 @@ declare const EVENTOS_SERVIDOR: {
     readonly CHAMADA_TERMINADA: "chat:chamada:terminada";
     readonly CHAMADA_PARTICIPANTE_SAIU: "chat:chamada:participante_saiu";
 };
-declare const FUNCIONALIDADES: readonly ["media.foto", "media.video", "media.ficheiro", "media.audio", "reacoes", "encaminhar", "grupos", "chamadas.audio", "chamadas.video", "chamadas.partilha_ecra", "conversas.eliminar", "mensagens.eliminar", "conversas.criar"];
+declare const FUNCIONALIDADES: readonly ["media.foto", "media.video", "media.ficheiro", "media.audio", "reacoes", "encaminhar", "grupos", "chamadas.audio", "chamadas.video", "chamadas.partilha_ecra", "conversas.eliminar", "mensagens.eliminar", "conversas.criar", "presenca"];
 type Funcionalidade = (typeof FUNCIONALIDADES)[number];
 
 /**
@@ -550,10 +597,18 @@ declare class SyncEngine {
     /** última mensagem minha que já disparou 'vista' por conversa — evita repetir
      *  o som por cada leitor num grupo (uma leitura por mensagem) */
     private ultimaVistaPorConversa;
+    /** cache em memória de conversas (semeado pela lista) — abre a conversa com
+     *  header instantâneo (avatar/nome), sem flash de "?"/"…" enquanto o storage
+     *  async carrega. */
+    private conversasCache;
     constructor(storage: StorageAdapter, api: MakaApi, socket: MakaSocket, opcoes: SyncEngineOpcoes);
     get versaoAtual(): number;
     /** Última presença conhecida da identidade (null = nunca vista/offline). */
     presencaDe(identidadeId: string): Presenca | null;
+    /** Conversa em cache (síncrono) — para abrir sem flash de "?"/"…". */
+    conversaEmCache(conversaId: string): Conversa | null;
+    /** Semeia/atualiza o cache em memória (chamado pela lista e ao abrir). */
+    semearConversas(conversas: Conversa[]): void;
     subscrever(ouvinte: Ouvinte): () => void;
     private notificar;
     /**
@@ -611,4 +666,4 @@ declare class SyncEngine {
     private registarEventos;
 }
 
-export { type AlvoParticipante, type Anexo, type Chamada, type Conversa, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type ItemOutbox, MakaApi, MakaSocket, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type ReciboParticipante, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade };
+export { type AlvoParticipante, type Anexo, type Chamada, type ContextoAberturaReferencia, type Conversa, type CursorConversa, type DadosEnvioMensagem, EVENTOS_CLIENTE, EVENTOS_SERVIDOR, type EstadoEnvio, type EventoChamada, FUNCIONALIDADES, type FlagFuncionalidade, type Funcionalidade, type ItemOutbox, MakaApi, MakaSocket, MemoryStorage, type Mensagem, type MensagemLink, type MetadadosPartilha, type ParticipanteConversa, type PreferenciasParticipante, type Presenca, type PreviewMensagem, type Reacao, type Recibo, type ReciboParticipante, type Referencia, type RespostaChamada, type StorageAdapter, SyncEngine, type SyncEngineOpcoes, type TipoMensagem, type Typing, dividirLinks, idMaiorOuIgual, referenciaDaMensagem, rotuloTipoIdentidade };

@@ -49,6 +49,10 @@ export class SyncEngine {
     /** última mensagem minha que já disparou 'vista' por conversa — evita repetir
      *  o som por cada leitor num grupo (uma leitura por mensagem) */
     private ultimaVistaPorConversa = new Map<string, string>();
+    /** cache em memória de conversas (semeado pela lista) — abre a conversa com
+     *  header instantâneo (avatar/nome), sem flash de "?"/"…" enquanto o storage
+     *  async carrega. */
+    private conversasCache = new Map<string, Conversa>();
 
     constructor(
         readonly storage: StorageAdapter,
@@ -68,6 +72,18 @@ export class SyncEngine {
     /** Última presença conhecida da identidade (null = nunca vista/offline). */
     presencaDe(identidadeId: string): Presenca | null {
         return this.presencas.get(identidadeId) ?? null;
+    }
+
+    /** Conversa em cache (síncrono) — para abrir sem flash de "?"/"…". */
+    conversaEmCache(conversaId: string): Conversa | null {
+        return this.conversasCache.get(conversaId) ?? null;
+    }
+
+    /** Semeia/atualiza o cache em memória (chamado pela lista e ao abrir). */
+    semearConversas(conversas: Conversa[]): void {
+        for (const c of conversas) {
+            this.conversasCache.set(c.id, c);
+        }
     }
 
     subscrever(ouvinte: Ouvinte): () => void {
@@ -317,7 +333,35 @@ export class SyncEngine {
             return;
         }
 
-        await this.storage.upsertMensagens(mensagens.map((m) => ({ ...m, estado_envio: 'enviada' as const })));
+        // Igual ao handler do socket: incrementar o badge de não-lidas por cada
+        // mensagem NOVA (a app que usa o inbox nativo de push só chegava aqui, e
+        // sem isto as mensagens entregues por notificação apareciam já "lidas").
+        // NÃO dispara aoMensagem: a notificação nativa já foi mostrada (evita
+        // som/notificação duplicados). O dedup evita contar 2x quando a mesma
+        // mensagem também chegou pelo socket.
+        for (const mensagem of mensagens) {
+            const existentes = await this.storage.listarMensagens(mensagem.conversa_id, { limite: 500 });
+            const duplicada = existentes.some((m) => m.id === mensagem.id);
+
+            await this.storage.upsertMensagens([{ ...mensagem, estado_envio: 'enviada' as const }]);
+
+            if (duplicada) continue;
+
+            const conversa = await this.storage.obterConversa(mensagem.conversa_id);
+
+            if (!conversa) {
+                // conversa nova criada por outra pessoa — vai buscá-la ao REST
+                await this.atualizarConversas();
+                continue;
+            }
+
+            const remetente = conversa.participantes.find((p) => p.identidade_id === mensagem.remetente_identidade_id);
+            const minha =
+                remetente?.id_externo === this.opcoes.identidade.id && remetente?.tipo === this.opcoes.identidade.tipo;
+
+            await this.atualizarPreviewLocal(mensagem, !minha && !mensagem.silenciosa);
+        }
+
         this.notificar();
     }
 
@@ -352,6 +396,8 @@ export class SyncEngine {
             ref_cliente: refCliente,
             editada_em: null,
             eliminada: false,
+            // preserva o attach/cartão já no otimista (senão só aparecia após ACK)
+            metadados: dados.metadados ?? null,
             reacoes: [],
             anexos: anexosPreview,
             criada_em: agora,

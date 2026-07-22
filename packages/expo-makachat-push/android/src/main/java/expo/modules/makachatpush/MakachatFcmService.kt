@@ -339,12 +339,17 @@ class MakachatFcmService : FirebaseMessagingService() {
                 .setAllowGeneratedReplies(true)
                 .build()
 
-            // tap → broadcast que persiste a conversa pendente e abre a app
-            // (extras diretos no launch intent perdem-se no arranque frio)
-            val abrir = PendingIntent.getBroadcast(
+            // tap → Activity trampolim (persiste a conversa pendente + abre a app).
+            // Tem de ser uma Activity: em API 29+ um broadcast não pode lançar a
+            // app com o processo killed e em API 31+ um trampoline via broadcast é
+            // proibido (era isso que impedia a app de abrir a partir do tap).
+            val abrir = PendingIntent.getActivity(
                 context,
                 ("abrir_" + conversaId).hashCode(),
-                extras(RespostaReceiver.ACAO_ABRIR),
+                Intent(context, AbrirConversaActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra("conversa_id", conversaId)
+                },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 

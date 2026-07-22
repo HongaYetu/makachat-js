@@ -9,7 +9,7 @@ import {
   SyncEngine
 } from "@hongayetu/makachat-core";
 import { HubApi, HubSocket, useHongaHubOpcional } from "@hongayetu/honga-hub-react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 // src/tema.ts
 var PADRAO = {
@@ -207,7 +207,7 @@ function montarContexto(estado, serviceKey, identidade) {
     estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
   };
 }
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoVerPerfil, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }) {
   const hub = useHongaHubOpcional();
   const [features, setFeatures] = useState([]);
   const [ligadoLocal, setLigadoLocal] = useState(false);
@@ -295,7 +295,14 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     return () => document.removeEventListener("visibilitychange", aoVisibilidade);
   }, [par]);
   const ligado = hub ? hub.ligado : ligadoLocal;
-  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoVerPerfil }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  const abrirReferencia = useCallback(
+    (ref, contexto) => {
+      const tratado = aoAbrirReferencia?.(ref, contexto);
+      if (tratado !== true && ref.url) window.open(ref.url, "_blank", "noopener");
+    },
+    [aoAbrirReferencia]
+  );
+  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = useContext(Contexto);
@@ -310,7 +317,7 @@ function useMakaChatOpcional() {
 
 // src/hooks.ts
 import { useHongaHubOpcional as useHongaHubOpcional2 } from "@hongayetu/honga-hub-react";
-import { useCallback, useEffect as useEffect2, useRef, useState as useState2 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect2, useRef, useState as useState2 } from "react";
 function useLigacao() {
   const hub = useHongaHubOpcional2();
   const chat = useMakaChatOpcional();
@@ -357,6 +364,7 @@ function useConversas(arquivadas = false) {
   useEffect2(() => {
     let ativo = true;
     void engine.storage.listarConversas(arquivadas).then((lista) => {
+      engine.semearConversas(lista);
       if (ativo) setConversas(lista);
     });
     return () => {
@@ -386,7 +394,7 @@ function useMensagens(conversaId, limite = 50) {
 }
 function useEnviarMensagem() {
   const { engine } = useMakaChat();
-  return useCallback(
+  return useCallback2(
     (dados, anexosPreview) => engine.enviarMensagem(dados, anexosPreview),
     [engine]
   );
@@ -473,7 +481,7 @@ function useTotalNaoLidasOpcional() {
 
 // src/ui.tsx
 import { Icon as Icon3 } from "@iconify/react";
-import { dividirLinks, idMaiorOuIgual, rotuloTipoIdentidade } from "@hongayetu/makachat-core";
+import { dividirLinks, idMaiorOuIgual, referenciaDaMensagem, rotuloTipoIdentidade } from "@hongayetu/makachat-core";
 import { useEffect as useEffect5, useMemo as useMemo3, useRef as useRef4, useState as useState5 } from "react";
 
 // src/audio.tsx
@@ -619,7 +627,7 @@ function ReprodutorAudio({ url, duracaoSegundos }) {
 // src/chamadas.tsx
 import { Icon as Icon2 } from "@iconify/react";
 import { Room, RoomEvent, Track, VideoPresets } from "livekit-client";
-import { createContext as createContext2, useCallback as useCallback2, useContext as useContext2, useEffect as useEffect4, useMemo as useMemo2, useRef as useRef3, useState as useState4 } from "react";
+import { createContext as createContext2, useCallback as useCallback3, useContext as useContext2, useEffect as useEffect4, useMemo as useMemo2, useRef as useRef3, useState as useState4 } from "react";
 import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var Ctx = createContext2(null);
 function useChamadasOpcional() {
@@ -654,7 +662,7 @@ function ChamadasProvider({ children }) {
   const atendendoRef = useRef3(null);
   const [erroSolto, setErroSolto] = useState4(null);
   const arrasto = useRef3({ ativo: false, dx: 0, dy: 0 });
-  const limpar = useCallback2(() => {
+  const limpar = useCallback3(() => {
     if (sozinhoTimer.current) {
       clearTimeout(sozinhoTimer.current);
       sozinhoTimer.current = null;
@@ -690,10 +698,10 @@ function ChamadasProvider({ children }) {
       void api.chamadaATocar(id).catch(() => void 0);
     }
   }, [ativa?.fase, ativa?.chamada.id, api]);
-  const comecarTimer = useCallback2(() => {
+  const comecarTimer = useCallback3(() => {
     setInicioEm((atual) => atual ?? Date.now());
   }, []);
-  const carregarConversa = useCallback2(
+  const carregarConversa = useCallback3(
     async (conversaId) => {
       const local = await engine.storage.obterConversa(conversaId);
       setConversa(local);
@@ -703,7 +711,7 @@ function ChamadasProvider({ children }) {
     },
     [engine, api]
   );
-  const anexarTodos = useCallback2(() => {
+  const anexarTodos = useCallback3(() => {
     const alvo = midia.current;
     if (!alvo) return;
     const infos = [...elementos.current.values()];
@@ -736,7 +744,7 @@ function ChamadasProvider({ children }) {
     setVideoRemotoVivo(remotoVivo);
     setRemotoPausado(pausado);
   }, []);
-  const verificarMedia = useCallback2(async (video) => {
+  const verificarMedia = useCallback3(async (video) => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       return "O browser bloqueou a c\xE2mara/microfone \u2014 esta p\xE1gina precisa de HTTPS.";
     }
@@ -748,7 +756,7 @@ function ChamadasProvider({ children }) {
       return video ? "Sem acesso \xE0 c\xE2mara/microfone \u2014 permite o acesso nas defini\xE7\xF5es do browser." : "Sem acesso ao microfone \u2014 permite o acesso nas defini\xE7\xF5es do browser.";
     }
   }, []);
-  const ligarSala = useCallback2(async (token, wsUrl, video) => {
+  const ligarSala = useCallback3(async (token, wsUrl, video) => {
     const r = new Room({
       adaptiveStream: true,
       dynacast: true,
@@ -870,7 +878,7 @@ function ChamadasProvider({ children }) {
     }),
     [subscreverChamadas, engine, limpar, comecarTimer, carregarConversa]
   );
-  const iniciar = useCallback2(
+  const iniciar = useCallback3(
     async (conversaId, tipo) => {
       const problema = await verificarMedia(tipo === "video");
       if (problema) {
@@ -898,7 +906,7 @@ function ChamadasProvider({ children }) {
     },
     [api, ligarSala, verificarMedia, carregarConversa, limpar]
   );
-  const entrar = useCallback2(
+  const entrar = useCallback3(
     async (chamadaId, tipo) => {
       const problema = await verificarMedia(tipo === "video");
       if (problema) {
@@ -1100,25 +1108,32 @@ function NomeComBadge({ nome, metadados, className = "" }) {
     metadados?.verificado === true && /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:rosette-discount-check-filled", className: "shrink-0 text-[1.05em] text-[var(--maka-primaria)]" })
   ] });
 }
-function CartaoPartilha({ mensagem, minha, aoAbrir }) {
-  const meta = mensagem.metadados ?? {};
-  const abrir = () => {
-    if (aoAbrir) return aoAbrir(meta);
-    if (typeof meta.url === "string") window.open(meta.url, "_blank", "noopener");
-  };
+function CartaoReferencia({ referencia, minha, aoAbrir, mensagem, outros }) {
+  const ehLink = referencia.tipo === "link";
+  const corFundo = referencia.dados?.cor_fundo;
   return /* @__PURE__ */ jsxs3(
     "button",
     {
-      onClick: abrir,
-      className: `flex w-[260px] cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? "bg-white/15" : "bg-black/5"}`,
+      onClick: () => aoAbrir(referencia, { conversaId: mensagem.conversa_id, remetenteId: mensagem.remetente_identidade_id, outros }),
+      className: `flex w-[240px] max-w-full min-w-0 cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? "bg-white/15" : "bg-black/5"}`,
       children: [
-        typeof meta.imagem_url === "string" && /* @__PURE__ */ jsx4("img", { src: meta.imagem_url, alt: "", className: "h-[72px] w-[72px] shrink-0 object-cover" }),
+        referencia.imagem_url ? /* @__PURE__ */ jsx4("img", { src: referencia.imagem_url, alt: "", className: "h-[72px] w-[72px] shrink-0 object-cover" }) : !ehLink ? (
+          // sem miniatura (ex.: estado só de texto) → placeholder com a cor do estado, nunca um bloco vazio
+          /* @__PURE__ */ jsx4(
+            "span",
+            {
+              className: "flex h-[72px] w-[72px] shrink-0 items-center justify-center text-white/80",
+              style: { background: corFundo || "rgba(0,0,0,0.18)" },
+              children: /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:photo", className: "text-xl" })
+            }
+          )
+        ) : null,
         /* @__PURE__ */ jsxs3("span", { className: "flex min-w-0 flex-col justify-center gap-0.5 px-3 py-2", children: [
-          /* @__PURE__ */ jsx4("span", { className: "truncate text-sm font-bold", children: String(meta.titulo ?? meta.url ?? "Partilha") }),
-          typeof meta.subtitulo === "string" && /* @__PURE__ */ jsx4("span", { className: "truncate text-xs opacity-75", children: meta.subtitulo }),
+          /* @__PURE__ */ jsx4("span", { className: "truncate text-sm font-bold", children: String(referencia.titulo ?? referencia.url ?? "Anexo") }),
+          referencia.subtitulo && /* @__PURE__ */ jsx4("span", { className: "truncate text-xs opacity-75", children: referencia.subtitulo }),
           /* @__PURE__ */ jsxs3("span", { className: "flex items-center gap-1 text-[10px] opacity-60", children: [
-            /* @__PURE__ */ jsx4(Icon3, { icon: mensagem.tipo === "link" ? "tabler:link" : "tabler:external-link" }),
-            String(meta.contexto_tipo ?? "liga\xE7\xE3o")
+            referencia.emoji ? /* @__PURE__ */ jsx4("span", { children: referencia.emoji }) : /* @__PURE__ */ jsx4(Icon3, { icon: ehLink ? "tabler:link" : "tabler:photo" }),
+            String(referencia.tipo || "liga\xE7\xE3o")
           ] })
         ] })
       ]
@@ -1140,10 +1155,11 @@ function useFecharFora(ativo, chave, fechar) {
   }, [ativo, chave, fechar]);
 }
 function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }) {
-  const { engine, api, contactos, identidade, obterOnline } = useMakaChat();
+  const { engine, api, contactos, identidade, obterOnline, visibilidadePresenca, aoAlternarPresenca } = useMakaChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
+  const podePresenca = useFuncionalidadeAtiva("presenca");
   const versao = useVersaoChat();
   const [verArquivadas, setVerArquivadas] = useState5(arquivadas);
   const [conversas, setConversas] = useState5([]);
@@ -1158,7 +1174,10 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   const [aCarregar, setACarregar] = useState5(true);
   const aPaginar = useRef4(false);
   useEffect5(() => {
-    void engine.storage.listarConversas(verArquivadas).then(setConversas);
+    void engine.storage.listarConversas(verArquivadas).then((lista) => {
+      engine.semearConversas(lista);
+      setConversas(lista);
+    });
   }, [engine, verArquivadas, versao]);
   useEffect5(() => {
     let ativo = true;
@@ -1215,6 +1234,14 @@ function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConvers
   return /* @__PURE__ */ jsxs3("div", { className: "flex h-full flex-col bg-[var(--maka-superficie)]", children: [
     /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1 px-4 pt-2.5 pb-0.5", children: [
       /* @__PURE__ */ jsx4("span", { className: "flex-1 text-[15px] font-bold text-[var(--maka-texto)]", children: verArquivadas ? "Arquivadas" : "Conversas" }),
+      podePresenca && aoAlternarPresenca && !verArquivadas && /* @__PURE__ */ jsx4(
+        BotaoIcone,
+        {
+          titulo: visibilidadePresenca ? "Est\xE1s vis\xEDvel \u2014 tocar para esconder o teu estado online" : "Estado online escondido \u2014 tocar para mostrar",
+          onClick: () => void aoAlternarPresenca(),
+          children: /* @__PURE__ */ jsx4(Icon3, { icon: visibilidadePresenca ? "tabler:eye" : "tabler:eye-off" })
+        }
+      ),
       obterOnline && !verArquivadas && /* @__PURE__ */ jsx4(BotaoIcone, { titulo: "Pessoas online", onClick: () => setVerOnline(true), children: /* @__PURE__ */ jsxs3("span", { className: "relative grid place-items-center", children: [
         /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:users" }),
         /* @__PURE__ */ jsx4("span", { className: "absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[var(--maka-superficie)]" })
@@ -1929,7 +1956,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const podeEliminarConversa = useFuncionalidadeAtiva("conversas.eliminar");
   const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
   const podeMedia = podeFicheiro || podeFoto;
-  const [conversa, setConversa] = useState5(null);
+  const [conversa, setConversa] = useState5(() => engine.conversaEmCache(conversaId));
   const [contexto, setContexto] = useState5(null);
   const [texto, setTexto] = useState5("");
   const [responderA, setResponderA] = useState5(null);
@@ -1967,7 +1994,12 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   useFecharFora(menuConversa, "menu-cabecalho", () => setMenuConversa(false));
   useFecharFora(menuAnexo, "menu-anexo", () => setMenuAnexo(false));
   useEffect5(() => {
-    void engine.storage.obterConversa(conversaId).then(setConversa);
+    void engine.storage.obterConversa(conversaId).then((c) => {
+      if (c) {
+        engine.semearConversas([c]);
+        setConversa(c);
+      }
+    });
   }, [engine, conversaId, versao]);
   useEffect5(() => {
     setContexto(null);
@@ -2702,7 +2734,8 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
     setPicker(false);
     setMenu(false);
   });
-  const { aoAbrirPartilha } = useMakaChat();
+  const { abrirReferencia } = useMakaChat();
+  const referencia = referenciaDaMensagem(m);
   const respondida = m.resposta_a_id ? todas.find((x) => x.id === m.resposta_a_id) : null;
   const grupos = agruparReacoes(m.reacoes);
   if (m.tipo === "sistema") {
@@ -2804,7 +2837,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                 }
               ),
               m.anexos.map((a) => /* @__PURE__ */ jsx4(AnexoView, { anexo: a, aoAbrirFoto }, a.id)),
-              !m.eliminada && (m.tipo === "partilha" || m.tipo === "link") && /* @__PURE__ */ jsx4(CartaoPartilha, { mensagem: m, minha, aoAbrir: aoAbrirPartilha }),
+              !m.eliminada && referencia && /* @__PURE__ */ jsx4(CartaoReferencia, { referencia, minha, aoAbrir: abrirReferencia, mensagem: m, outros }),
               m.eliminada ? /* @__PURE__ */ jsxs3("em", { className: "flex items-center gap-1 opacity-60", children: [
                 /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:ban" }),
                 " Mensagem eliminada"
@@ -3249,7 +3282,7 @@ function CartaoRegistoChamada({ mensagem: m }) {
 
 // src/boxes.tsx
 import { Icon as Icon4 } from "@iconify/react";
-import React5, { createContext as createContext3, useCallback as useCallback3, useContext as useContext3, useEffect as useEffect6, useState as useState6 } from "react";
+import React5, { createContext as createContext3, useCallback as useCallback4, useContext as useContext3, useEffect as useEffect6, useState as useState6 } from "react";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function MakaChatBoxFull({ conversaAbertaId, queryParam = "conversa" } = {}) {
   return /* @__PURE__ */ jsx5("div", { className: "fixed inset-0 z-[9000] bg-[var(--maka-fundo)]", children: /* @__PURE__ */ jsx5(DuasColunas, { conversaAbertaId, queryParam }) });
@@ -3329,7 +3362,7 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
   useEffect6(() => {
     setBoxes((atuais) => atuais.length > limite ? atuais.slice(-limite) : atuais);
   }, [limite]);
-  const abrir = useCallback3(
+  const abrir = useCallback4(
     (conversaId, opcoes) => {
       const minimizada = opcoes?.minimizada ?? false;
       setPopover(false);
@@ -3342,7 +3375,7 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
     },
     [limite]
   );
-  const fechar = useCallback3((conversaId) => {
+  const fechar = useCallback4((conversaId) => {
     setBoxes((atuais) => atuais.filter((b) => b.conversaId !== conversaId));
   }, []);
   useEffect6(() => {

@@ -191,6 +191,7 @@ function useConversas(arquivadas = false) {
       const ordenada = unicas.sort(
         (a, b) => (Date.parse(b.ultima_atividade_em ?? "") || 0) - (Date.parse(a.ultima_atividade_em ?? "") || 0)
       );
+      engine.semearConversas(ordenada);
       if (ativo) setConversas(ordenada);
     });
     return () => {
@@ -962,25 +963,32 @@ function CartaoRegistoChamada({ mensagem, aoLigar }) {
     aoLigar && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Pressable, { onPress: () => aoLigar(video ? "video" : "audio"), style: [estilos5.chamadaLigar, { backgroundColor: tema.primaria }], children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: video ? "videocam" : "call", size: 17, color: tema.primariaContraste }) })
   ] });
 }
-function CartaoPartilha({ mensagem, minha }) {
+function CartaoReferencia({ referencia, minha, mensagem, outros }) {
   const tema = useTema();
-  const { aoAbrirPartilha } = useMakaChat();
-  const meta = mensagem.metadados ?? {};
-  const abrir = () => {
-    if (aoAbrirPartilha) return aoAbrirPartilha(meta);
-    if (meta.url) void import_react_native6.Linking.openURL(meta.url).catch(() => void 0);
-  };
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Pressable, { onPress: abrir, style: [estilos5.partilha, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }], children: [
-    meta.imagem_url ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Image, { source: { uri: meta.imagem_url }, style: { width: 62, height: 62 } }) : null,
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flex: 1, padding: 9, justifyContent: "center" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 14, fontWeight: "700", color: minha ? tema.bolhaMinhaTexto : tema.texto }, children: String(meta.titulo ?? meta.url ?? "Partilha") }),
-      meta.subtitulo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 12, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.8 }, children: meta.subtitulo }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "link-outline", size: 11, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 10, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.7 }, children: String(meta.contexto_tipo ?? "liga\xE7\xE3o") })
-      ] })
-    ] })
-  ] });
+  const { abrirReferencia } = useMakaChat();
+  const ehLink = referencia.tipo === "link";
+  const corFundo = referencia.dados?.cor_fundo;
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+    import_react_native6.Pressable,
+    {
+      onPress: () => abrirReferencia(referencia, { conversaId: mensagem.conversa_id, remetenteId: mensagem.remetente_identidade_id, outros }),
+      style: [estilos5.partilha, { backgroundColor: minha ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.05)" }],
+      children: [
+        referencia.imagem_url ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Image, { source: { uri: referencia.imagem_url }, style: { width: 62, height: 62 } }) : !ehLink ? (
+          // sem miniatura (ex.: estado só de texto) → placeholder, nunca um bloco vazio
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.View, { style: { width: 62, height: 62, alignItems: "center", justifyContent: "center", backgroundColor: corFundo || "rgba(0,0,0,0.18)" }, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "image-outline", size: 22, color: "rgba(255,255,255,0.85)" }) })
+        ) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flex: 1, padding: 9, justifyContent: "center" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 14, fontWeight: "700", color: minha ? tema.bolhaMinhaTexto : tema.texto }, children: String(referencia.titulo ?? referencia.url ?? "Anexo") }),
+          referencia.subtitulo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { numberOfLines: 1, style: { fontSize: 12, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.8 }, children: referencia.subtitulo }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.View, { style: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }, children: [
+            referencia.emoji ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 11 }, children: referencia.emoji }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: ehLink ? "link-outline" : "albums-outline", size: 11, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react_native6.Text, { style: { fontSize: 10, color: minha ? tema.bolhaMinhaTexto : tema.textoSuave, opacity: 0.7 }, children: String(referencia.tipo || "liga\xE7\xE3o") })
+          ] })
+        ] })
+      ]
+    }
+  );
 }
 function TextoComLinks({ conteudo, cor, minha }) {
   const partes = (0, import_react8.useMemo)(() => (0, import_makachat_core2.dividirLinks)(conteudo), [conteudo]);
@@ -1155,7 +1163,10 @@ function Bolha({
                 respondida.conteudo ?? "\u{1F4CE} anexo"
               ] }) }),
               m.anexos.map((a) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(AnexoView, { anexo: a, minha, aoAbrirFoto, aoAbrirUrl }, a.id)),
-              !m.eliminada && (m.tipo === "partilha" || m.tipo === "link") && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CartaoPartilha, { mensagem: m, minha }),
+              !m.eliminada && (() => {
+                const ref = (0, import_makachat_core2.referenciaDaMensagem)(m);
+                return ref ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CartaoReferencia, { referencia: ref, minha, mensagem: m, outros }) : null;
+              })(),
               m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react_native6.Text, { style: { fontStyle: "italic", color: corTexto, opacity: 0.6, fontSize: 15 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_vector_icons5.Ionicons, { name: "ban-outline", size: 14 }),
                 " Mensagem eliminada"
@@ -1191,7 +1202,7 @@ var estilos5 = import_react_native6.StyleSheet.create({
   foto: { width: 218, height: 218, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.15)", overflow: "hidden", alignItems: "center", justifyContent: "center" },
   playVideo: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
   ficheiro: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, padding: 10, width: 230 },
-  partilha: { flexDirection: "row", borderRadius: 12, overflow: "hidden", width: 240 },
+  partilha: { flexDirection: "row", borderRadius: 12, overflow: "hidden", width: 240, maxWidth: "100%" },
   cartaoChamada: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9, shadowColor: "#0f172a", shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   chamadaIcone: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   chamadaLigar: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", marginLeft: 6 },
@@ -1222,7 +1233,7 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
   const podeEliminarMsg = useFuncionalidadeAtiva("mensagens.eliminar");
-  const [conversa, setConversa] = (0, import_react9.useState)(null);
+  const [conversa, setConversa] = (0, import_react9.useState)(() => engine.conversaEmCache(conversaId));
   const podeFicheiro = podeFicheiroServico && (conversa?.funcionalidades?.["media.ficheiro"] ?? true);
   const [texto, setTexto] = (0, import_react9.useState)("");
   const [responderA, setResponderA] = (0, import_react9.useState)(null);
@@ -1287,7 +1298,12 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
     };
   }, [engine, conversaId, registarVisivel, emFoco]);
   (0, import_react9.useEffect)(() => {
-    void engine.storage.obterConversa(conversaId).then(setConversa);
+    void engine.storage.obterConversa(conversaId).then((c) => {
+      if (c) {
+        engine.semearConversas([c]);
+        setConversa(c);
+      }
+    });
   }, [engine, conversaId, versao]);
   (0, import_react9.useEffect)(() => {
     if (!responderA && !editar || acoesDe !== null) return;
@@ -1800,14 +1816,15 @@ function ChatScreen({ conversaId, onVoltar, onAbrirInfo, onAbrirOutraConversa, c
 function Presenca2({ contraparte, typingAtivo, grupo, participantes, identidadeEu }) {
   const { engine, subscreverPresenca, socket } = useMakaChat();
   const tema = useTema();
-  const [online, setOnline] = (0, import_react9.useState)(false);
+  const [online, setOnline] = (0, import_react9.useState)(() => contraparte ? engine.presencaDe(contraparte.identidade_id)?.online ?? false : false);
   const [tick, setTick] = (0, import_react9.useState)(0);
   (0, import_react9.useEffect)(() => {
+    setOnline(contraparte ? engine.presencaDe(contraparte.identidade_id)?.online ?? false : false);
     return subscreverPresenca((p) => {
       if (contraparte && p.identidade_id === contraparte.identidade_id) setOnline(p.online);
       setTick((t) => t + 1);
     });
-  }, [contraparte, subscreverPresenca, socket]);
+  }, [contraparte, subscreverPresenca, socket, engine]);
   const totalMembros = participantes.filter((p) => !p.saiu_em && p.tipo !== "sistema").length;
   const _tick = tick;
   const membrosOnline = grupo ? participantes.filter(
@@ -2045,13 +2062,14 @@ var import_react_native8 = require("react-native");
 var import_jsx_runtime8 = require("react/jsx-runtime");
 var SEMPRE = "9999-12-31T00:00:00.000Z";
 function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial, onAbrirArquivadas, textoVazio, tituloVazio, renderVazio, renderTopo, onNovaConversa }) {
-  const { engine, api, identidade, contactos } = useMakaChat();
+  const { engine, api, identidade, contactos, visibilidadePresenca, aoAlternarPresenca } = useMakaChat();
   const tema = useTema();
   const semLigacao = useSemLigacao();
   const conversas = useConversas(arquivadas);
   const versao = useVersaoChat();
   const podeGrupos = useFuncionalidadeAtiva("grupos");
   const podeEliminar = useFuncionalidadeAtiva("conversas.eliminar");
+  const podePresenca = useFuncionalidadeAtiva("presenca");
   const podeCriar = useFuncionalidadeAtiva("conversas.criar");
   const [busca, setBusca] = (0, import_react10.useState)("");
   const [resultadosServidor, setResultadosServidor] = (0, import_react10.useState)(null);
@@ -2214,6 +2232,17 @@ function ConversasScreen({ arquivadas = false, onAbrirConversa, conversaInicial,
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: "Arquivadas" })
       ] })
     ] }),
+    podePresenca && aoAlternarPresenca && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+      import_react_native8.Pressable,
+      {
+        onPress: () => void aoAlternarPresenca(),
+        style: ({ pressed }) => [estilos7.arquivadas, pressed && { opacity: 0.6 }],
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_vector_icons7.Ionicons, { name: visibilidadePresenca ? "eye-outline" : "eye-off-outline", size: 19, color: tema.textoSuave }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_react_native8.Text, { style: { fontSize: 14.5, fontWeight: "600", color: tema.texto }, children: visibilidadePresenca ? "Estado online: vis\xEDvel" : "Estado online: escondido" })
+        ]
+      }
+    ),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       ListaPerformante,
       {

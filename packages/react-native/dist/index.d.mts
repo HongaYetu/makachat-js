@@ -1,4 +1,4 @@
-import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, ParticipanteConversa, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
+import { StorageAdapter, Conversa, Mensagem, CursorConversa, ItemOutbox, Recibo, ParticipanteConversa, SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, AlvoParticipante, Typing, Presenca, EventoChamada, MetadadosPartilha, Referencia, ContextoAberturaReferencia, ObterToken, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import * as react_jsx_runtime from 'react/jsx-runtime';
 import React from 'react';
@@ -154,6 +154,16 @@ interface MakaChatContexto {
     estaVisivel(conversaId: string): boolean;
     /** clique num cartão de partilha/link — a app navega (deep link/router) */
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /**
+     * Clique num cartão de attach genérico ({@link Referencia}). O host decide o
+     * que fazer (ex.: abrir o StoryViewer do estado — conteúdo Kanda) e devolve
+     * `true` se tratou. Se não tratar, o SDK só abre o `url` (se existir). Sem UI
+     * própria no package — o cliente é o dono da apresentação. Recebe também o
+     * contexto da conversa (ver {@link ContextoAberturaReferencia}).
+     */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
+    /** aciona a abertura de um attach (cartão da bolha chama isto) */
+    abrirReferencia: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => void;
     /** "Ver perfil" no mini perfil/info — o serviço navega (ex.: kanda → /perfil/username) */
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
     /** pesquisa server-side de contactos (nova conversa/partilha) — API da app */
@@ -162,6 +172,10 @@ interface MakaChatContexto {
     textoSugestoes?: string;
     /** header custom da conversa (RotaConversa usa-o — ex.: Humbi laranja); a barra de estado passa a ser gerida pelo próprio header */
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
+    /** estado atual do meu "mostrar estado online" (para o toggle in-chat) */
+    visibilidadePresenca?: boolean;
+    /** alternar o meu estado online — o host faz o toggle (persiste + empurra ao hub) */
+    aoAlternarPresenca?: () => void | Promise<void>;
 }
 interface MakaChatProviderProps {
     /** obrigatórios SEM <HongaHubProvider> por cima; com ele, herdam-se do hub */
@@ -173,13 +187,19 @@ interface MakaChatProviderProps {
     tema?: MakaTema;
     contactos?: AlvoParticipante[];
     aoAbrirPartilha?: (metadados: MetadadosPartilha) => void;
+    /** clique num attach genérico — devolve true se o host o tratou (ver {@link MakaChatContexto.aoAbrirReferencia}) */
+    aoAbrirReferencia?: (referencia: Referencia, contexto?: ContextoAberturaReferencia) => boolean | void;
     aoVerPerfil?: (participante: ParticipanteConversa) => void;
     pesquisarContactos?: (q: string) => Promise<AlvoParticipante[]>;
     textoSugestoes?: string;
     renderHeaderConversa?: (ctx: HeaderChatContexto) => React.ReactNode;
+    /** estado atual do "mostrar estado online" do utilizador (feature 'presenca') */
+    visibilidadePresenca?: boolean;
+    /** callback para alternar o estado online do utilizador (feature 'presenca') */
+    aoAlternarPresenca?: () => void | Promise<void>;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa, children, }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, pesquisarContactos, textoSugestoes, renderHeaderConversa, visibilidadePresenca, aoAlternarPresenca, children, }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam antes do login). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

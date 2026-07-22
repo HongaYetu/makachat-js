@@ -81,6 +81,7 @@ export function useConversas(arquivadas = false): Conversa[] {
         let ativo = true;
 
         void engine.storage.listarConversas(arquivadas).then((lista) => {
+            engine.semearConversas(lista);
             if (ativo) setConversas(lista);
         });
 

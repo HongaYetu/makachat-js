@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { AlvoParticipante, Anexo, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa, ReciboParticipante, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
+import { AlvoParticipante, Anexo, ContextoAberturaReferencia, Conversa, dividirLinks, idMaiorOuIgual, Mensagem, MensagemLink, ParticipanteConversa, ReciboParticipante, Referencia, referenciaDaMensagem, rotuloTipoIdentidade } from '@hongayetu/makachat-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReprodutorAudio } from './audio';
 import { useChamadasOpcional } from './chamadas';
@@ -37,31 +37,40 @@ export function NomeComBadge({ nome, metadados, className = '' }: {
     );
 }
 
-/** Cartão genérico de partilha/link — o serviço fornece o payload, a app decide a navegação. */
-function CartaoPartilha({ mensagem, minha, aoAbrir }: {
-    mensagem: Mensagem; minha: boolean; aoAbrir?(metadados: NonNullable<Mensagem['metadados']>): void;
+/**
+ * Cartão genérico de attach ({@link Referencia}) — serve estados, publicações,
+ * produtos, etc. e as partilhas/links legados (adaptados por
+ * `referenciaDaMensagem`). Ao clicar delega em `abrirReferencia` (host → modal).
+ */
+function CartaoReferencia({ referencia, minha, aoAbrir, mensagem, outros }: {
+    referencia: Referencia; minha: boolean; aoAbrir(referencia: Referencia, contexto?: ContextoAberturaReferencia): void;
+    mensagem: Mensagem; outros: ParticipanteConversa[];
 }) {
-    const meta = mensagem.metadados ?? {};
-
-    const abrir = () => {
-        if (aoAbrir) return aoAbrir(meta);
-        if (typeof meta.url === 'string') window.open(meta.url, '_blank', 'noopener');
-    };
+    const ehLink = referencia.tipo === 'link';
+    const corFundo = (referencia.dados as { cor_fundo?: string } | undefined)?.cor_fundo;
 
     return (
         <button
-            onClick={abrir}
-            className={`flex w-[260px] cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? 'bg-white/15' : 'bg-black/5'}`}
+            onClick={() => aoAbrir(referencia, { conversaId: mensagem.conversa_id, remetenteId: mensagem.remetente_identidade_id, outros })}
+            className={`flex w-[240px] max-w-full min-w-0 cursor-pointer items-stretch gap-0 overflow-hidden rounded-xl border-0 p-0 text-left text-inherit transition-transform hover:scale-[1.01] ${minha ? 'bg-white/15' : 'bg-black/5'}`}
         >
-            {typeof meta.imagem_url === 'string' && (
-                <img src={meta.imagem_url} alt="" className="h-[72px] w-[72px] shrink-0 object-cover" />
-            )}
+            {referencia.imagem_url ? (
+                <img src={referencia.imagem_url} alt="" className="h-[72px] w-[72px] shrink-0 object-cover" />
+            ) : !ehLink ? (
+                // sem miniatura (ex.: estado só de texto) → placeholder com a cor do estado, nunca um bloco vazio
+                <span
+                    className="flex h-[72px] w-[72px] shrink-0 items-center justify-center text-white/80"
+                    style={{ background: corFundo || 'rgba(0,0,0,0.18)' }}
+                >
+                    <Icon icon="tabler:photo" className="text-xl" />
+                </span>
+            ) : null}
             <span className="flex min-w-0 flex-col justify-center gap-0.5 px-3 py-2">
-                <span className="truncate text-sm font-bold">{String(meta.titulo ?? meta.url ?? 'Partilha')}</span>
-                {typeof meta.subtitulo === 'string' && <span className="truncate text-xs opacity-75">{meta.subtitulo}</span>}
+                <span className="truncate text-sm font-bold">{String(referencia.titulo ?? referencia.url ?? 'Anexo')}</span>
+                {referencia.subtitulo && <span className="truncate text-xs opacity-75">{referencia.subtitulo}</span>}
                 <span className="flex items-center gap-1 text-[10px] opacity-60">
-                    <Icon icon={mensagem.tipo === 'link' ? 'tabler:link' : 'tabler:external-link'} />
-                    {String(meta.contexto_tipo ?? 'ligação')}
+                    {referencia.emoji ? <span>{referencia.emoji}</span> : <Icon icon={ehLink ? 'tabler:link' : 'tabler:photo'} />}
+                    {String(referencia.tipo || 'ligação')}
                 </span>
             </span>
         </button>
@@ -105,11 +114,13 @@ export interface MakaChatConversasProps {
 }
 
 export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrirConversa, tituloVazio, textoVazio, renderVazio }: MakaChatConversasProps) {
-    const { engine, api, contactos, identidade, obterOnline } = useMakaChat();
+    const { engine, api, contactos, identidade, obterOnline, visibilidadePresenca, aoAlternarPresenca } = useMakaChat();
     const podeGrupos = useFuncionalidadeAtiva('grupos');
     const podeEliminarConversa = useFuncionalidadeAtiva('conversas.eliminar');
     // serviços com conversas só de sistema (ex.: via encomenda) não criam
     const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
+    // estado online (presença): só nos serviços com a flag (ex.: Kanda)
+    const podePresenca = useFuncionalidadeAtiva('presenca');
     const versao = useVersaoChat();
     const [verArquivadas, setVerArquivadas] = useState(arquivadas);
     const [conversas, setConversas] = useState<Conversa[]>([]);
@@ -126,7 +137,11 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
     const aPaginar = useRef(false);
 
     useEffect(() => {
-        void engine.storage.listarConversas(verArquivadas).then(setConversas);
+        void engine.storage.listarConversas(verArquivadas).then((lista) => {
+            // aquece o cache do engine → abrir a conversa é instantâneo (sem flash)
+            engine.semearConversas(lista);
+            setConversas(lista);
+        });
     }, [engine, verArquivadas, versao]);
 
     // busca ao servidor ao montar — o popover do dock pode abrir antes do socket
@@ -215,6 +230,14 @@ export function MakaChatConversas({ arquivadas = false, conversaAtivaId, onAbrir
                 <span className="flex-1 text-[15px] font-bold text-[var(--maka-texto)]">
                     {verArquivadas ? 'Arquivadas' : 'Conversas'}
                 </span>
+                {podePresenca && aoAlternarPresenca && !verArquivadas && (
+                    <BotaoIcone
+                        titulo={visibilidadePresenca ? 'Estás visível — tocar para esconder o teu estado online' : 'Estado online escondido — tocar para mostrar'}
+                        onClick={() => void aoAlternarPresenca()}
+                    >
+                        <Icon icon={visibilidadePresenca ? 'tabler:eye' : 'tabler:eye-off'} />
+                    </BotaoIcone>
+                )}
                 {obterOnline && !verArquivadas && (
                     <BotaoIcone titulo="Pessoas online" onClick={() => setVerOnline(true)}>
                         <span className="relative grid place-items-center">
@@ -1144,7 +1167,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
     const podeEliminarMsg = useFuncionalidadeAtiva('mensagens.eliminar');
     const podeMedia = podeFicheiro || podeFoto;
 
-    const [conversa, setConversa] = useState<Conversa | null>(null);
+    // header instantâneo: arranca do cache do engine (semeado pela lista) e
+    // hidrata do storage a seguir — sem flash de "?"/"…".
+    const [conversa, setConversa] = useState<Conversa | null>(() => engine.conversaEmCache(conversaId));
     const [contexto, setContexto] = useState<{ titulo: string; subtitulo?: string; linhas?: string[] } | null>(null);
     const [texto, setTexto] = useState('');
     const [responderA, setResponderA] = useState<Mensagem | null>(null);
@@ -1186,7 +1211,12 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
     useFecharFora(menuAnexo, 'menu-anexo', () => setMenuAnexo(false));
 
     useEffect(() => {
-        void engine.storage.obterConversa(conversaId).then(setConversa);
+        void engine.storage.obterConversa(conversaId).then((c) => {
+            if (c) {
+                engine.semearConversas([c]);
+                setConversa(c);
+            }
+        });
     }, [engine, conversaId, versao]);
 
     useEffect(() => {
@@ -2057,7 +2087,8 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
 
     useFecharFora(picker || menu, `bolha-${m.id}`, () => { setPicker(false); setMenu(false); });
 
-    const { aoAbrirPartilha } = useMakaChat();
+    const { abrirReferencia } = useMakaChat();
+    const referencia = referenciaDaMensagem(m);
     const respondida = m.resposta_a_id ? todas.find((x) => x.id === m.resposta_a_id) : null;
     const grupos = agruparReacoes(m.reacoes);
 
@@ -2178,8 +2209,8 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                     </button>
                 )}
                 {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} aoAbrirFoto={aoAbrirFoto} />)}
-                {!m.eliminada && (m.tipo === 'partilha' || m.tipo === 'link') && (
-                    <CartaoPartilha mensagem={m} minha={minha} aoAbrir={aoAbrirPartilha} />
+                {!m.eliminada && referencia && (
+                    <CartaoReferencia referencia={referencia} minha={minha} aoAbrir={abrirReferencia} mensagem={m} outros={outros} />
                 )}
                 {m.eliminada ? (
                     <em className="flex items-center gap-1 opacity-60"><Icon icon="tabler:ban" /> Mensagem eliminada</em>

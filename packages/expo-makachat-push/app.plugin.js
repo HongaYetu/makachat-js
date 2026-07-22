@@ -330,6 +330,21 @@ module.exports = function withMakachatPush(config, opcoes = {}) {
             });
         }
 
+        // trampolim do tap na notificação de mensagem: transparente, persiste a
+        // conversa pendente e abre a app (broadcast não pode em API 29+/31+)
+        if (!app.activity.some((a) => a.$['android:name'] === 'expo.modules.makachatpush.AbrirConversaActivity')) {
+            app.activity.push({
+                $: {
+                    'android:name': 'expo.modules.makachatpush.AbrirConversaActivity',
+                    'android:exported': 'false',
+                    'android:launchMode': 'singleTop',
+                    'android:taskAffinity': '',
+                    'android:excludeFromRecents': 'true',
+                    'android:theme': '@android:style/Theme.Translucent.NoTitleBar',
+                },
+            });
+        }
+
         return config;
     });
 };
