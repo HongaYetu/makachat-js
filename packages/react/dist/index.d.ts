@@ -1,4 +1,4 @@
-import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, Referencia, ContextoAberturaReferencia, ParticipanteConversa, ObterToken, StorageAdapter, Conversa, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
+import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, Referencia, ContextoAberturaReferencia, ParticipanteConversa, Conversa, ObterToken, StorageAdapter, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import * as react_jsx_runtime from 'react/jsx-runtime';
 import React from 'react';
@@ -65,6 +65,12 @@ interface MakaChatContexto {
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
+    /**
+     * Opcional: o host desativa o envio numa conversa devolvendo um MOTIVO (mostrado
+     * como placeholder no input desativado), ou `null` para permitir. Ex.: bloquear
+     * enquanto um assistente/bot está a responder. Sem prop → nunca bloqueia.
+     */
+    envioBloqueado?: (conversa: Conversa) => string | null;
 }
 interface MakaChatProviderProps {
     /** obrigatórios SEM <HongaHubProvider> por cima; com ele, herdam-se do hub */
@@ -93,9 +99,11 @@ interface MakaChatProviderProps {
     visibilidadePresenca?: boolean;
     /** callback para alternar o estado online do utilizador (feature 'presenca') */
     aoAlternarPresenca?: () => void | Promise<void>;
+    /** desativa o envio numa conversa (motivo → placeholder) — ver {@link MakaChatContexto.envioBloqueado} */
+    envioBloqueado?: (conversa: Conversa) => string | null;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

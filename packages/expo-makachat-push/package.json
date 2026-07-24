@@ -9,7 +9,6 @@
     },
     "peerDependencies": {
         "expo": ">=51.0.0",
-        "expo-modules-core": "*",
         "react-native": ">=0.73.0"
     },
     "repository": {

@@ -1148,7 +1148,7 @@ export interface ConversaPainelProps {
 }
 
 export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, aoAbrirOutraConversa }: ConversaPainelProps) {
-    const { engine, socket, identidade, api, registarVisivel } = useMakaChat();
+    const { engine, socket, identidade, api, registarVisivel, envioBloqueado } = useMakaChat();
     const chamadas = useChamadasOpcional();
     const versao = useVersaoChat();
     const mensagens = useMensagens(conversaId, 500);
@@ -1361,6 +1361,9 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
     // fechada pelo serviço (ex.: sem encomendas ativas) — histórico visível, envio bloqueado
     const fechada = conversa?.estado === 'fechada';
 
+    // envio desativado pelo host (motivo → placeholder) — ex.: enquanto um bot responde
+    const motivoBloqueio = conversa ? (envioBloqueado?.(conversa) ?? null) : null;
+
     const eu = useMemo(
         () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
         [conversa, identidade],
@@ -1378,6 +1381,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
         : null;
 
     const aoEnviar = async () => {
+        if (motivoBloqueio) return;
+
         const conteudo = texto.trim();
 
         if (!conteudo) return;
@@ -1768,7 +1773,8 @@ export function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinim
                         socket.typing(conversaId, true);
                     }
                 }}
-                placeholder={editar ? 'Editar mensagem…' : 'Escreve uma mensagem…'}
+                placeholder={motivoBloqueio ?? (editar ? 'Editar mensagem…' : 'Escreve uma mensagem…')}
+                desativado={!!motivoBloqueio}
                 aoEnviar={() => void aoEnviar()}
                 podeMedia={podeMedia}
                 podeGravar={podeAudioMedia}
@@ -1939,9 +1945,10 @@ export function MakaChatConversa({ conversaId }: { conversaId: string }) {
 
 // ---------------------------------------------------------------- barra de input (texto + gravação de áudio)
 
-function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio }: {
+function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio, desativado = false }: {
     compacto: boolean; texto: string; setTexto(v: string): void; placeholder: string; aoEnviar(): void;
     podeMedia: boolean; podeGravar: boolean; aEnviarMedia: boolean; aoAnexar(): void; aoGravarAudio(blob: Blob, duracaoSegundos: number): void;
+    desativado?: boolean;
 }) {
     const [aGravar, setAGravar] = useState(false);
     const [segundos, setSegundos] = useState(0);
@@ -2016,14 +2023,15 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
 
     return (
         <div className={`flex items-center gap-2 border-0 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? 'p-2' : 'p-3'}`}>
-            {podeMedia && (
+            {podeMedia && !desativado && (
                 <BotaoIcone titulo="Anexar" onClick={aoAnexar}>
                     {aEnviarMedia ? <Icon icon="tabler:loader-2" className="animate-spin" /> : <Icon icon="tabler:paperclip" />}
                 </BotaoIcone>
             )}
             <textarea
                 rows={1}
-                className="maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]"
+                disabled={desativado}
+                className="maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)] disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ maxHeight: 132 }}
                 value={texto}
                 placeholder={placeholder}
@@ -2040,7 +2048,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
                     }
                 }}
             />
-            {texto.trim() === '' && podeGravar ? (
+            {texto.trim() === '' && podeGravar && !desativado ? (
                 <button
                     onClick={() => void comecarGravacao()}
                     title="Gravar áudio"
@@ -2051,7 +2059,8 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
             ) : (
                 <button
                     onClick={aoEnviar}
-                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95"
+                    disabled={desativado}
+                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                 >
                     <Icon icon="tabler:send-2" className="text-lg" />
                 </button>

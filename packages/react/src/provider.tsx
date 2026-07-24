@@ -1,5 +1,6 @@
 import {
     AlvoParticipante,
+    Conversa,
     ContextoAberturaReferencia,
     Mensagem,
     MetadadosPartilha,
@@ -70,6 +71,12 @@ export interface MakaChatContexto {
     /** ConversaPainel regista-se como visível; o Dock usa isto para não duplicar */
     registarVisivel(conversaId: string): () => void;
     estaVisivel(conversaId: string): boolean;
+    /**
+     * Opcional: o host desativa o envio numa conversa devolvendo um MOTIVO (mostrado
+     * como placeholder no input desativado), ou `null` para permitir. Ex.: bloquear
+     * enquanto um assistente/bot está a responder. Sem prop → nunca bloqueia.
+     */
+    envioBloqueado?: (conversa: Conversa) => string | null;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -101,6 +108,8 @@ export interface MakaChatProviderProps {
     visibilidadePresenca?: boolean;
     /** callback para alternar o estado online do utilizador (feature 'presenca') */
     aoAlternarPresenca?: () => void | Promise<void>;
+    /** desativa o envio numa conversa (motivo → placeholder) — ver {@link MakaChatContexto.envioBloqueado} */
+    envioBloqueado?: (conversa: Conversa) => string | null;
     children: React.ReactNode;
 }
 
@@ -238,7 +247,7 @@ function montarContexto(
     };
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, children }: MakaChatProviderProps) {
     // HERANÇA: com um <HongaHubProvider> por cima, o chat reutiliza a ligação
     // global (socket/api/identidade/token do hub) — um único socket por app.
     // Sem hub, comportamento standalone clássico (cria a própria ligação no
@@ -389,7 +398,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     );
 
     return (
-        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca }}>
+        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

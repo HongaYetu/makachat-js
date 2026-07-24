@@ -271,7 +271,7 @@ function montarContexto(estado, serviceKey, identidade) {
     estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
   };
 }
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, children }) {
   const hub = (0, import_honga_hub_react.useHongaHubOpcional)();
   const [features, setFeatures] = (0, import_react.useState)([]);
   const [ligadoLocal, setLigadoLocal] = (0, import_react.useState)(false);
@@ -366,7 +366,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     },
     [aoAbrirReferencia]
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
@@ -2003,7 +2003,7 @@ function previewConversa(c) {
   return u.tipo === "texto" || u.tipo === "sistema" || u.tipo === "chamada" ? u.conteudo ?? "" : p[u.tipo] ?? "";
 }
 function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, aoAbrirOutraConversa }) {
-  const { engine, socket, identidade, api, registarVisivel } = useMakaChat();
+  const { engine, socket, identidade, api, registarVisivel, envioBloqueado } = useMakaChat();
   const chamadas = useChamadasOpcional();
   const versao = useVersaoChat();
   const mensagens = useMensagens(conversaId, 500);
@@ -2156,6 +2156,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
     if (typing?.ativo && noFundo) fim.current?.scrollIntoView({ behavior: "smooth" });
   }, [typing?.ativo]);
   const fechada = conversa?.estado === "fechada";
+  const motivoBloqueio = conversa ? envioBloqueado?.(conversa) ?? null : null;
   const eu = (0, import_react8.useMemo)(
     () => conversa?.participantes.find((p) => p.id_externo === identidade.id && p.tipo === identidade.tipo) ?? null,
     [conversa, identidade]
@@ -2168,6 +2169,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
   const typingOutro = typing && typing.identidade_id !== eu?.identidade_id ? typing : null;
   const nomeTyping = typingOutro ? conversa?.participantes.find((p) => p.identidade_id === typingOutro.identidade_id)?.nome ?? null : null;
   const aoEnviar = async () => {
+    if (motivoBloqueio) return;
     const conteudo = texto.trim();
     if (!conteudo) return;
     setTexto("");
@@ -2499,7 +2501,8 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
               socket.typing(conversaId, true);
             }
           },
-          placeholder: editar ? "Editar mensagem\u2026" : "Escreve uma mensagem\u2026",
+          placeholder: motivoBloqueio ?? (editar ? "Editar mensagem\u2026" : "Escreve uma mensagem\u2026"),
+          desativado: !!motivoBloqueio,
           aoEnviar: () => void aoEnviar(),
           podeMedia,
           podeGravar: podeAudioMedia,
@@ -2680,7 +2683,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
 function MakaChatConversa({ conversaId }) {
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(ConversaPainel, { conversaId });
 }
-function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio }) {
+function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedia, podeGravar, aEnviarMedia, aoAnexar, aoGravarAudio, desativado = false }) {
   const [aGravar, setAGravar] = (0, import_react8.useState)(false);
   const [segundos, setSegundos] = (0, import_react8.useState)(0);
   const gravador = (0, import_react8.useRef)(null);
@@ -2747,12 +2750,13 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
     ] });
   }
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: `flex items-center gap-2 border-0 border-t border-solid border-black/[.06] bg-[var(--maka-superficie)] ${compacto ? "p-2" : "p-3"}`, children: [
-    podeMedia && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Anexar", onClick: aoAnexar, children: aEnviarMedia ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:loader-2", className: "animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:paperclip" }) }),
+    podeMedia && !desativado && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(BotaoIcone, { titulo: "Anexar", onClick: aoAnexar, children: aEnviarMedia ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:loader-2", className: "animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:paperclip" }) }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       "textarea",
       {
         rows: 1,
-        className: "maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)]",
+        disabled: desativado,
+        className: "maka-scroll min-w-0 flex-1 resize-none rounded-2xl border border-solid border-slate-300/60 bg-[var(--maka-fundo)] px-4 py-2.5 text-sm leading-5 text-[var(--maka-texto)] outline-none transition-shadow placeholder:text-[var(--maka-texto-suave)] focus:ring-2 focus:ring-[var(--maka-primaria)] disabled:cursor-not-allowed disabled:opacity-60",
         style: { maxHeight: 132 },
         value: texto,
         placeholder,
@@ -2770,7 +2774,7 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
         }
       }
     ),
-    texto.trim() === "" && podeGravar ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+    texto.trim() === "" && podeGravar && !desativado ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       "button",
       {
         onClick: () => void comecarGravacao(),
@@ -2782,7 +2786,8 @@ function BarraInput({ compacto, texto, setTexto, placeholder, aoEnviar, podeMedi
       "button",
       {
         onClick: aoEnviar,
-        className: "grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95",
+        disabled: desativado,
+        className: "grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-[var(--maka-primaria-contraste)] shadow-md transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100",
         children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:send-2", className: "text-lg" })
       }
     )
