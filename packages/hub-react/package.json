@@ -5,7 +5,7 @@
     "license": "UNLICENSED",
     "repository": {
         "type": "git",
-        "url": "git@github.com:HongaYetu/honga-hub-js.git",
+        "url": "git@github.com:HongaYetu/makachat-js.git",
         "directory": "packages/hub-react"
     },
     "publishConfig": {
