@@ -77,6 +77,21 @@ export interface MakaChatContexto {
      * enquanto um assistente/bot está a responder. Sem prop → nunca bloqueia.
      */
     envioBloqueado?: (conversa: Conversa) => string | null;
+    /**
+     * Bloquear e denunciar a contraparte de uma conversa privada.
+     *
+     * **Nulos → as acções não aparecem**, que é a regra da capacidade da casa:
+     * uma operação que o backend não tem não é uma pergunta sem resposta. O SDK
+     * não conhece a API de serviço nenhum — o hub delega o veto ao conector de
+     * cada backend, e cada site liga o seu.
+     *
+     * Para as lojas isto não é um extra: uma app com conteúdo entre
+     * utilizadores tem de dar as duas (directriz 1.2 da App Store). O lado
+     * Kotlin (`ConversaInfoScreen` do `sdk:chat-ui`) já as tinha com estes
+     * nomes; estas são o espelho.
+     */
+    aoBloquear?: (participante: ParticipanteConversa) => void;
+    aoDenunciar?: (participante: ParticipanteConversa) => void;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -110,6 +125,10 @@ export interface MakaChatProviderProps {
     aoAlternarPresenca?: () => void | Promise<void>;
     /** desativa o envio numa conversa (motivo → placeholder) — ver {@link MakaChatContexto.envioBloqueado} */
     envioBloqueado?: (conversa: Conversa) => string | null;
+    /** ver {@link MakaChatContexto.aoBloquear} */
+    aoBloquear?: (participante: ParticipanteConversa) => void;
+    /** ver {@link MakaChatContexto.aoDenunciar} */
+    aoDenunciar?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
 
@@ -247,7 +266,7 @@ function montarContexto(
     };
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }: MakaChatProviderProps) {
     // HERANÇA: com um <HongaHubProvider> por cima, o chat reutiliza a ligação
     // global (socket/api/identidade/token do hub) — um único socket por app.
     // Sem hub, comportamento standalone clássico (cria a própria ligação no
@@ -398,7 +417,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     );
 
     return (
-        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado }}>
+        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

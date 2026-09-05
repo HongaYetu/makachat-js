@@ -449,13 +449,14 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
     conversa: Conversa; eu: ParticipanteConversa; aoFechar(): void;
     aoAbrirOutraConversa?(id: string): void; aoSaiu(): void;
 }) {
-    const { api, engine, contactos, aoVerPerfil } = useMakaChat();
+    const { api, engine, contactos, aoVerPerfil, aoBloquear, aoDenunciar } = useMakaChat();
     const podeCriarConversa = useFuncionalidadeAtiva('conversas.criar');
     const grupo = conversa.tipo === 'grupo';
     const souAdmin = grupo && ['dono', 'admin'].includes(eu.papel);
     const [nome, setNome] = useState(conversa.titulo ?? '');
     const [adicionar, setAdicionar] = useState(false);
     const [confirmarSair, setConfirmarSair] = useState(false);
+    const [confirmarBloqueio, setConfirmarBloqueio] = useState<ParticipanteConversa | null>(null);
     const [aEnviarFoto, setAEnviarFoto] = useState(false);
     const [conversas, setConversas] = useState<Conversa[]>([]);
     const fotoInput = useRef<HTMLInputElement>(null);
@@ -592,6 +593,38 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                     <MediaDaConversaWeb conversaId={conversa.id} />
                 </div>
 
+                {/*
+                  * Bloquear e denunciar — só em conversas PRIVADAS.
+                  *
+                  * Num grupo, denunciar é do grupo e bloquear faz-se membro a
+                  * membro pela linha de cada um; misturar as duas coisas aqui
+                  * daria um botão que não se sabe sobre quem age.
+                  *
+                  * Nulos → não aparecem: é a regra da capacidade, e é o que
+                  * deixa os sites que não têm moderação exactamente como
+                  * estavam. Espelha o `ConversaInfoScreen` do `sdk:chat-ui`.
+                  */}
+                {!grupo && contraparteInfo && (aoBloquear || aoDenunciar) && (
+                    <div className="flex gap-2 border-0 border-t border-solid border-black/5 p-3">
+                        {aoDenunciar && (
+                            <button
+                                onClick={() => aoDenunciar(contraparteInfo)}
+                                className="flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-semibold text-red-600"
+                            >
+                                Denunciar
+                            </button>
+                        )}
+                        {aoBloquear && (
+                            <button
+                                onClick={() => setConfirmarBloqueio(contraparteInfo)}
+                                className="flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-bold text-red-600"
+                            >
+                                Bloquear
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 {grupo && (
                     <div className="flex gap-2 p-3">
                         {souAdmin && (
@@ -613,6 +646,28 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }: 
                         conversas={conversas}
                         contactos={contactos}
                         aoFechar={() => setAdicionar(false)}
+                    />
+                </div>
+            )}
+            {/*
+              * Bloquear confirma-se; denunciar não.
+              *
+              * Bloquear corta o contacto nos dois sentidos e a pessoa fica sem
+              * saber porque é que a conversa emudeceu — vale um passo a mais.
+              * Denunciar não tira nada a ninguém e abre a sua própria folha de
+              * motivos do lado do site.
+              */}
+            {confirmarBloqueio && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <ConfirmarDialogo
+                        titulo={`Bloquear ${confirmarBloqueio.nome}?`}
+                        descricao="Deixas de receber mensagens desta pessoa e ela deixa de te poder escrever."
+                        aoFechar={() => setConfirmarBloqueio(null)}
+                        botoes={[{
+                            rotulo: 'Bloquear',
+                            destrutivo: true,
+                            acao: () => { aoBloquear?.(confirmarBloqueio); setConfirmarBloqueio(null); },
+                        }]}
                     />
                 </div>
             )}

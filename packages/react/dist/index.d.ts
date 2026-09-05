@@ -16,6 +16,25 @@ interface MakaTema {
     textoSuave?: string;
     raio?: string;
     fonte?: string;
+    /**
+     * O fundo do botão flutuante que abre o chat.
+     *
+     * Aceita **qualquer** valor de `background` — uma cor, um gradiente, uma
+     * imagem. Por omissão é um gradiente tirado da própria `primaria`, para o
+     * botão ter vida sem cada app ter de escolher dois tons à mão.
+     *
+     * O gradiente vai do tom **claro para o escuro da marca**, e nunca de um tom
+     * pálido: um extremo lavado faz o ícone branco desaparecer nele. É a mesma
+     * regra que as apps nativas já seguem para os botões cheios.
+     */
+    lancadorFundo?: string;
+    /**
+     * A sombra do mesmo botão.
+     *
+     * Tingida com a cor da marca e não cinzenta — é isso, mais do que o
+     * gradiente, que faz um botão flutuante ler-se como vivo em vez de colado.
+     */
+    lancadorSombra?: string;
 }
 
 interface MakaChatContexto {
@@ -71,6 +90,21 @@ interface MakaChatContexto {
      * enquanto um assistente/bot está a responder. Sem prop → nunca bloqueia.
      */
     envioBloqueado?: (conversa: Conversa) => string | null;
+    /**
+     * Bloquear e denunciar a contraparte de uma conversa privada.
+     *
+     * **Nulos → as acções não aparecem**, que é a regra da capacidade da casa:
+     * uma operação que o backend não tem não é uma pergunta sem resposta. O SDK
+     * não conhece a API de serviço nenhum — o hub delega o veto ao conector de
+     * cada backend, e cada site liga o seu.
+     *
+     * Para as lojas isto não é um extra: uma app com conteúdo entre
+     * utilizadores tem de dar as duas (directriz 1.2 da App Store). O lado
+     * Kotlin (`ConversaInfoScreen` do `sdk:chat-ui`) já as tinha com estes
+     * nomes; estas são o espelho.
+     */
+    aoBloquear?: (participante: ParticipanteConversa) => void;
+    aoDenunciar?: (participante: ParticipanteConversa) => void;
 }
 interface MakaChatProviderProps {
     /** obrigatórios SEM <HongaHubProvider> por cima; com ele, herdam-se do hub */
@@ -101,9 +135,13 @@ interface MakaChatProviderProps {
     aoAlternarPresenca?: () => void | Promise<void>;
     /** desativa o envio numa conversa (motivo → placeholder) — ver {@link MakaChatContexto.envioBloqueado} */
     envioBloqueado?: (conversa: Conversa) => string | null;
+    /** ver {@link MakaChatContexto.aoBloquear} */
+    aoBloquear?: (participante: ParticipanteConversa) => void;
+    /** ver {@link MakaChatContexto.aoDenunciar} */
+    aoDenunciar?: (participante: ParticipanteConversa) => void;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;
@@ -218,6 +256,25 @@ interface DockApi {
 declare function useDock(): DockApi;
 /** Como useDock, mas devolve null fora do Dock (páginas sem sessão/provider). */
 declare function useDockOpcional(): DockApi | null;
+/**
+ * **A `@layer` do CSS do SDK tem de ficar DEPOIS da `base` do Tailwind.**
+ *
+ * As cores destes componentes vêm de classes (`text-[var(--maka-primaria-contraste)]`,
+ * `bg-[var(--maka-primaria)]`). Entre layers ganha a última e a especificidade
+ * não conta: com o CSS do SDK numa layer anterior à `base`, o
+ * `button { color: inherit; background-color: transparent }` do **preflight**
+ * passa-lhe por cima, e o resultado é o botão flutuante com o ícone **preto** e
+ * as barras das conversas minimizadas sem fundo. Não há erro nenhum — só fica
+ * feio, e num sítio onde ninguém procura a causa.
+ *
+ * A ordem certa, no `app.css` de quem integra:
+ *
+ * ```css
+ * @layer theme, base, components, makachat, utilities;
+ * @import 'tailwindcss';
+ * @import '@hongayetu/makachat-react/styles.css' layer(makachat);
+ * ```
+ */
 interface MakaChatDockProps {
     /** abre uma box automaticamente quando chega mensagem nova (default true) */
     autoAbrir?: boolean;
@@ -226,13 +283,24 @@ interface MakaChatDockProps {
     /** false = esconde launcher e boxes mantendo o contexto/estado (ex.: página onde já há BoxMin/BoxFull) */
     visivel?: boolean;
     maxBoxes?: number;
+    /**
+     * O ícone do botão flutuante.
+     *
+     * Por omissão é um balão **cheio** — a forma que a web inteira usa para um
+     * lançador de chat, e a única que se lê bem a 24 px sobre uma cor forte: um
+     * contorno fino sobre o gradiente fica lavado e parece um erro de carregamento.
+     *
+     * Cada app pode passar o seu (um `<Icon>` do Iconify, um SVG próprio, a sua
+     * marca). Isto é o padrão, não a regra.
+     */
+    icone?: React.ReactNode;
     children?: React.ReactNode;
 }
 /**
  * Boxes múltiplas fixas no canto inferior direito: launcher com não lidas e
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
-declare function MakaChatDock({ autoAbrir, visivel, maxBoxes, queryParam, children }: MakaChatDockProps): react_jsx_runtime.JSX.Element;
+declare function MakaChatDock({ autoAbrir, visivel, maxBoxes, queryParam, icone, children }: MakaChatDockProps): react_jsx_runtime.JSX.Element;
 
 /**
  * Notificações nativas do browser — permitem avisar o utilizador de mensagens

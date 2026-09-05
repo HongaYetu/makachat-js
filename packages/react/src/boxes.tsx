@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { useConversas, useSemLigacao, useVersaoChat } from './hooks';
 import { useMakaChat } from './provider';
 import { AvatarWeb, ConversaPainel, MakaChatConversas, useFecharFora } from './ui';
+import { v } from './tema';
 
 // ---------------------------------------------------------------- BoxFull / BoxMin
 
@@ -128,6 +129,25 @@ export function useDockOpcional(): DockApi | null {
     return useContext(DockCtx);
 }
 
+/**
+ * **A `@layer` do CSS do SDK tem de ficar DEPOIS da `base` do Tailwind.**
+ *
+ * As cores destes componentes vêm de classes (`text-[var(--maka-primaria-contraste)]`,
+ * `bg-[var(--maka-primaria)]`). Entre layers ganha a última e a especificidade
+ * não conta: com o CSS do SDK numa layer anterior à `base`, o
+ * `button { color: inherit; background-color: transparent }` do **preflight**
+ * passa-lhe por cima, e o resultado é o botão flutuante com o ícone **preto** e
+ * as barras das conversas minimizadas sem fundo. Não há erro nenhum — só fica
+ * feio, e num sítio onde ninguém procura a causa.
+ *
+ * A ordem certa, no `app.css` de quem integra:
+ *
+ * ```css
+ * @layer theme, base, components, makachat, utilities;
+ * @import 'tailwindcss';
+ * @import '@hongayetu/makachat-react/styles.css' layer(makachat);
+ * ```
+ */
 export interface MakaChatDockProps {
     /** abre uma box automaticamente quando chega mensagem nova (default true) */
     autoAbrir?: boolean;
@@ -136,6 +156,19 @@ export interface MakaChatDockProps {
     /** false = esconde launcher e boxes mantendo o contexto/estado (ex.: página onde já há BoxMin/BoxFull) */
     visivel?: boolean;
     maxBoxes?: number;
+
+    /**
+     * O ícone do botão flutuante.
+     *
+     * Por omissão é um balão **cheio** — a forma que a web inteira usa para um
+     * lançador de chat, e a única que se lê bem a 24 px sobre uma cor forte: um
+     * contorno fino sobre o gradiente fica lavado e parece um erro de carregamento.
+     *
+     * Cada app pode passar o seu (um `<Icon>` do Iconify, um SVG próprio, a sua
+     * marca). Isto é o padrão, não a regra.
+     */
+    icone?: React.ReactNode;
+
     children?: React.ReactNode;
 }
 
@@ -155,7 +188,7 @@ function boxesQueCabem(): number {
  * Boxes múltiplas fixas no canto inferior direito: launcher com não lidas e
  * conversas recentes; boxes lado a lado, minimizáveis. Convive com BoxMin.
  */
-export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryParam = false, children }: MakaChatDockProps) {
+export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryParam = false, icone, children }: MakaChatDockProps) {
     const { estaVisivel, engine } = useMakaChat();
     const conversas = useConversas();
     const versao = useVersaoChat();
@@ -303,9 +336,31 @@ export function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, q
                     )}
                     <button
                         onClick={() => setPopover(!popover)}
-                        className="relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-2xl text-[var(--maka-primaria-contraste)] shadow-xl transition-transform hover:scale-105 active:scale-95"
+                        aria-label="Mensagens"
+                        /*
+                         * O fundo e a sombra vêm de variáveis CSS e não de
+                         * classes: é assim que uma app lhes mexe sem bifurcar o
+                         * componente — pelo `tema` do provider, ou por CSS seu
+                         * sobre `--maka-lancador-*`.
+                         */
+                        style={{
+                            /*
+                             * A cor lisa vem **antes** do gradiente de propósito.
+                             *
+                             * O gradiente e a sombra usam `color-mix`, que um
+                             * browser antigo não conhece: aí a declaração
+                             * `background` é descartada inteira e o botão ficaria
+                             * **transparente** — invisível, sem erro nenhum, e a
+                             * única porta para o chat naquele site. Com a cor
+                             * lisa por baixo, o pior caso é o aspecto de antes.
+                             */
+                            backgroundColor: v.primaria,
+                            background: v.lancadorFundo,
+                            boxShadow: v.lancadorSombra,
+                        }}
+                        className="relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 text-2xl text-[var(--maka-primaria-contraste)] transition-transform hover:scale-105 active:scale-95"
                     >
-                        <Icon icon="tabler:message-circle" />
+                        {icone ?? <Icon icon="tabler:message-circle-filled" />}
                         {naoLidas > 0 && (
                             <span
                                 className="animate-maka-pulsar"

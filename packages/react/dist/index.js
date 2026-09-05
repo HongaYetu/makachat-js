@@ -12,6 +12,8 @@ import { HubApi, HubSocket, useHongaHubOpcional } from "@hongayetu/honga-hub-rea
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 // src/tema.ts
+var LANCADOR_FUNDO = "linear-gradient(140deg, color-mix(in oklab, var(--maka-primaria) 72%, white) 0%, var(--maka-primaria) 52%, color-mix(in oklab, var(--maka-primaria) 72%, black) 100%)";
+var LANCADOR_SOMBRA = "0 8px 20px -3px color-mix(in oklab, var(--maka-primaria) 70%, transparent), 0 18px 44px -10px color-mix(in oklab, var(--maka-primaria) 55%, transparent), inset 0 1px 0 color-mix(in oklab, white 45%, transparent)";
 var PADRAO = {
   primaria: "#4f46e5",
   primariaContraste: "#ffffff",
@@ -23,7 +25,9 @@ var PADRAO = {
   texto: "#0f172a",
   textoSuave: "#64748b",
   raio: "16px",
-  fonte: "inherit"
+  fonte: "inherit",
+  lancadorFundo: LANCADOR_FUNDO,
+  lancadorSombra: LANCADOR_SOMBRA
 };
 function cssVarsDoTema(tema) {
   const t = { ...PADRAO, ...tema };
@@ -38,9 +42,25 @@ function cssVarsDoTema(tema) {
     "--maka-texto": t.texto,
     "--maka-texto-suave": t.textoSuave,
     "--maka-raio": t.raio,
+    "--maka-lancador-fundo": t.lancadorFundo,
+    "--maka-lancador-sombra": t.lancadorSombra,
     fontFamily: t.fonte
   };
 }
+var v = {
+  primaria: "var(--maka-primaria)",
+  primariaContraste: "var(--maka-primaria-contraste)",
+  fundo: "var(--maka-fundo)",
+  superficie: "var(--maka-superficie)",
+  bolhaMinha: "var(--maka-bolha-minha)",
+  bolhaMinhaTexto: "var(--maka-bolha-minha-texto)",
+  bolhaOutro: "var(--maka-bolha-outro)",
+  texto: "var(--maka-texto)",
+  textoSuave: "var(--maka-texto-suave)",
+  raio: "var(--maka-raio)",
+  lancadorFundo: "var(--maka-lancador-fundo)",
+  lancadorSombra: "var(--maka-lancador-sombra)"
+};
 
 // src/notificacoes.ts
 function notificacoesSuportadas() {
@@ -207,7 +227,7 @@ function montarContexto(estado, serviceKey, identidade) {
     estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
   };
 }
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }) {
   const hub = useHongaHubOpcional();
   const [features, setFeatures] = useState([]);
   const [ligadoLocal, setLigadoLocal] = useState(false);
@@ -302,7 +322,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     },
     [aoAbrirReferencia]
   );
-  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = useContext(Contexto);
@@ -1412,13 +1432,14 @@ function pessoasConhecidas(conversas, contactos, excluir = /* @__PURE__ */ new S
   return [...mapa.values()].filter((p) => !excluir.has(`${p.tipo}:${p.id_externo}`));
 }
 function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) {
-  const { api, engine, contactos, aoVerPerfil } = useMakaChat();
+  const { api, engine, contactos, aoVerPerfil, aoBloquear, aoDenunciar } = useMakaChat();
   const podeCriarConversa = useFuncionalidadeAtiva("conversas.criar");
   const grupo = conversa.tipo === "grupo";
   const souAdmin = grupo && ["dono", "admin"].includes(eu.papel);
   const [nome, setNome] = useState5(conversa.titulo ?? "");
   const [adicionar, setAdicionar] = useState5(false);
   const [confirmarSair, setConfirmarSair] = useState5(false);
+  const [confirmarBloqueio, setConfirmarBloqueio] = useState5(null);
   const [aEnviarFoto, setAEnviarFoto] = useState5(false);
   const [conversas, setConversas] = useState5([]);
   const fotoInput = useRef4(null);
@@ -1530,6 +1551,24 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
         }),
         /* @__PURE__ */ jsx4(MediaDaConversaWeb, { conversaId: conversa.id })
       ] }),
+      !grupo && contraparteInfo && (aoBloquear || aoDenunciar) && /* @__PURE__ */ jsxs3("div", { className: "flex gap-2 border-0 border-t border-solid border-black/5 p-3", children: [
+        aoDenunciar && /* @__PURE__ */ jsx4(
+          "button",
+          {
+            onClick: () => aoDenunciar(contraparteInfo),
+            className: "flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-semibold text-red-600",
+            children: "Denunciar"
+          }
+        ),
+        aoBloquear && /* @__PURE__ */ jsx4(
+          "button",
+          {
+            onClick: () => setConfirmarBloqueio(contraparteInfo),
+            className: "flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-bold text-red-600",
+            children: "Bloquear"
+          }
+        )
+      ] }),
       grupo && /* @__PURE__ */ jsxs3("div", { className: "flex gap-2 p-3", children: [
         souAdmin && /* @__PURE__ */ jsx4("button", { onClick: () => setAdicionar(true), className: "flex-1 cursor-pointer rounded-full border-0 bg-[var(--maka-primaria)] py-2.5 text-sm font-bold text-[var(--maka-primaria-contraste)] shadow-sm", children: "Adicionar membros" }),
         /* @__PURE__ */ jsx4("button", { onClick: () => setConfirmarSair(true), className: "flex-1 cursor-pointer rounded-full border-0 bg-red-600/10 py-2.5 text-sm font-bold text-red-600", children: "Sair do grupo" })
@@ -1542,6 +1581,22 @@ function InfoConversa({ conversa, eu, aoFechar, aoAbrirOutraConversa, aoSaiu }) 
         conversas,
         contactos,
         aoFechar: () => setAdicionar(false)
+      }
+    ) }),
+    confirmarBloqueio && /* @__PURE__ */ jsx4("div", { onClick: (e) => e.stopPropagation(), children: /* @__PURE__ */ jsx4(
+      ConfirmarDialogo,
+      {
+        titulo: `Bloquear ${confirmarBloqueio.nome}?`,
+        descricao: "Deixas de receber mensagens desta pessoa e ela deixa de te poder escrever.",
+        aoFechar: () => setConfirmarBloqueio(null),
+        botoes: [{
+          rotulo: "Bloquear",
+          destrutivo: true,
+          acao: () => {
+            aoBloquear?.(confirmarBloqueio);
+            setConfirmarBloqueio(null);
+          }
+        }]
       }
     ) }),
     confirmarSair && /* @__PURE__ */ jsx4("div", { onClick: (e) => e.stopPropagation(), children: /* @__PURE__ */ jsx4(
@@ -2477,7 +2532,7 @@ function ConversaPainel({ conversaId, compacto = false, aoFechar, aoMinimizar, a
           const imagens = escolhidos.filter((f) => f.type.startsWith("image/"));
           const videos = escolhidos.filter((f) => !f.type.startsWith("image/"));
           if (imagens.length) setFotosPendentes((atuais) => [...atuais, ...imagens].slice(0, 10));
-          for (const v of videos) void enviarFicheiro(v);
+          for (const v2 of videos) void enviarFicheiro(v2);
           e.target.value = "";
         }
       }
@@ -3350,7 +3405,7 @@ function boxesQueCabem() {
   if (typeof window === "undefined") return 1;
   return Math.max(1, Math.floor((window.innerWidth - 96) / 348));
 }
-function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryParam = false, children }) {
+function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryParam = false, icone, children }) {
   const { estaVisivel, engine } = useMakaChat();
   const conversas = useConversas();
   const versao = useVersaoChat();
@@ -3475,9 +3530,25 @@ function MakaChatDock({ autoAbrir = true, visivel = true, maxBoxes = 3, queryPar
           "button",
           {
             onClick: () => setPopover(!popover),
-            className: "relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 bg-[var(--maka-primaria)] text-2xl text-[var(--maka-primaria-contraste)] shadow-xl transition-transform hover:scale-105 active:scale-95",
+            "aria-label": "Mensagens",
+            style: {
+              /*
+               * A cor lisa vem **antes** do gradiente de propósito.
+               *
+               * O gradiente e a sombra usam `color-mix`, que um
+               * browser antigo não conhece: aí a declaração
+               * `background` é descartada inteira e o botão ficaria
+               * **transparente** — invisível, sem erro nenhum, e a
+               * única porta para o chat naquele site. Com a cor
+               * lisa por baixo, o pior caso é o aspecto de antes.
+               */
+              backgroundColor: v.primaria,
+              background: v.lancadorFundo,
+              boxShadow: v.lancadorSombra
+            },
+            className: "relative grid h-14 w-14 cursor-pointer place-items-center rounded-full border-0 text-2xl text-[var(--maka-primaria-contraste)] transition-transform hover:scale-105 active:scale-95",
             children: [
-              /* @__PURE__ */ jsx5(Icon4, { icon: "tabler:message-circle" }),
+              icone ?? /* @__PURE__ */ jsx5(Icon4, { icon: "tabler:message-circle-filled" }),
               naoLidas > 0 && /* @__PURE__ */ jsx5(
                 "span",
                 {
