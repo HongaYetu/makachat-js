@@ -1,6 +1,6 @@
 import { registerRootComponent } from 'expo';
 
-// LiveKit precisa dos globals WebRTC antes de qualquer ligação (padrão EiConnect)
+// LiveKit precisa dos globals WebRTC antes de qualquer ligação (padrão do Honga Connect)
 try {
     const { registerGlobals } = require('@livekit/react-native');
     registerGlobals();

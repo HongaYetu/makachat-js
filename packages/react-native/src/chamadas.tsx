@@ -103,7 +103,7 @@ async function pararServicoChamada(): Promise<void> {
 }
 
 /**
- * Chamadas LiveKit no mobile (padrão EiConnect): registerGlobals à primeira
+ * Chamadas LiveKit no mobile (padrão do Honga Connect): registerGlobals à primeira
  * utilização, AudioSession communication, Room adaptiveStream/dynacast com
  * reconexão progressiva (90s), câmara pausa em background. Mesmas regras da
  * web: sem permissões a chamada não avança; falha → "Chamada falhada".
@@ -388,7 +388,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
         [suportado, livekit, lkClient, sincronizarTiles],
     );
 
-    // câmara pausa em background, micro continua (padrão EiConnect/WhatsApp)
+    // câmara pausa em background, micro continua (padrão do Honga Connect e do WhatsApp)
     useEffect(() => {
         const sub = AppState.addEventListener('change', (estado) => {
             const r = room.current;

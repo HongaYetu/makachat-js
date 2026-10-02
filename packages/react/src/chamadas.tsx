@@ -218,7 +218,7 @@ export function ChamadasProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const ligarSala = useCallback(async (token: string, wsUrl: string, video: boolean): Promise<boolean> => {
-        // padrão EiConnect: qualidade adapta-se ao tamanho em que o vídeo é
+        // padrão do Honga Connect: qualidade adapta-se ao tamanho em que o vídeo é
         // visualizado (adaptiveStream) e camadas não usadas pausam (dynacast)
         const r = new Room({
             adaptiveStream: true,
