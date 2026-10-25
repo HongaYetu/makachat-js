@@ -291,7 +291,7 @@ function montarContexto(estado, serviceKey, identidade) {
     estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
   };
 }
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo, children }) {
   const hub = (0, import_honga_hub_react.useHongaHubOpcional)();
   const [features, setFeatures] = (0, import_react.useState)([]);
   const [ligadoLocal, setLigadoLocal] = (0, import_react.useState)(false);
@@ -386,7 +386,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     },
     [aoAbrirReferencia]
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = (0, import_react.useContext)(Contexto);
@@ -2960,7 +2960,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                   ]
                 }
               ),
-              m.anexos.map((a) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AnexoView, { anexo: a, aoAbrirFoto }, a.id)),
+              m.anexos.map((a) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AnexoView, { anexo: a, mensagem: m, aoAbrirFoto }, a.id)),
               !m.eliminada && referencia && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CartaoReferencia, { referencia, minha, aoAbrir: abrirReferencia, mensagem: m, outros }),
               m.eliminada ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("em", { className: "flex items-center gap-1 opacity-60", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_react7.Icon, { icon: "tabler:ban" }),
@@ -3104,7 +3104,10 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
     ] })
   ] }) });
 }
-function AnexoView({ anexo: a, aoAbrirFoto }) {
+function AnexoView({ anexo: a, mensagem, aoAbrirFoto }) {
+  const { renderAnexo } = useMakaChat();
+  const daApp = renderAnexo?.(a, mensagem);
+  if (daApp) return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_jsx_runtime4.Fragment, { children: daApp });
   if (!a.url) return null;
   if (a.tipo === "foto")
     return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: a.url, className: "max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90", alt: "", onClick: () => aoAbrirFoto(a.url) });

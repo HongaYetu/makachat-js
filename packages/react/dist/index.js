@@ -227,7 +227,7 @@ function montarContexto(estado, serviceKey, identidade) {
     estaVisivel: (conversaId) => (estado.visiveis.get(conversaId) ?? 0) > 0
   };
 }
-function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }) {
+function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo, children }) {
   const hub = useHongaHubOpcional();
   const [features, setFeatures] = useState([]);
   const [ligadoLocal, setLigadoLocal] = useState(false);
@@ -322,7 +322,7 @@ function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, conta
     },
     [aoAbrirReferencia]
   );
-  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
+  return /* @__PURE__ */ jsx(Contexto.Provider, { value: { ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo }, children: /* @__PURE__ */ jsx("div", { style: { display: "contents", ...cssVarsDoTema(tema) }, children }) });
 }
 function useMakaChat() {
   const contexto = useContext(Contexto);
@@ -2896,7 +2896,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                   ]
                 }
               ),
-              m.anexos.map((a) => /* @__PURE__ */ jsx4(AnexoView, { anexo: a, aoAbrirFoto }, a.id)),
+              m.anexos.map((a) => /* @__PURE__ */ jsx4(AnexoView, { anexo: a, mensagem: m, aoAbrirFoto }, a.id)),
               !m.eliminada && referencia && /* @__PURE__ */ jsx4(CartaoReferencia, { referencia, minha, aoAbrir: abrirReferencia, mensagem: m, outros }),
               m.eliminada ? /* @__PURE__ */ jsxs3("em", { className: "flex items-center gap-1 opacity-60", children: [
                 /* @__PURE__ */ jsx4(Icon3, { icon: "tabler:ban" }),
@@ -3040,7 +3040,10 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
     ] })
   ] }) });
 }
-function AnexoView({ anexo: a, aoAbrirFoto }) {
+function AnexoView({ anexo: a, mensagem, aoAbrirFoto }) {
+  const { renderAnexo } = useMakaChat();
+  const daApp = renderAnexo?.(a, mensagem);
+  if (daApp) return /* @__PURE__ */ jsx4(Fragment2, { children: daApp });
   if (!a.url) return null;
   if (a.tipo === "foto")
     return /* @__PURE__ */ jsx4("img", { src: a.url, className: "max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90", alt: "", onClick: () => aoAbrirFoto(a.url) });

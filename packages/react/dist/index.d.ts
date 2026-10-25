@@ -1,4 +1,4 @@
-import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, Referencia, ContextoAberturaReferencia, ParticipanteConversa, Conversa, ObterToken, StorageAdapter, DadosEnvioMensagem, Anexo, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
+import { SyncEngine, MakaApi, MakaSocket, IdentidadeConfig, FlagFuncionalidade, Typing, Presenca, EventoChamada, Mensagem, AlvoParticipante, MetadadosPartilha, Referencia, ContextoAberturaReferencia, ParticipanteConversa, Conversa, Anexo, ObterToken, StorageAdapter, DadosEnvioMensagem, Funcionalidade, Chamada } from '@hongayetu/makachat-core';
 export * from '@hongayetu/makachat-core';
 import * as react_jsx_runtime from 'react/jsx-runtime';
 import React from 'react';
@@ -105,6 +105,12 @@ interface MakaChatContexto {
      */
     aoBloquear?: (participante: ParticipanteConversa) => void;
     aoDenunciar?: (participante: ParticipanteConversa) => void;
+    /**
+     * Desenha um anexo à maneira da app. Devolve `null`/`undefined` para ficar o desenho do SDK.
+     * Ex.: a Escola mostra o vídeo de ajuda do Agente Silva (`mensagem.metadados.video_ajuda`)
+     * no leitor da central de ajuda, em vez do `<video>` simples.
+     */
+    renderAnexo?: (anexo: Anexo, mensagem: Mensagem) => React.ReactNode;
 }
 interface MakaChatProviderProps {
     /** obrigatórios SEM <HongaHubProvider> por cima; com ele, herdam-se do hub */
@@ -139,9 +145,11 @@ interface MakaChatProviderProps {
     aoBloquear?: (participante: ParticipanteConversa) => void;
     /** ver {@link MakaChatContexto.aoDenunciar} */
     aoDenunciar?: (participante: ParticipanteConversa) => void;
+    /** ver {@link MakaChatContexto.renderAnexo} */
+    renderAnexo?: (anexo: Anexo, mensagem: Mensagem) => React.ReactNode;
     children: React.ReactNode;
 }
-declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
+declare function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo, children }: MakaChatProviderProps): react_jsx_runtime.JSX.Element;
 declare function useMakaChat(): MakaChatContexto;
 /** Como useMakaChat, mas devolve null fora do provider (layouts que montam sem sessão). */
 declare function useMakaChatOpcional(): MakaChatContexto | null;

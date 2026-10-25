@@ -1,5 +1,6 @@
 import {
     AlvoParticipante,
+    Anexo,
     Conversa,
     ContextoAberturaReferencia,
     Mensagem,
@@ -92,6 +93,12 @@ export interface MakaChatContexto {
      */
     aoBloquear?: (participante: ParticipanteConversa) => void;
     aoDenunciar?: (participante: ParticipanteConversa) => void;
+    /**
+     * Desenha um anexo à maneira da app. Devolve `null`/`undefined` para ficar o desenho do SDK.
+     * Ex.: a Escola mostra o vídeo de ajuda do Agente Silva (`mensagem.metadados.video_ajuda`)
+     * no leitor da central de ajuda, em vez do `<video>` simples.
+     */
+    renderAnexo?: (anexo: Anexo, mensagem: Mensagem) => React.ReactNode;
 }
 
 const Contexto = createContext<MakaChatContexto | null>(null);
@@ -129,6 +136,8 @@ export interface MakaChatProviderProps {
     aoBloquear?: (participante: ParticipanteConversa) => void;
     /** ver {@link MakaChatContexto.aoDenunciar} */
     aoDenunciar?: (participante: ParticipanteConversa) => void;
+    /** ver {@link MakaChatContexto.renderAnexo} */
+    renderAnexo?: (anexo: Anexo, mensagem: Mensagem) => React.ReactNode;
     children: React.ReactNode;
 }
 
@@ -266,7 +275,7 @@ function montarContexto(
     };
 }
 
-export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, children }: MakaChatProviderProps) {
+export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema, contactos, pesquisarContactos, obterOnline, notificacoesNativas = false, aoAbrirNotificacao, aoAbrirPartilha, aoAbrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo, children }: MakaChatProviderProps) {
     // HERANÇA: com um <HongaHubProvider> por cima, o chat reutiliza a ligação
     // global (socket/api/identidade/token do hub) — um único socket por app.
     // Sem hub, comportamento standalone clássico (cria a própria ligação no
@@ -417,7 +426,7 @@ export function MakaChatProvider({ serviceKey, identity, getToken, storage, tema
     );
 
     return (
-        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar }}>
+        <Contexto.Provider value={{ ...par.contexto, features, ligado, contactos: contactos ?? [], pesquisarContactos, obterOnline, aoAbrirPartilha, aoAbrirReferencia, abrirReferencia, aoVerPerfil, visibilidadePresenca, aoAlternarPresenca, envioBloqueado, aoBloquear, aoDenunciar, renderAnexo }}>
             <div style={{ display: 'contents', ...cssVarsDoTema(tema) }}>{children}</div>
         </Contexto.Provider>
     );

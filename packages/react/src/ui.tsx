@@ -2272,7 +2272,7 @@ function Bolha({ mensagem: m, minha, grupo, participantes, outros, acoes, todas,
                         {respondida ? (respondida.conteudo ?? '📎 anexo') : 'Ver mensagem original'}
                     </button>
                 )}
-                {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} aoAbrirFoto={aoAbrirFoto} />)}
+                {m.anexos.map((a) => <AnexoView key={a.id} anexo={a} mensagem={m} aoAbrirFoto={aoAbrirFoto} />)}
                 {!m.eliminada && referencia && (
                     <CartaoReferencia referencia={referencia} minha={minha} aoAbrir={abrirReferencia} mensagem={m} outros={outros} />
                 )}
@@ -2461,7 +2461,11 @@ function PreviewFotos({ ficheiros, aoRemover, aoAdicionarMais, aoFechar, aoEnvia
 
 // ---------------------------------------------------------------- anexos / escolher conversas / helpers
 
-function AnexoView({ anexo: a, aoAbrirFoto }: { anexo: Anexo; aoAbrirFoto(url: string): void }) {
+function AnexoView({ anexo: a, mensagem, aoAbrirFoto }: { anexo: Anexo; mensagem: Mensagem; aoAbrirFoto(url: string): void }) {
+    const { renderAnexo } = useMakaChat();
+    const daApp = renderAnexo?.(a, mensagem);
+    if (daApp) return <>{daApp}</>;
+
     if (!a.url) return null;
     if (a.tipo === 'foto')
         return <img src={a.url} className="max-w-[240px] cursor-pointer rounded-xl transition-opacity hover:opacity-90" alt="" onClick={() => aoAbrirFoto(a.url as string)} />;
