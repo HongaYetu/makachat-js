@@ -1,6 +1,6 @@
 {
     "name": "@hongayetu/makachat-react",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "MakaChat para React web: provider e hooks (sem storage persistente — a fonte é o servidor)",
     "license": "UNLICENSED",
     "repository": {
